@@ -49,6 +49,7 @@
   },
   "dependencies": {
     "connect": "^3.7.0",
+    "serve-static": "^2.2.0",
     "@mapbox/vector-tile": "^3.0.0",
     "cesium": "^1.124.0",
     "egm96-universal": "^1.1.1",
