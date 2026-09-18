@@ -1,4 +1,4 @@
-@media (max-width: 720px) {
+@media (max-width: 1024px) {
   :root {
     --mobile-safe-top: max(12px, env(safe-area-inset-top));
     --mobile-safe-bottom: max(10px, env(safe-area-inset-bottom));

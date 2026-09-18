@@ -6,6 +6,7 @@ import {
   collapsePanelOnEscape,
   createHoverDisclosure,
 } from './panelDisclosure.js';
+import { MOBILE_LAYOUT_MEDIA_QUERY } from './layoutBreakpoints.js';
 const SHARE_PANEL_STATE_SPECS = Object.freeze([
   { id: 'control-panel', pinnable: true },
   { id: 'location-bar', pinnable: true },
@@ -26,7 +27,7 @@ const COCKPIT_ENTRY_COLLAPSE_PANEL_IDS = Object.freeze([
   'global-context-panel',
   'radio-panel',
 ]);
-const MOBILE_NAV_QUERY = '(max-width: 720px)';
+const MOBILE_NAV_QUERY = MOBILE_LAYOUT_MEDIA_QUERY;
 const MOBILE_STANDARD_PANEL_BY_KEY = Object.freeze({
   layers: 'data-panel',
   scenes: 'scene-panel',
@@ -315,7 +316,7 @@ export class PanelChrome {
     const isMobileViewport =
       typeof this._isMobileViewport === 'function'
         ? this._isMobileViewport()
-        : globalThis.matchMedia?.('(max-width: 720px)')?.matches === true;
+        : globalThis.matchMedia?.(MOBILE_NAV_QUERY)?.matches === true;
     const isRightRail = [
       'pp-toggles',
       'cctv-panel',
@@ -439,7 +440,7 @@ export class PanelChrome {
     const isMobileViewport =
       typeof this._isMobileViewport === 'function'
         ? this._isMobileViewport()
-        : globalThis.matchMedia?.('(max-width: 720px)')?.matches === true;
+        : globalThis.matchMedia?.(MOBILE_NAV_QUERY)?.matches === true;
     const setMobilePanelKey =
       typeof this._setMobilePanelKey === 'function'
         ? (value) => this._setMobilePanelKey(value)
@@ -665,7 +666,7 @@ export class PanelChrome {
   }
 
   _isMobileViewport() {
-    return globalThis.matchMedia?.('(max-width: 720px)')?.matches === true;
+    return globalThis.matchMedia?.(MOBILE_NAV_QUERY)?.matches === true;
   }
 
   _setMobilePanelKey(key) {
@@ -804,7 +805,7 @@ export class PanelChrome {
 
   _initMobileNavigation() {
     if (this._mobileNavCleanup) return;
-    const mediaQuery = globalThis.matchMedia?.('(max-width: 720px)');
+    const mediaQuery = globalThis.matchMedia?.(MOBILE_NAV_QUERY);
     const buttons = [...(this._mobileNavButtons || [])];
     if (!mediaQuery || !buttons.length) return;
     const removers = [];
