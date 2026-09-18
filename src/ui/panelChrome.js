@@ -69,6 +69,12 @@ export class PanelChrome {
     this._lifetime = new UiLifetime();
     this._cockpitPanelRestore = null;
     this._cockpitContextCollapsedForDataPanel = false;
+    this._mobileStandardPanelByKey = {
+      layers: 'data-panel',
+      scenes: 'scene-panel',
+      cctv: 'cctv-panel',
+      context: 'global-context-panel',
+    };
     this._mobileNavCleanup = null;
     this._syncingMobilePanels = false;
     this._panelPosition = new PanelPositionControls({
@@ -299,12 +305,15 @@ export class PanelChrome {
   }
 
   _syncPanelCollapseButton(panelEl) {
+    const mobilePanelIds = Object.values(
+      this._mobileStandardPanelByKey || MOBILE_STANDARD_PANEL_BY_KEY,
+    );
     const isRightRail = [
       'pp-toggles',
       'cctv-panel',
       'global-context-panel',
     ].includes(panelEl?.id);
-    const isMobilePrimaryPanel = MOBILE_STANDARD_PANEL_IDS.includes(panelEl?.id);
+    const isMobilePrimaryPanel = mobilePanelIds.includes(panelEl?.id);
     const collapsed = panelEl.classList.contains('collapsed');
     panelEl
       .querySelectorAll('.panel-collapse-btn[data-collapse-target]')
@@ -409,6 +418,13 @@ export class PanelChrome {
       syncShare = true,
     } = {},
   ) {
+    const mobilePanelIds = Object.values(
+      this._mobileStandardPanelByKey || MOBILE_STANDARD_PANEL_BY_KEY,
+    );
+    const mobilePanelKeyById = Object.fromEntries(
+      Object.entries(this._mobileStandardPanelByKey || MOBILE_STANDARD_PANEL_BY_KEY)
+        .map(([key, id]) => [id, key]),
+    );
     if (panelId === 'control-panel' && collapsed)
       this._cancelMapSourceFocus?.();
     const panelEl = document.getElementById(panelId);
@@ -518,13 +534,13 @@ export class PanelChrome {
     if (
       this._isMobileViewport() &&
       !this._syncingMobilePanels &&
-      MOBILE_STANDARD_PANEL_IDS.includes(panelId)
+      mobilePanelIds.includes(panelId)
     ) {
-      const key = MOBILE_PANEL_KEY_BY_ID[panelId] || null;
+      const key = mobilePanelKeyById[panelId] || null;
       if (!nextCollapsed) {
         this._syncingMobilePanels = true;
         try {
-          for (const otherId of MOBILE_STANDARD_PANEL_IDS) {
+          for (const otherId of mobilePanelIds) {
             if (otherId === panelId) continue;
             const otherPanel = document.getElementById(otherId);
             if (!otherPanel || otherPanel.classList.contains('collapsed'))
@@ -637,6 +653,9 @@ export class PanelChrome {
 
   _toggleMobilePanel(key) {
     if (!this._isMobileViewport()) return;
+    const mobilePanelByKey =
+      this._mobileStandardPanelByKey || MOBILE_STANDARD_PANEL_BY_KEY;
+    const mobilePanelIds = Object.values(mobilePanelByKey);
     const current = document.body.dataset.mobilePanel || null;
     if (current === key) {
       if (key === 'controls') {
@@ -644,7 +663,7 @@ export class PanelChrome {
         this._syncMobileNavigationState();
         return;
       }
-      const panelId = MOBILE_STANDARD_PANEL_BY_KEY[key];
+      const panelId = mobilePanelByKey[key];
       if (panelId) {
         this.setPanelCollapsed(panelId, true, {
           explicit: true,
@@ -655,7 +674,7 @@ export class PanelChrome {
     if (key === 'controls') {
       this._syncingMobilePanels = true;
       try {
-        for (const panelId of MOBILE_STANDARD_PANEL_IDS) {
+      for (const panelId of mobilePanelIds) {
           const panel = document.getElementById(panelId);
           if (!panel || panel.classList.contains('collapsed')) continue;
           this.setPanelCollapsed(panelId, true, {
@@ -669,7 +688,7 @@ export class PanelChrome {
       this._syncMobileNavigationState();
       return;
     }
-    const panelId = MOBILE_STANDARD_PANEL_BY_KEY[key];
+    const panelId = mobilePanelByKey[key];
     if (!panelId) return;
     this.setPanelCollapsed(panelId, false, {
       explicit: true,
@@ -677,6 +696,9 @@ export class PanelChrome {
   }
 
   _syncMobileNavigationState({ normalize = false } = {}) {
+    const mobilePanelByKey =
+      this._mobileStandardPanelByKey || MOBILE_STANDARD_PANEL_BY_KEY;
+    const mobileKeys = Object.keys(mobilePanelByKey);
     const buttons = [...(this._mobileNavButtons || [])];
     if (!buttons.length) return;
     if (!this._isMobileViewport()) {
@@ -689,15 +711,15 @@ export class PanelChrome {
     }
     if (normalize && !this._syncingMobilePanels) {
       const activeBodyPanel = document.body.dataset.mobilePanel || null;
-      const expandedPanels = MOBILE_STANDARD_KEYS.filter((key) => {
-        const panel = document.getElementById(MOBILE_STANDARD_PANEL_BY_KEY[key]);
+      const expandedPanels = mobileKeys.filter((key) => {
+        const panel = document.getElementById(mobilePanelByKey[key]);
         return panel && !panel.classList.contains('collapsed');
       });
       if (activeBodyPanel === 'controls' && expandedPanels.length) {
         this._syncingMobilePanels = true;
         try {
           for (const key of expandedPanels) {
-            this.setPanelCollapsed(MOBILE_STANDARD_PANEL_BY_KEY[key], true, {
+            this.setPanelCollapsed(mobilePanelByKey[key], true, {
               persist: false,
               syncShare: false,
             });
@@ -714,7 +736,7 @@ export class PanelChrome {
         try {
           for (const key of expandedPanels) {
             if (key === keepKey) continue;
-            this.setPanelCollapsed(MOBILE_STANDARD_PANEL_BY_KEY[key], true, {
+            this.setPanelCollapsed(mobilePanelByKey[key], true, {
               persist: false,
               syncShare: false,
             });
@@ -727,15 +749,15 @@ export class PanelChrome {
     let activeKey = document.body.dataset.mobilePanel || null;
     if (activeKey && activeKey !== 'controls') {
       const activePanel = document.getElementById(
-        MOBILE_STANDARD_PANEL_BY_KEY[activeKey],
+        mobilePanelByKey[activeKey],
       );
       if (!activePanel || activePanel.classList.contains('collapsed'))
         activeKey = null;
     }
     if (!activeKey) {
       activeKey =
-        MOBILE_STANDARD_KEYS.find((key) => {
-          const panel = document.getElementById(MOBILE_STANDARD_PANEL_BY_KEY[key]);
+        mobileKeys.find((key) => {
+          const panel = document.getElementById(mobilePanelByKey[key]);
           return panel && !panel.classList.contains('collapsed');
         }) || null;
       this._setMobilePanelKey(activeKey);
