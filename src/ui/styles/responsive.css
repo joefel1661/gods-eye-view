@@ -170,31 +170,11 @@
     width: auto;
   }
 
-  #left-panel-stack {
-    top: 70px;
-    right: 16px;
-    bottom: calc(50vh + 8px);
-    left: 16px;
-    width: auto;
-    max-height: none;
-    overflow-y: auto;
-  }
-
+  #left-panel-stack,
   #right-context-rail {
-    top: calc(50vh + 8px);
-    right: 16px;
-    /* The rail goes edge-to-edge at this width, so its floor is what decides
-       whether the required Google/Cesium credit line survives. The credit's
-       top edge sits at calc(2vh + 5rem) plus its own 28px, so a flat 100px
-       floor cut into it at EVERY viewport height — the DISPLAY toggles were
-       drawn straight over the notice. Track the credit's own anchor instead
-       and the 12px of clear air holds regardless of height; the rail already
-       scrolls (overflow-y below), so it loses reach, not content. */
-    bottom: calc(2vh + 7.5rem);
-    left: 16px;
     width: auto;
     max-height: none;
-    overflow-y: auto;
+    overflow: visible;
   }
 
   #right-context-rail > #pp-toggles {

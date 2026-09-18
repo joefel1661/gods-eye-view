@@ -305,9 +305,17 @@ export class PanelChrome {
   }
 
   _syncPanelCollapseButton(panelEl) {
-    const mobilePanelIds = Object.values(
-      this._mobileStandardPanelByKey || MOBILE_STANDARD_PANEL_BY_KEY,
-    );
+    const mobilePanelByKey = this._mobileStandardPanelByKey || {
+      layers: 'data-panel',
+      scenes: 'scene-panel',
+      cctv: 'cctv-panel',
+      context: 'global-context-panel',
+    };
+    const mobilePanelIds = Object.values(mobilePanelByKey);
+    const isMobileViewport =
+      typeof this._isMobileViewport === 'function'
+        ? this._isMobileViewport()
+        : globalThis.matchMedia?.('(max-width: 720px)')?.matches === true;
     const isRightRail = [
       'pp-toggles',
       'cctv-panel',
@@ -320,7 +328,7 @@ export class PanelChrome {
       .forEach((btn) => {
         const owner = btn.closest('[data-panel-id], #param-slider-panel');
         if (owner !== panelEl) return;
-        if (this._isMobileViewport() && isMobilePrimaryPanel) {
+        if (isMobileViewport && isMobilePrimaryPanel) {
           btn.textContent = collapsed ? '+' : '×';
         } else if (isRightRail) {
           btn.textContent = collapsed ? '◀' : '▶';
@@ -363,7 +371,7 @@ export class PanelChrome {
     if (panelEl.id === 'radio-panel' || panelEl.id === 'global-context-panel') {
       this._syncContextRadioLauncherState();
     }
-    this._syncMobileNavigationState();
+    this._syncMobileNavigationState?.();
   }
 
   _buildSharePanelState() {
@@ -418,13 +426,28 @@ export class PanelChrome {
       syncShare = true,
     } = {},
   ) {
-    const mobilePanelIds = Object.values(
-      this._mobileStandardPanelByKey || MOBILE_STANDARD_PANEL_BY_KEY,
-    );
+    const mobilePanelByKey = this._mobileStandardPanelByKey || {
+      layers: 'data-panel',
+      scenes: 'scene-panel',
+      cctv: 'cctv-panel',
+      context: 'global-context-panel',
+    };
+    const mobilePanelIds = Object.values(mobilePanelByKey);
     const mobilePanelKeyById = Object.fromEntries(
-      Object.entries(this._mobileStandardPanelByKey || MOBILE_STANDARD_PANEL_BY_KEY)
-        .map(([key, id]) => [id, key]),
+      Object.entries(mobilePanelByKey).map(([key, id]) => [id, key]),
     );
+    const isMobileViewport =
+      typeof this._isMobileViewport === 'function'
+        ? this._isMobileViewport()
+        : globalThis.matchMedia?.('(max-width: 720px)')?.matches === true;
+    const setMobilePanelKey =
+      typeof this._setMobilePanelKey === 'function'
+        ? (value) => this._setMobilePanelKey(value)
+        : (value) => {
+            if (value) document.body.dataset.mobilePanel = value;
+            else delete document.body.dataset.mobilePanel;
+            document.body.classList.toggle('mobile-panel-open', Boolean(value));
+          };
     if (panelId === 'control-panel' && collapsed)
       this._cancelMapSourceFocus?.();
     const panelEl = document.getElementById(panelId);
@@ -532,7 +555,7 @@ export class PanelChrome {
     }
     panelEl.classList.toggle('collapsed', nextCollapsed);
     if (
-      this._isMobileViewport() &&
+      isMobileViewport &&
       !this._syncingMobilePanels &&
       mobilePanelIds.includes(panelId)
     ) {
@@ -554,9 +577,9 @@ export class PanelChrome {
         } finally {
           this._syncingMobilePanels = false;
         }
-        this._setMobilePanelKey(key);
+        setMobilePanelKey(key);
       } else if (document.body.dataset.mobilePanel === key) {
-        this._setMobilePanelKey(null);
+        setMobilePanelKey(null);
       }
     }
     if (
@@ -585,7 +608,7 @@ export class PanelChrome {
       reconsiderAutoCollapse: this._leftPanelStack?.contains(panelEl) === true,
     });
     if (syncShare) this.shareLinkManager?.onPanelStateChange?.();
-    this._syncMobileNavigationState();
+    this._syncMobileNavigationState?.();
   }
 
   _layoutRightPanels() {
@@ -642,7 +665,7 @@ export class PanelChrome {
   }
 
   _isMobileViewport() {
-    return globalThis.matchMedia?.(MOBILE_NAV_QUERY)?.matches === true;
+    return globalThis.matchMedia?.('(max-width: 720px)')?.matches === true;
   }
 
   _setMobilePanelKey(key) {
@@ -653,8 +676,12 @@ export class PanelChrome {
 
   _toggleMobilePanel(key) {
     if (!this._isMobileViewport()) return;
-    const mobilePanelByKey =
-      this._mobileStandardPanelByKey || MOBILE_STANDARD_PANEL_BY_KEY;
+    const mobilePanelByKey = this._mobileStandardPanelByKey || {
+      layers: 'data-panel',
+      scenes: 'scene-panel',
+      cctv: 'cctv-panel',
+      context: 'global-context-panel',
+    };
     const mobilePanelIds = Object.values(mobilePanelByKey);
     const current = document.body.dataset.mobilePanel || null;
     if (current === key) {
@@ -696,8 +723,12 @@ export class PanelChrome {
   }
 
   _syncMobileNavigationState({ normalize = false } = {}) {
-    const mobilePanelByKey =
-      this._mobileStandardPanelByKey || MOBILE_STANDARD_PANEL_BY_KEY;
+    const mobilePanelByKey = this._mobileStandardPanelByKey || {
+      layers: 'data-panel',
+      scenes: 'scene-panel',
+      cctv: 'cctv-panel',
+      context: 'global-context-panel',
+    };
     const mobileKeys = Object.keys(mobilePanelByKey);
     const buttons = [...(this._mobileNavButtons || [])];
     if (!buttons.length) return;
@@ -773,7 +804,7 @@ export class PanelChrome {
 
   _initMobileNavigation() {
     if (this._mobileNavCleanup) return;
-    const mediaQuery = globalThis.matchMedia?.(MOBILE_NAV_QUERY);
+    const mediaQuery = globalThis.matchMedia?.('(max-width: 720px)');
     const buttons = [...(this._mobileNavButtons || [])];
     if (!mediaQuery || !buttons.length) return;
     const removers = [];

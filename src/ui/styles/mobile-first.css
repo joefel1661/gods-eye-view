@@ -124,13 +124,26 @@
     box-shadow: 0 0 18px rgba(0, 212, 255, 0.14);
   }
 
-  #left-panel-stack,
-  #right-context-rail {
+  #left-panel-stack {
     position: fixed;
-    inset: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     z-index: 155;
     width: 100%;
-    height: 0;
+    max-height: none;
+    pointer-events: none;
+  }
+
+  #right-context-rail {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: calc(2vh + 7.5rem);
+    left: 0;
+    z-index: 155;
+    width: 100%;
     max-height: none;
     pointer-events: none;
   }
@@ -140,6 +153,7 @@
   #cctv-panel,
   #global-context-panel {
     position: fixed !important;
+    top: auto !important;
     right: var(--mobile-panel-side-gap);
     bottom: var(--mobile-panel-bottom);
     left: var(--mobile-panel-side-gap);
@@ -162,6 +176,8 @@
   #scene-panel:not(.collapsed),
   #cctv-panel:not(.collapsed),
   #global-context-panel:not(.collapsed) {
+    height: auto !important;
+    max-height: var(--mobile-panel-max-height) !important;
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
@@ -169,16 +185,34 @@
     transition-delay: 0s;
   }
 
+  #left-panel-stack > #data-panel:not(.collapsed),
+  #left-panel-stack > #scene-panel:not(.collapsed),
+  #right-context-rail > #cctv-panel:not(.collapsed),
+  #right-context-rail > #global-context-panel:not(.collapsed) {
+    height: auto !important;
+    max-height: var(--mobile-panel-max-height) !important;
+    flex: 0 0 auto;
+  }
+
   #data-panel .data-panel-inner,
   #scene-panel .scene-panel-inner,
   #cctv-panel .cctv-panel-inner,
   #global-context-panel .global-context-panel-inner {
     width: 100%;
-    height: 100%;
+    height: auto;
     max-height: var(--mobile-panel-max-height);
     border-radius: 28px 28px 18px 18px;
     padding: 14px 14px 16px;
     overflow: hidden;
+  }
+
+  #left-panel-stack > #data-panel:not(.collapsed) .data-panel-inner,
+  #left-panel-stack > #scene-panel:not(.collapsed) .scene-panel-inner,
+  #right-context-rail > #cctv-panel:not(.collapsed) .cctv-panel-inner,
+  #right-context-rail > #global-context-panel:not(.collapsed)
+    .global-context-panel-inner {
+    height: auto;
+    max-height: var(--mobile-panel-max-height);
   }
 
   #data-panel .data-panel-inner,
@@ -196,6 +230,14 @@
   #military-awareness-panel {
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+  }
+
+  #data-panel .data-toggle-list,
+  #scene-panel .scene-shot-list,
+  #cctv-panel .cctv-panel-inner,
+  #global-context-panel .global-context-panel-inner {
+    min-height: 0;
+    overflow-y: auto;
   }
 
   #scene-panel .scene-shot-list {
@@ -250,9 +292,12 @@
   }
 
   #command-dock {
-    position: static;
-    inset: auto;
-    z-index: auto;
+    position: fixed;
+    top: auto;
+    right: var(--mobile-panel-side-gap);
+    bottom: 8px;
+    left: var(--mobile-panel-side-gap);
+    z-index: 155;
     width: auto;
     max-width: none;
     min-height: 0;
@@ -262,7 +307,7 @@
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    transform: none !important;
+    transform: none;
     pointer-events: none;
   }
 
@@ -308,15 +353,6 @@
 
   #command-dock > #gev-voice-control .gev-mic-label {
     display: none;
-  }
-
-  body[data-mobile-panel='controls'] #command-dock {
-    position: fixed;
-    right: var(--mobile-panel-side-gap);
-    bottom: var(--mobile-panel-bottom);
-    left: var(--mobile-panel-side-gap);
-    z-index: 155;
-    max-height: var(--mobile-panel-max-height);
   }
 
   body[data-mobile-panel='controls'] #command-dock {
@@ -476,22 +512,14 @@
   }
 
   body[data-mobile-panel='controls'] #command-dock .dock-popover-content {
-    position: relative;
-    right: auto !important;
-    bottom: auto !important;
-    left: auto !important;
-    width: auto !important;
-    margin: 0;
-    padding: 0;
     visibility: visible;
     opacity: 1;
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
     pointer-events: auto;
-    transform: none;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock #location-bar .dock-popover-content,
+  body[data-mobile-panel='controls'] #command-dock #control-panel .dock-popover-content {
+    width: auto;
   }
 
   body[data-mobile-panel='controls'] #command-dock .dock-popover-content::after {
@@ -542,7 +570,7 @@
   }
 
   #cesium-credits {
-    bottom: calc(var(--mobile-safe-bottom) + var(--mobile-nav-height) + 18px);
+    bottom: calc(var(--mobile-safe-bottom) + var(--mobile-nav-height) + 30px);
     left: 12px;
     z-index: 166;
     max-width: calc(100vw - 96px);
@@ -568,6 +596,25 @@
   body.cockpit-mode #command-dock > #control-panel,
   body.cockpit-mode #command-dock > #gev-voice-control {
     display: none !important;
+  }
+
+  #command-dock .dock-popover-content {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: auto;
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transform: none;
   }
 }
 
