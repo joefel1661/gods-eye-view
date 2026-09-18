@@ -1,0 +1,636 @@
+@media (max-width: 720px) {
+  :root {
+    --mobile-safe-top: max(12px, env(safe-area-inset-top));
+    --mobile-safe-bottom: max(10px, env(safe-area-inset-bottom));
+    --mobile-nav-height: 76px;
+    --mobile-nav-gap: 10px;
+    --mobile-panel-side-gap: 12px;
+    --mobile-panel-bottom: calc(
+      var(--mobile-safe-bottom) + var(--mobile-nav-height) + var(--mobile-nav-gap)
+    );
+    --mobile-panel-max-height: calc(
+      100dvh - var(--mobile-safe-top) - var(--mobile-panel-bottom) - 56px
+    );
+  }
+
+  html,
+  body,
+  #cesiumContainer {
+    width: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  body {
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+
+  #title-bar {
+    top: var(--mobile-safe-top);
+    left: 14px;
+    max-width: calc(100vw - 140px);
+  }
+
+  #title-bar .title-glow,
+  #title-bar .subtitle,
+  #style-indicator {
+    display: none;
+  }
+
+  #title-bar h1 {
+    gap: 8px;
+    font-size: 13px;
+    letter-spacing: 2.6px;
+  }
+
+  #title-bar .title-logo {
+    width: 30px;
+  }
+
+  #top-center-actions {
+    top: var(--mobile-safe-top);
+    right: 12px;
+    gap: 6px;
+  }
+
+  #top-center-actions button {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+  }
+
+  #traffic-sync-chip,
+  #cctv-sync-chip,
+  #location-bar.collapsed .location-mini-status,
+  #context-radio-dock,
+  #right-context-rail > #pp-toggles.collapsed,
+  #right-context-rail > #cctv-panel.collapsed,
+  #right-context-rail > #global-context-panel.collapsed,
+  #left-panel-stack > [data-panel-id].collapsed {
+    display: none !important;
+  }
+
+  #mobile-bottom-nav {
+    position: fixed;
+    right: 12px;
+    bottom: calc(var(--mobile-safe-bottom) - 2px);
+    left: 12px;
+    z-index: 165;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px 10px calc(var(--mobile-safe-bottom) + 8px);
+    background: rgba(7, 18, 27, 0.92);
+    border: 1px solid rgba(123, 189, 211, 0.24);
+    border-radius: 22px;
+    box-shadow:
+      0 14px 40px rgba(0, 0, 0, 0.52),
+      0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+    backdrop-filter: blur(28px) saturate(1.35);
+    -webkit-backdrop-filter: blur(28px) saturate(1.35);
+  }
+
+  .mobile-nav-btn {
+    min-width: 0;
+    min-height: 56px;
+    display: grid;
+    place-items: center;
+    gap: 4px;
+    padding: 8px 4px 6px;
+    color: rgba(214, 241, 247, 0.74);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 16px;
+    font: 500 10px/1 var(--font-sans);
+    letter-spacing: 0.25px;
+    text-align: center;
+  }
+
+  .mobile-nav-btn .material-symbols-outlined {
+    font-size: 20px;
+  }
+
+  .mobile-nav-btn[aria-pressed='true'] {
+    color: #fff;
+    background: linear-gradient(
+      180deg,
+      rgba(0, 212, 255, 0.22),
+      rgba(0, 212, 255, 0.08)
+    );
+    border-color: rgba(0, 212, 255, 0.42);
+    box-shadow: 0 0 18px rgba(0, 212, 255, 0.14);
+  }
+
+  #left-panel-stack {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 155;
+    width: 100%;
+    max-height: none;
+    pointer-events: none;
+  }
+
+  #right-context-rail {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: calc(2vh + 7.5rem);
+    left: 0;
+    z-index: 155;
+    width: 100%;
+    max-height: none;
+    pointer-events: none;
+  }
+
+  #data-panel,
+  #scene-panel,
+  #cctv-panel,
+  #global-context-panel {
+    position: fixed !important;
+    top: auto !important;
+    right: var(--mobile-panel-side-gap);
+    bottom: var(--mobile-panel-bottom);
+    left: var(--mobile-panel-side-gap);
+    z-index: 155;
+    width: auto !important;
+    max-width: none;
+    max-height: var(--mobile-panel-max-height);
+    margin: 0;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(calc(100% + 32px));
+    transition:
+      opacity 180ms ease,
+      visibility 0s linear 180ms,
+      transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  #data-panel:not(.collapsed),
+  #scene-panel:not(.collapsed),
+  #cctv-panel:not(.collapsed),
+  #global-context-panel:not(.collapsed) {
+    height: auto !important;
+    max-height: var(--mobile-panel-max-height) !important;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+    transition-delay: 0s;
+  }
+
+  #left-panel-stack > #data-panel:not(.collapsed),
+  #left-panel-stack > #scene-panel:not(.collapsed),
+  #right-context-rail > #cctv-panel:not(.collapsed),
+  #right-context-rail > #global-context-panel:not(.collapsed) {
+    height: auto !important;
+    max-height: var(--mobile-panel-max-height) !important;
+    flex: 0 0 auto;
+  }
+
+  #data-panel .data-panel-inner,
+  #scene-panel .scene-panel-inner,
+  #cctv-panel .cctv-panel-inner,
+  #global-context-panel .global-context-panel-inner {
+    width: 100%;
+    height: auto;
+    max-height: var(--mobile-panel-max-height);
+    border-radius: 28px 28px 18px 18px;
+    padding: 14px 14px 16px;
+    overflow: hidden;
+  }
+
+  #left-panel-stack > #data-panel:not(.collapsed) .data-panel-inner,
+  #left-panel-stack > #scene-panel:not(.collapsed) .scene-panel-inner,
+  #right-context-rail > #cctv-panel:not(.collapsed) .cctv-panel-inner,
+  #right-context-rail > #global-context-panel:not(.collapsed)
+    .global-context-panel-inner {
+    height: auto;
+    max-height: var(--mobile-panel-max-height);
+  }
+
+  #data-panel .data-panel-inner,
+  #scene-panel .scene-panel-inner,
+  #cctv-panel .cctv-panel-inner {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #data-panel .data-toggle-list,
+  #scene-panel .scene-shot-list,
+  #cctv-panel .cctv-panel-inner,
+  #global-context-panel .global-context-panel-inner,
+  #radio-panel .radio-panel-inner,
+  #military-awareness-panel {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #data-panel .data-toggle-list,
+  #scene-panel .scene-shot-list,
+  #cctv-panel .cctv-panel-inner,
+  #global-context-panel .global-context-panel-inner {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  #scene-panel .scene-shot-list {
+    max-height: none;
+  }
+
+  #global-context-panel .global-context-panel-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  #global-context-panel .context-mode-view[hidden] {
+    display: none !important;
+  }
+
+  #global-context-panel #radio-panel {
+    margin-top: 0;
+    padding-top: 12px;
+  }
+
+  :is(#data-panel, #scene-panel, #cctv-panel, #global-context-panel)
+    .panel-header::before,
+  #mobile-command-sheet-header .mobile-sheet-handle {
+    content: '';
+    width: 46px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(201, 230, 236, 0.28);
+    display: block;
+    margin: 0 auto 10px;
+  }
+
+  :is(#data-panel, #scene-panel, #cctv-panel, #global-context-panel) .panel-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    margin-bottom: 10px;
+    padding-bottom: 2px;
+    background: linear-gradient(
+      180deg,
+      rgba(12, 12, 20, 0.96) 0%,
+      rgba(12, 12, 20, 0.78) 100%
+    );
+  }
+
+  :is(#data-panel, #scene-panel, #cctv-panel, #global-context-panel) .panel-collapse-btn {
+    min-width: 36px;
+    min-height: 36px;
+    border-radius: 12px;
+    font-size: 18px;
+  }
+
+  #command-dock {
+    position: fixed;
+    top: auto;
+    right: var(--mobile-panel-side-gap);
+    bottom: 8px;
+    left: var(--mobile-panel-side-gap);
+    z-index: 155;
+    width: auto;
+    max-width: none;
+    min-height: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transform: none;
+    pointer-events: none;
+  }
+
+  #mobile-command-sheet-header {
+    display: none;
+  }
+
+  #command-dock > #location-bar,
+  #command-dock > #control-panel {
+    display: none;
+  }
+
+  #command-dock > #gev-voice-control {
+    position: fixed;
+    right: 12px;
+    bottom: calc(var(--mobile-panel-bottom) + 2px);
+    z-index: 160;
+    width: 58px;
+    min-width: 58px;
+    height: 58px;
+    min-height: 58px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    border-radius: 50%;
+    pointer-events: auto;
+  }
+
+  #command-dock > #gev-voice-control .gev-voice-heading,
+  #command-dock > #gev-voice-control .gev-voice-visualizer,
+  #command-dock > #gev-voice-control .gev-voice-readout,
+  #command-dock > #gev-voice-control .gev-voice-help-tray {
+    display: none;
+  }
+
+  #command-dock > #gev-voice-control #gev-voice-button {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+  }
+
+  #command-dock > #gev-voice-control .gev-mic-label {
+    display: none;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 0 14px;
+    overflow-y: auto;
+    background: rgba(8, 20, 30, 0.96);
+    border: 1px solid rgba(123, 189, 211, 0.28);
+    border-radius: 28px 28px 18px 18px;
+    box-shadow:
+      0 18px 42px rgba(0, 0, 0, 0.58),
+      0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+      0 0 22px rgba(0, 212, 255, 0.06);
+    pointer-events: auto;
+  }
+
+  body[data-mobile-panel='controls'] #mobile-command-sheet-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px 0;
+    background: linear-gradient(
+      180deg,
+      rgba(8, 20, 30, 0.98) 0%,
+      rgba(8, 20, 30, 0.82) 100%
+    );
+  }
+
+  #mobile-command-sheet-header .mobile-sheet-header-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  #mobile-command-sheet-header strong,
+  #mobile-command-sheet-header span:last-child {
+    display: block;
+    font-family: var(--font-mono);
+  }
+
+  #mobile-command-sheet-header strong {
+    font-size: 12px;
+    letter-spacing: 1.6px;
+  }
+
+  #mobile-command-sheet-header span:last-child {
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 9px;
+    letter-spacing: 0.8px;
+  }
+
+  #mobile-command-sheet-close {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock > #location-bar,
+  body[data-mobile-panel='controls'] #command-dock > #control-panel {
+    display: block;
+    flex: 0 0 auto;
+    width: auto;
+    border: 0;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: auto;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    margin: 0 14px;
+    padding: 12px 14px;
+    gap: 10px;
+    border-radius: 18px;
+  }
+
+  #command-dock > #gev-voice-control:not([data-status='idle']) {
+    position: fixed;
+    right: 12px;
+    bottom: calc(var(--mobile-panel-bottom) + 2px);
+    left: 12px;
+    width: auto;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    padding: 12px 14px;
+    gap: 10px;
+    border-radius: 18px;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control .gev-voice-heading,
+  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control .gev-voice-readout,
+  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control .gev-voice-help-tray,
+  #command-dock > #gev-voice-control:not([data-status='idle']) .gev-voice-heading,
+  #command-dock > #gev-voice-control:not([data-status='idle']) .gev-voice-readout {
+    display: block;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control .gev-voice-visualizer,
+  #command-dock > #gev-voice-control:not([data-status='idle']) .gev-voice-visualizer {
+    display: flex;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control #gev-voice-button,
+  #command-dock > #gev-voice-control:not([data-status='idle']) #gev-voice-button {
+    width: 72px;
+    height: 40px;
+    border-radius: 14px;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control .gev-mic-label,
+  #command-dock > #gev-voice-control:not([data-status='idle']) .gev-mic-label {
+    display: inline;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .location-inner,
+  body[data-mobile-panel='controls'] #command-dock .panel-inner {
+    padding: 0 14px;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .location-toolbar,
+  body[data-mobile-panel='controls'] #command-dock .panel-header {
+    margin: 0 0 8px;
+    padding: 0;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .panel-title,
+  body[data-mobile-panel='controls'] #command-dock .location-toolbar-label {
+    font-size: 10px;
+    letter-spacing: 1.4px;
+    color: #d8f9ff;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .panel-title::after,
+  body[data-mobile-panel='controls'] #command-dock .location-toolbar-label::after,
+  body[data-mobile-panel='controls'] #command-dock .panel-collapse-btn,
+  body[data-mobile-panel='controls'] #command-dock .dock-pin-btn,
+  body[data-mobile-panel='controls'] #command-dock .panel-mini-status,
+  body[data-mobile-panel='controls'] #command-dock .location-mini-status {
+    display: none !important;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .dock-popover-content {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock #location-bar .dock-popover-content,
+  body[data-mobile-panel='controls'] #command-dock #control-panel .dock-popover-content {
+    width: auto;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .dock-popover-content::after {
+    display: none;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .button-grid,
+  body[data-mobile-panel='controls'] #command-dock .location-city-row,
+  body[data-mobile-panel='controls'] #command-dock .poi-row-container.expanded,
+  body[data-mobile-panel='controls'] #command-dock .poi-row-container {
+    display: flex !important;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .button-grid,
+  body[data-mobile-panel='controls'] #command-dock .location-city-row,
+  body[data-mobile-panel='controls'] #command-dock .poi-row-container {
+    flex-wrap: wrap;
+    gap: 8px;
+    overflow: visible;
+    max-height: none;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .location-search-wrap {
+    order: -1;
+    flex: 1 1 100%;
+    padding-right: 0;
+    border-right: 0;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock #location-search,
+  body[data-mobile-panel='controls'] #command-dock #location-search.expanded {
+    width: 100%;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .style-btn,
+  body[data-mobile-panel='controls'] #command-dock .location-pill,
+  body[data-mobile-panel='controls'] #command-dock .poi-pill {
+    min-height: 44px;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .style-btn {
+    flex: 1 1 calc(33.333% - 8px);
+    min-width: calc(33.333% - 8px);
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .map-source-section {
+    margin-top: 10px;
+  }
+
+  #cesium-credits {
+    bottom: calc(var(--mobile-safe-bottom) + var(--mobile-nav-height) + 30px);
+    left: 12px;
+    z-index: 166;
+    max-width: calc(100vw - 96px);
+    font-size: 9px;
+  }
+
+  #toast {
+    bottom: calc(var(--mobile-panel-bottom) + 12px);
+  }
+
+  #scene-runtime {
+    top: calc(var(--mobile-safe-top) + 44px);
+    max-width: calc(100vw - 24px);
+  }
+
+  body.mobile-panel-open #clean-view-exit,
+  body.mobile-panel-open #global-loading-status {
+    bottom: calc(var(--mobile-panel-bottom) + 12px);
+  }
+
+  body.cockpit-mode #mobile-bottom-nav,
+  body.cockpit-mode #command-dock > #location-bar,
+  body.cockpit-mode #command-dock > #control-panel,
+  body.cockpit-mode #command-dock > #gev-voice-control {
+    display: none !important;
+  }
+
+  #command-dock .dock-popover-content {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: auto;
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transform: none;
+  }
+}
+
+@media (max-width: 480px) {
+  #mobile-bottom-nav {
+    gap: 6px;
+    padding-inline: 8px;
+  }
+
+  .mobile-nav-btn {
+    min-height: 54px;
+    font-size: 9px;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .style-btn {
+    flex-basis: calc(50% - 8px);
+    min-width: calc(50% - 8px);
+  }
+}

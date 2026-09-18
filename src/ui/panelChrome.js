@@ -26,6 +26,24 @@ const COCKPIT_ENTRY_COLLAPSE_PANEL_IDS = Object.freeze([
   'global-context-panel',
   'radio-panel',
 ]);
+const MOBILE_NAV_QUERY = '(max-width: 720px)';
+const MOBILE_STANDARD_PANEL_BY_KEY = Object.freeze({
+  layers: 'data-panel',
+  scenes: 'scene-panel',
+  cctv: 'cctv-panel',
+  context: 'global-context-panel',
+});
+const MOBILE_STANDARD_KEYS = Object.freeze(
+  Object.keys(MOBILE_STANDARD_PANEL_BY_KEY),
+);
+const MOBILE_STANDARD_PANEL_IDS = Object.freeze(
+  Object.values(MOBILE_STANDARD_PANEL_BY_KEY),
+);
+const MOBILE_PANEL_KEY_BY_ID = Object.freeze(
+  Object.fromEntries(
+    Object.entries(MOBILE_STANDARD_PANEL_BY_KEY).map(([key, id]) => [id, key]),
+  ),
+);
 
 /** Own panel disclosure, docking, persistence and Cockpit rail restoration. */
 export class PanelChrome {
@@ -51,6 +69,14 @@ export class PanelChrome {
     this._lifetime = new UiLifetime();
     this._cockpitPanelRestore = null;
     this._cockpitContextCollapsedForDataPanel = false;
+    this._mobileStandardPanelByKey = {
+      layers: 'data-panel',
+      scenes: 'scene-panel',
+      cctv: 'cctv-panel',
+      context: 'global-context-panel',
+    };
+    this._mobileNavCleanup = null;
+    this._syncingMobilePanels = false;
     this._panelPosition = new PanelPositionControls({
       syncPanelCollapseButton: (panel) => this._syncPanelCollapseButton(panel),
       layoutRightPanels: () => this._layoutRightPanels(),
@@ -138,6 +164,7 @@ export class PanelChrome {
     });
     this._initCommandDockPins();
     this._initCommandDockTrayMetrics();
+    this._initMobileNavigation();
     this._maybeNotifyLayoutReset();
   }
 
@@ -278,18 +305,32 @@ export class PanelChrome {
   }
 
   _syncPanelCollapseButton(panelEl) {
+    const mobilePanelByKey = this._mobileStandardPanelByKey || {
+      layers: 'data-panel',
+      scenes: 'scene-panel',
+      cctv: 'cctv-panel',
+      context: 'global-context-panel',
+    };
+    const mobilePanelIds = Object.values(mobilePanelByKey);
+    const isMobileViewport =
+      typeof this._isMobileViewport === 'function'
+        ? this._isMobileViewport()
+        : globalThis.matchMedia?.('(max-width: 720px)')?.matches === true;
     const isRightRail = [
       'pp-toggles',
       'cctv-panel',
       'global-context-panel',
     ].includes(panelEl?.id);
+    const isMobilePrimaryPanel = mobilePanelIds.includes(panelEl?.id);
     const collapsed = panelEl.classList.contains('collapsed');
     panelEl
       .querySelectorAll('.panel-collapse-btn[data-collapse-target]')
       .forEach((btn) => {
         const owner = btn.closest('[data-panel-id], #param-slider-panel');
         if (owner !== panelEl) return;
-        if (isRightRail) {
+        if (isMobileViewport && isMobilePrimaryPanel) {
+          btn.textContent = collapsed ? '+' : '×';
+        } else if (isRightRail) {
           btn.textContent = collapsed ? '◀' : '▶';
         } else {
           btn.textContent = collapsed ? '+' : '−';
@@ -330,6 +371,7 @@ export class PanelChrome {
     if (panelEl.id === 'radio-panel' || panelEl.id === 'global-context-panel') {
       this._syncContextRadioLauncherState();
     }
+    this._syncMobileNavigationState?.();
   }
 
   _buildSharePanelState() {
@@ -384,6 +426,28 @@ export class PanelChrome {
       syncShare = true,
     } = {},
   ) {
+    const mobilePanelByKey = this._mobileStandardPanelByKey || {
+      layers: 'data-panel',
+      scenes: 'scene-panel',
+      cctv: 'cctv-panel',
+      context: 'global-context-panel',
+    };
+    const mobilePanelIds = Object.values(mobilePanelByKey);
+    const mobilePanelKeyById = Object.fromEntries(
+      Object.entries(mobilePanelByKey).map(([key, id]) => [id, key]),
+    );
+    const isMobileViewport =
+      typeof this._isMobileViewport === 'function'
+        ? this._isMobileViewport()
+        : globalThis.matchMedia?.('(max-width: 720px)')?.matches === true;
+    const setMobilePanelKey =
+      typeof this._setMobilePanelKey === 'function'
+        ? (value) => this._setMobilePanelKey(value)
+        : (value) => {
+            if (value) document.body.dataset.mobilePanel = value;
+            else delete document.body.dataset.mobilePanel;
+            document.body.classList.toggle('mobile-panel-open', Boolean(value));
+          };
     if (panelId === 'control-panel' && collapsed)
       this._cancelMapSourceFocus?.();
     const panelEl = document.getElementById(panelId);
@@ -491,6 +555,34 @@ export class PanelChrome {
     }
     panelEl.classList.toggle('collapsed', nextCollapsed);
     if (
+      isMobileViewport &&
+      !this._syncingMobilePanels &&
+      mobilePanelIds.includes(panelId)
+    ) {
+      const key = mobilePanelKeyById[panelId] || null;
+      if (!nextCollapsed) {
+        this._syncingMobilePanels = true;
+        try {
+          for (const otherId of mobilePanelIds) {
+            if (otherId === panelId) continue;
+            const otherPanel = document.getElementById(otherId);
+            if (!otherPanel || otherPanel.classList.contains('collapsed'))
+              continue;
+            this.setPanelCollapsed(otherId, true, {
+              restore,
+              persist,
+              syncShare,
+            });
+          }
+        } finally {
+          this._syncingMobilePanels = false;
+        }
+        setMobilePanelKey(key);
+      } else if (document.body.dataset.mobilePanel === key) {
+        setMobilePanelKey(null);
+      }
+    }
+    if (
       nextCollapsed &&
       this.cockpitView?.active &&
       panelId === 'data-panel' &&
@@ -516,6 +608,7 @@ export class PanelChrome {
       reconsiderAutoCollapse: this._leftPanelStack?.contains(panelEl) === true,
     });
     if (syncShare) this.shareLinkManager?.onPanelStateChange?.();
+    this._syncMobileNavigationState?.();
   }
 
   _layoutRightPanels() {
@@ -540,6 +633,7 @@ export class PanelChrome {
         syncShare: false,
       });
     }
+    this._setMobilePanelKey(null);
     this.cockpitView?.setContextCollapsed(false);
     this.cockpitView?.setSignalCollapsed(false, { user: true });
   }
@@ -567,5 +661,172 @@ export class PanelChrome {
     this._hoverPanelControls?.forEach((control) => control.destroy());
     this._hoverPanelControls?.clear();
     this._cancelMapSourceFocus?.();
+    this._mobileNavCleanup?.();
+  }
+
+  _isMobileViewport() {
+    return globalThis.matchMedia?.('(max-width: 720px)')?.matches === true;
+  }
+
+  _setMobilePanelKey(key) {
+    if (key) document.body.dataset.mobilePanel = key;
+    else delete document.body.dataset.mobilePanel;
+    document.body.classList.toggle('mobile-panel-open', Boolean(key));
+  }
+
+  _toggleMobilePanel(key) {
+    if (!this._isMobileViewport()) return;
+    const mobilePanelByKey = this._mobileStandardPanelByKey || {
+      layers: 'data-panel',
+      scenes: 'scene-panel',
+      cctv: 'cctv-panel',
+      context: 'global-context-panel',
+    };
+    const mobilePanelIds = Object.values(mobilePanelByKey);
+    const current = document.body.dataset.mobilePanel || null;
+    if (current === key) {
+      if (key === 'controls') {
+        this._setMobilePanelKey(null);
+        this._syncMobileNavigationState();
+        return;
+      }
+      const panelId = mobilePanelByKey[key];
+      if (panelId) {
+        this.setPanelCollapsed(panelId, true, {
+          explicit: true,
+        });
+      }
+      return;
+    }
+    if (key === 'controls') {
+      this._syncingMobilePanels = true;
+      try {
+      for (const panelId of mobilePanelIds) {
+          const panel = document.getElementById(panelId);
+          if (!panel || panel.classList.contains('collapsed')) continue;
+          this.setPanelCollapsed(panelId, true, {
+            explicit: true,
+          });
+        }
+      } finally {
+        this._syncingMobilePanels = false;
+      }
+      this._setMobilePanelKey('controls');
+      this._syncMobileNavigationState();
+      return;
+    }
+    const panelId = mobilePanelByKey[key];
+    if (!panelId) return;
+    this.setPanelCollapsed(panelId, false, {
+      explicit: true,
+    });
+  }
+
+  _syncMobileNavigationState({ normalize = false } = {}) {
+    const mobilePanelByKey = this._mobileStandardPanelByKey || {
+      layers: 'data-panel',
+      scenes: 'scene-panel',
+      cctv: 'cctv-panel',
+      context: 'global-context-panel',
+    };
+    const mobileKeys = Object.keys(mobilePanelByKey);
+    const buttons = [...(this._mobileNavButtons || [])];
+    if (!buttons.length) return;
+    if (!this._isMobileViewport()) {
+      this._setMobilePanelKey(null);
+      buttons.forEach((button) => {
+        button.setAttribute('aria-pressed', 'false');
+        button.classList.remove('is-active');
+      });
+      return;
+    }
+    if (normalize && !this._syncingMobilePanels) {
+      const activeBodyPanel = document.body.dataset.mobilePanel || null;
+      const expandedPanels = mobileKeys.filter((key) => {
+        const panel = document.getElementById(mobilePanelByKey[key]);
+        return panel && !panel.classList.contains('collapsed');
+      });
+      if (activeBodyPanel === 'controls' && expandedPanels.length) {
+        this._syncingMobilePanels = true;
+        try {
+          for (const key of expandedPanels) {
+            this.setPanelCollapsed(mobilePanelByKey[key], true, {
+              persist: false,
+              syncShare: false,
+            });
+          }
+        } finally {
+          this._syncingMobilePanels = false;
+        }
+      } else if (expandedPanels.length > 1) {
+        const keepKey =
+          activeBodyPanel && activeBodyPanel !== 'controls'
+            ? activeBodyPanel
+            : expandedPanels[0];
+        this._syncingMobilePanels = true;
+        try {
+          for (const key of expandedPanels) {
+            if (key === keepKey) continue;
+            this.setPanelCollapsed(mobilePanelByKey[key], true, {
+              persist: false,
+              syncShare: false,
+            });
+          }
+        } finally {
+          this._syncingMobilePanels = false;
+        }
+      }
+    }
+    let activeKey = document.body.dataset.mobilePanel || null;
+    if (activeKey && activeKey !== 'controls') {
+      const activePanel = document.getElementById(
+        mobilePanelByKey[activeKey],
+      );
+      if (!activePanel || activePanel.classList.contains('collapsed'))
+        activeKey = null;
+    }
+    if (!activeKey) {
+      activeKey =
+        mobileKeys.find((key) => {
+          const panel = document.getElementById(mobilePanelByKey[key]);
+          return panel && !panel.classList.contains('collapsed');
+        }) || null;
+      this._setMobilePanelKey(activeKey);
+    } else {
+      this._setMobilePanelKey(activeKey);
+    }
+    buttons.forEach((button) => {
+      const pressed = button.dataset.mobilePanel === activeKey;
+      button.setAttribute('aria-pressed', String(pressed));
+      button.classList.toggle('is-active', pressed);
+    });
+  }
+
+  _initMobileNavigation() {
+    if (this._mobileNavCleanup) return;
+    const mediaQuery = globalThis.matchMedia?.('(max-width: 720px)');
+    const buttons = [...(this._mobileNavButtons || [])];
+    if (!mediaQuery || !buttons.length) return;
+    const removers = [];
+    for (const button of buttons) {
+      const onClick = () => this._toggleMobilePanel(button.dataset.mobilePanel);
+      button.addEventListener('click', onClick);
+      removers.push(() => button.removeEventListener('click', onClick));
+    }
+    if (this._mobileCommandSheetCloseBtn) {
+      const onClose = () => this._toggleMobilePanel('controls');
+      this._mobileCommandSheetCloseBtn.addEventListener('click', onClose);
+      removers.push(() =>
+        this._mobileCommandSheetCloseBtn.removeEventListener('click', onClose),
+      );
+    }
+    const onChange = () => this._syncMobileNavigationState({ normalize: true });
+    mediaQuery.addEventListener('change', onChange);
+    removers.push(() => mediaQuery.removeEventListener('change', onChange));
+    this._mobileNavCleanup = () => {
+      for (const remove of removers.splice(0)) remove();
+      this._mobileNavCleanup = null;
+    };
+    this._syncMobileNavigationState({ normalize: true });
   }
 }
