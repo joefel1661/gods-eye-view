@@ -242,9 +242,9 @@ test('Cockpit owns a focused shared Display portal and compact Radio controls', 
   assert.match(css, /#top-center-actions\s*\{[\s\S]*?left:\s*50%;[\s\S]*?display:\s*flex;[\s\S]*?transform:\s*translateX\(-50%\)/);
   assert.match(
     css,
-    /@media \(max-width: 720px\)\s*\{[\s\S]*?#top-center-actions\s*\{[\s\S]*?right:\s*16px;[\s\S]*?left:\s*auto;[\s\S]*?transform:\s*none;/,
+    /@media \(max-width: 1024px\)\s*\{[\s\S]*?#top-center-actions\s*\{[\s\S]*?right:\s*16px;[\s\S]*?left:\s*auto;[\s\S]*?transform:\s*none;/,
   );
-  assert.match(css, /@media \(max-width: 720px\)\s*\{[\s\S]*?#style-indicator\s*\{\s*display:\s*none;/);
+  assert.match(css, /@media \(max-width: 1024px\)\s*\{[\s\S]*?#style-indicator\s*\{\s*display:\s*none;/);
   assert.match(
     css,
     /@media \(max-width: 520px\)\s*\{[\s\S]*?#title-bar h1 > span:last-child,[\s\S]*?#title-bar \.subtitle\s*\{\s*display:\s*none;/,

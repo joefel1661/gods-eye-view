@@ -1,5 +1,5 @@
 /* ── Responsive ───────────────────────────────── */
-@media (max-width: 720px) {
+@media (max-width: 1024px) {
   #pp-toggles {
     --pp-expanded-width: 176px;
     position: relative;

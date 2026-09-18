@@ -6,6 +6,7 @@ import {
   resolveHudRailLayout,
   shouldHideCollapsedRightPanels,
 } from './panelRailGeometry.js';
+import { MOBILE_LAYOUT_MEDIA_QUERY } from './layoutBreakpoints.js';
 
 /**
  * Measure and place the right panel rail for one synchronous layout pass.
@@ -52,7 +53,7 @@ export function layoutRightPanelRail({
       onCollapse(panel);
     }
   }
-  const isMobile = windowRef.matchMedia('(max-width: 720px)').matches;
+  const isMobile = windowRef.matchMedia(MOBILE_LAYOUT_MEDIA_QUERY).matches;
   const hasExpandedPanel = panels.some(
     (panel) =>
       !panel.classList.contains('collapsed') &&

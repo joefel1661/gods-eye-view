@@ -324,7 +324,25 @@ function toPx(value, viewportHeight, where) {
   return total;
 }
 
-const WIDTHS = [1440, 1024, 980, 900, 830, 800, 760, 721, 720, 700, 640, 600, 480, 375];
+const MOBILE_LAYOUT_MAX_WIDTH = 1024;
+const WIDTHS = [
+  1440,
+  1280,
+  1100,
+  1025,
+  1024,
+  980,
+  900,
+  883,
+  830,
+  800,
+  760,
+  700,
+  640,
+  600,
+  480,
+  375,
+];
 const HEIGHTS = [500, 560, 640, 700, 800, 900, 1000, 1080, 1200, 1440, 1600];
 
 const CREDIT_SELECTORS = ['#cesium-credits', 'body:not(.ui-clean-view):not(.recording-mode) #cesium-credits'];
@@ -410,7 +428,7 @@ test('the model refuses every cascade construct it cannot resolve', () => {
         // dock/credit constants. Two exemptions, each earned by a test below:
         // the rail's own max-height (resolved to `none` across the whole
         // modelled band by the rail clearance test) and `.layout-focus`
-        // (proven inapplicable at <=720px by the mobile-mode test).
+        // (proven inapplicable at <=1024px by the mobile-mode test).
         const railOwn = part === '#right-context-rail' && decl.prop === 'max-height';
         const railFocus = part === '#right-context-rail.layout-focus';
         if (!railOwn && !railFocus) complaints.push(`${decl.prop}: ${decl.value} on "${part}"`);
@@ -478,13 +496,16 @@ test('the inputs behind the measured constants are unchanged', () => {
 
 test('the full-width rail cannot inherit a height that overrides its floor', () => {
   // `#right-context-rail.layout-focus { height: … }` is a base rule with more
-  // specificity than the <=720px floor, and height + top + bottom is
+  // specificity than the <=1024px floor, and height + top + bottom is
   // over-constrained. It is safe only because the rail's layout pass switches
   // to a mobile mode at the SAME breakpoint and removes both the class and the
   // custom property. Pin that, or the exemption above is unearned.
   const rail = fs.readFileSync(path.join(ROOT, 'src', 'ui', 'rightPanelRail.js'), 'utf8');
-  const gate = rail.indexOf("windowRef.matchMedia('(max-width: 720px)')");
-  assert.ok(gate > 0, 'the rail layout pass no longer keys off (max-width: 720px)');
+  const gate = rail.indexOf("windowRef.matchMedia(MOBILE_LAYOUT_MEDIA_QUERY)");
+  assert.ok(
+    gate > 0,
+    'the rail layout pass no longer keys off MOBILE_LAYOUT_MEDIA_QUERY',
+  );
   const mobileBranch = rail.slice(gate, rail.indexOf("layoutMode = 'mobile'", gate) + 40);
   assert.match(mobileBranch, /stack\.classList\.remove\('layout-focus'\)/);
   assert.match(mobileBranch, /stack\.style\.removeProperty\('--right-stack-max-height'\)/);
@@ -496,7 +517,7 @@ test('every open dock tray clears the required credit at every modelled viewport
   // Below 900px the tray widens to nearly the viewport and lands on the
   // bottom-left corner where the credit lives. The clearance is NOT one fixed
   // number: the dock is anchored at 2vh down to 721px and re-anchors to a flat
-  // 8px at 720px, while the credit keeps its 2vh base throughout.
+  // 8px at 1024px, while the credit keeps its 2vh base throughout.
   const failures = [];
   for (const scenario of TRAY_SCENARIOS) {
     for (const width of WIDTHS.filter((w) => w <= 900)) {
@@ -515,7 +536,7 @@ test('a pinned tray still stacks above its sibling at narrow widths', () => {
   // The stock two-pinned selector carries one ID against five classes, so the
   // ordinary narrow rule (two IDs) outranks it and the upper tray silently
   // drops var(--dock-lower-pinned-height), landing on top of the lower one.
-  for (const width of [1440, 900, 800, 720, 700, 600]) {
+  for (const width of [1440, 1100, 1024, 900, 883, 700, 600]) {
     for (const scenario of TRAY_SCENARIOS) {
       if (!scenario.stackVar) continue;
       const resolved = resolve(scenario.offset, 'bottom', width, scenario.name);
@@ -536,10 +557,14 @@ test('the full-width context rail clears the required credit at every modelled v
     }
   }
   assert.equal(anchors.length, 1, 'the rail has exactly one bottom anchor to reason about');
-  assert.equal(parseMediaCondition(anchors[0].rule.media[0]), 720, 'the rail only goes full-width below 720px');
+  assert.equal(
+    parseMediaCondition(anchors[0].rule.media[0]),
+    MOBILE_LAYOUT_MAX_WIDTH,
+    'the rail only goes full-width below the mobile-layout breakpoint',
+  );
 
   const failures = [];
-  for (const width of WIDTHS.filter((w) => w <= 720)) {
+  for (const width of WIDTHS.filter((w) => w <= MOBILE_LAYOUT_MAX_WIDTH)) {
     // `bottom` only governs the floor while the box is not height-capped:
     // top + bottom + a resolved height is over-constrained and drops `bottom`.
     assert.equal(
@@ -556,13 +581,16 @@ test('the full-width context rail clears the required credit at every modelled v
   assert.deepEqual(failures, [], `context rail re-enters the credit band at ${failures.join(', ')}`);
 });
 
-test('the dock anchor changes at 720px — the 2vh cancellation is band-limited', () => {
-  assert.equal(resolve(['#command-dock'], 'bottom', 800, 'dock').decl.value, '2vh');
-  assert.equal(resolve(['#command-dock'], 'bottom', 720, 'dock').decl.value, '8px');
+test('the dock anchor changes at 1024px and keeps an explicit credit offset', () => {
+  assert.equal(resolve(['#command-dock'], 'bottom', 1100, 'dock').decl.value, '2vh');
   assert.equal(
-    resolve(CREDIT_SELECTORS, 'bottom', 720, 'credit').decl.value,
-    'calc(2vh + 5rem)',
-    'the credit keeps its 2vh base below 720px — that asymmetry is the whole hazard',
+    resolve(['#command-dock'], 'bottom', MOBILE_LAYOUT_MAX_WIDTH, 'dock').decl.value,
+    '8px',
+  );
+  assert.equal(
+    resolve(CREDIT_SELECTORS, 'bottom', MOBILE_LAYOUT_MAX_WIDTH, 'credit').decl.value,
+    '0.75rem',
+    'the credit remains explicitly offset at the mobile-layout breakpoint',
   );
 });
 
