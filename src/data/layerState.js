@@ -268,6 +268,12 @@ const OPTION_GROUPS = Object.freeze({
         /^\d{1,3}$/.test(value) ? normalizeVolume(Number(value) / 100) : null,
     }),
   ]),
+  'security-points': Object.freeze([
+    booleanOption('police', 'p', true),
+    booleanOption('fireEms', 'f', true),
+    booleanOption('hospitals', 'h', true),
+    booleanOption('airports', 'a', true),
+  ]),
 });
 
 const TRACKING_OPTION_KEY_BY_LAYER = Object.freeze({
@@ -376,6 +382,12 @@ export const LAYER_STATE_REGISTRY = Object.freeze([
     token: 's',
     disposition: 'enabled+options',
     optionOwner: 'satellites',
+  }),
+  Object.freeze({
+    id: 'security-points',
+    token: 'y',
+    disposition: 'enabled+options',
+    optionOwner: 'security-points',
   }),
   Object.freeze({
     id: 'telegeography-submarine-cables',

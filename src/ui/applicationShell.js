@@ -90,6 +90,7 @@ export class StyleManager {
       OrbitController,
       CelestialRing,
       initTrackedReadout,
+      initSecurityPointCard,
       initWorldOverlay,
       initDetection,
       setDetectionStyle,
@@ -589,6 +590,7 @@ export class StyleManager {
       },
     );
     initTrackedReadout(viewer);
+    initSecurityPointCard();
     setDetectionStyle(this.activeStyle);
     this._applyDetectionDensityFromUi();
 
@@ -3756,7 +3758,7 @@ export class StyleManager {
    * @returns {Promise<void>} Resolves after focused-session state restoration.
    */
   async dispose() {
-    const { destroyTrackedReadout, destroyWorldOverlay, destroyDetection } =
+    const { destroyTrackedReadout, destroySecurityPointCard, destroyWorldOverlay, destroyDetection } =
       this.services;
     if (this._disposed) return;
     this._shareRestoration.destroy();
@@ -3840,6 +3842,7 @@ export class StyleManager {
       this._windowResizeHandler = null;
     }
     destroyTrackedReadout();
+    destroySecurityPointCard();
     destroyDetection();
     destroyWorldOverlay();
     this.celestialRing?.destroy();

@@ -33,6 +33,9 @@ export function projectNearbyPlaces(data, latitude, longitude) {
             name: place.displayName?.text || null,
             address:
               place.shortFormattedAddress || place.formattedAddress || null,
+            phone:
+              place.nationalPhoneNumber || place.internationalPhoneNumber || null,
+            googleMapsUri: place.googleMapsUri || null,
             latitude: placeLatitude,
             longitude: placeLongitude,
             distanceM: approximateDistanceM(

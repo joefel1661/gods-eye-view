@@ -917,6 +917,17 @@
     bottom: calc(var(--mobile-panel-bottom) + 12px);
   }
 
+  #security-point-card {
+    right: var(--mobile-panel-side-gap);
+    left: var(--mobile-panel-side-gap);
+    bottom: calc(var(--mobile-panel-bottom) + 12px);
+    width: auto;
+  }
+
+  #security-point-card .security-point-card-inner {
+    border-radius: 22px;
+  }
+
   body.cockpit-mode #mobile-bottom-nav,
   body.cockpit-mode #command-dock > #location-bar,
   body.cockpit-mode #command-dock > #control-panel,

@@ -7,6 +7,7 @@ import { configureRadioSource } from '../data/radio.js';
 import { configureTrafficSource } from '../data/traffic.js';
 import { configureBikeshareSource } from '../data/bikeshare.js';
 import { configureInstallationSource } from '../data/militaryInstallations.js';
+import { configureSecurityPointSource } from '../data/securityPoints.js';
 import { configureSatelliteSource } from '../data/satellites.js';
 import { configureLaunchSource } from '../data/rocketLaunches.js';
 import { configureFirmsSource } from '../data/firmsHeatmap.js';
@@ -18,6 +19,7 @@ const configure = {
   traffic: configureTrafficSource,
   bikeshare: configureBikeshareSource,
   installations: configureInstallationSource,
+  securityPoints: configureSecurityPointSource,
   satellites: configureSatelliteSource,
   launches: configureLaunchSource,
   firms: configureFirmsSource,

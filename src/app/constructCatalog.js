@@ -11,6 +11,7 @@ import { createApplicationBikeshare } from './layers/bikeshare.js';
 import { createApplicationDirections } from './layers/directions.js';
 import { createApplicationTransit } from './layers/transit.js';
 import { createApplicationInstallations } from './layers/militaryInstallations.js';
+import { createApplicationSecurityPoints } from './layers/securityPoints.js';
 import { createApplicationSatellites } from './layers/satellites.js';
 import { createApplicationLaunches } from './layers/rocketLaunches.js';
 import { createApplicationAlpr } from './layers/alprCameras.js';
@@ -38,6 +39,7 @@ const SOURCE_METHODS = Object.freeze({
   ],
   bikeshare: ['getStations'],
   installations: ['getMappedSites', 'searchNearby'],
+  securityPoints: ['fetchViewport', 'enrichRecord'],
   satellites: ['readGroup'],
   launches: ['getLaunches', 'getActiveTle'],
   alpr: ['fetch'],
@@ -99,6 +101,10 @@ export function createApplicationCatalog({
       surface,
       source: sources.installations,
     });
+    const securityPoints = createApplicationSecurityPoints({
+      surface,
+      source: sources.securityPoints,
+    });
     const satellites = createApplicationSatellites({
       source: sources.satellites,
     });
@@ -122,6 +128,7 @@ export function createApplicationCatalog({
         createApplicationTransit({ surface, source: sources.transit }),
         vessels,
         installations,
+        securityPoints,
         createApplicationAwareness({
           flights,
           military,

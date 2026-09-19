@@ -32,6 +32,7 @@ const PANEL_GROUPS = [
     label: 'Infrastructure',
     ids: [
       'military-installations',
+      'security-points',
       'local-datacenters',
       'telegeography-submarine-cables',
       'local-dams',
@@ -57,6 +58,7 @@ const PANEL_LABELS = {
   bikeshare: 'Bike Share',
   cctv: 'Cameras',
   'alpr-cameras': 'Mapped ALPR Cameras',
+  'security-points': 'Security Points',
   'local-datacenters': 'Data Centers',
   'local-firms': 'Active Fires',
 };
