@@ -129,8 +129,7 @@ async function fetchOverpassPayload(
       const upstream = await fetchImpl(endpoint, {
         method: 'POST',
         headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          'Content-Type': 'application/x-www-form-urlencoded',
           'User-Agent': OVERPASS_USER_AGENT,
         },
         body,

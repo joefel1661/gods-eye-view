@@ -144,12 +144,12 @@ test('every mirror is asked with a User-Agent that identifies the application', 
     );
     assert.equal(
       request.accept,
-      'application/json',
-      `${request.url} must explicitly accept JSON`,
+      undefined,
+      `${request.url} must not force an Accept representation`,
     );
     assert.equal(
       request.contentType,
-      'application/x-www-form-urlencoded; charset=UTF-8',
+      'application/x-www-form-urlencoded',
       `${request.url} must use the conventional Overpass form encoding`,
     );
   }
