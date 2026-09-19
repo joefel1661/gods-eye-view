@@ -88,7 +88,19 @@ test('narrow portrait phones keep the floating mic and first-run launcher out of
 
   assert.match(
     portrait430,
-    /#command-dock > #gev-voice-control:not\(\[data-status='idle'\]\) \{[\s\S]*?left: auto;[\s\S]*?width: min\(15rem, calc\(100vw - 24px\)\);/,
+    /body:not\(\[data-mobile-panel='controls'\]\)[\s\S]*?#command-dock[\s\S]*?> #gev-voice-control:not\(\[data-status='idle'\]\) \{[\s\S]*?left: auto;[\s\S]*?width: min\(15rem, calc\(100vw - 24px\)\);/,
+  );
+  assert.match(
+    portrait430,
+    /body\[data-mobile-panel='controls'\] #command-dock \.button-grid \{[\s\S]*?display: grid !important;[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
+  );
+  assert.match(
+    portrait430,
+    /body\[data-mobile-panel='controls'\] #command-dock \.map-stack-chip-row \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
+  );
+  assert.match(
+    css,
+    /body\[data-mobile-panel='controls'\] #command-dock \.gev-voice-error-tray \{[\s\S]*?left: 0;[\s\S]*?max-width: 100%;/,
   );
   assert.match(
     portrait430,
@@ -100,7 +112,7 @@ test('narrow portrait phones keep the floating mic and first-run launcher out of
   );
   assert.match(
     portrait390,
-    /#command-dock > #gev-voice-control:not\(\[data-status='idle'\]\) \{[\s\S]*?width: min\(13\.5rem, calc\(100vw - 24px\)\);/,
+    /body:not\(\[data-mobile-panel='controls'\]\)[\s\S]*?#command-dock[\s\S]*?> #gev-voice-control:not\(\[data-status='idle'\]\) \{[\s\S]*?width: min\(13\.5rem, calc\(100vw - 24px\)\);/,
   );
   assert.match(
     portrait390,
