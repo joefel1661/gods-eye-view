@@ -15,6 +15,32 @@ function colorForCategory(category) {
   );
 }
 
+export const SECURITY_POINT_MARKER_HEIGHT_M = 1.5;
+
+export function securityPointMarkerPosition(
+  record,
+  heightM = SECURITY_POINT_MARKER_HEIGHT_M,
+) {
+  return Cesium.Cartesian3.fromDegrees(
+    record.longitude,
+    record.latitude,
+    heightM,
+  );
+}
+
+export function securityPointMarkerGraphics(record, { selected = false } = {}) {
+  const color = colorForCategory(record.category);
+  return {
+    pixelSize:
+      (CATEGORY_CONFIG[record.category]?.markerSize || 9) + (selected ? 3 : 0),
+    color: selected ? Cesium.Color.WHITE : color,
+    outlineColor: color.withAlpha(0.95),
+    outlineWidth: selected ? 3 : 2,
+    heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+    disableDepthTestDistance: Number.POSITIVE_INFINITY,
+  };
+}
+
 function cloneCategoryParams(params = DEFAULT_CATEGORY_PARAMS) {
   return Object.fromEntries(
     CATEGORY_ORDER.map((id) => [id, params[id] !== false]),
@@ -130,7 +156,9 @@ export function statusForSuccessfulSecurityPointsLoad({
   return 'ready';
 }
 
-export function statusForFailedSecurityPointsLoad({ hasCachedRecords = false } = {}) {
+export function statusForFailedSecurityPointsLoad({
+  hasCachedRecords = false,
+} = {}) {
   return hasCachedRecords ? 'stale' : 'unavailable';
 }
 
@@ -144,7 +172,8 @@ export function securityPointsStatusMessage({
   if (status === 'fallback')
     messages.push('Google Places unavailable — showing OpenStreetMap fallback');
   if (status === 'stale') messages.push('Showing cached Security Points');
-  if (saturated) messages.push('Coverage limited — zoom in for fewer facilities');
+  if (saturated)
+    messages.push('Coverage limited — zoom in for fewer facilities');
   return messages.join(' · ') || null;
 }
 
@@ -255,7 +284,8 @@ export function createSecurityPointsLayer({ services, source }) {
     for (const record of state.records) {
       const color = colorForCategory(record.category);
       const height = surfaceHeightM(record);
-      const position = Cesium.Cartesian3.fromDegrees(
+      const position = securityPointMarkerPosition(record);
+      const displayPosition = Cesium.Cartesian3.fromDegrees(
         record.longitude,
         record.latitude,
         height,
@@ -278,18 +308,10 @@ export function createSecurityPointsLayer({ services, source }) {
               height,
             }
           : undefined,
-        point: {
-          pixelSize:
-            (CATEGORY_CONFIG[record.category]?.markerSize || 9) +
-            (selected ? 3 : 0),
-          color: selected ? Cesium.Color.WHITE : color,
-          outlineColor: color.withAlpha(0.95),
-          outlineWidth: selected ? 3 : 2,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        },
+        point: securityPointMarkerGraphics(record, { selected }),
       });
       entity.gevTrackedId = `security:${record.id}`;
-      entity.gevDisplayPosition = () => position;
+      entity.gevDisplayPosition = () => displayPosition;
       entity.gevLabelModel = buildLabelModel(record);
       services.context.registerEntityContext(entity, {
         id: record.id,
