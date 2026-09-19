@@ -1192,7 +1192,9 @@ export class StyleManager {
           this.shareLinkManager?.claimRestoreLane?.('visual');
           this.hud.toggle();
           this._updateHudButtonState();
-          this._persistHudOverlayTextPreference(this.hud.visible ? 'on' : 'off');
+          const mode = this.hud.getMode?.();
+          if (mode === 'on' || mode === 'off')
+            this._persistHudOverlayTextPreference(mode);
           this._syncShareState();
         },
         toggleOrbit: () => this._toggleOrbit(),
@@ -1307,7 +1309,9 @@ export class StyleManager {
           this.shareLinkManager?.claimRestoreLane?.('visual');
           this.hud.toggle();
           this._updateHudButtonState();
-          this._persistHudOverlayTextPreference(this.hud.visible ? 'on' : 'off');
+          const mode = this.hud.getMode?.();
+          if (mode === 'on' || mode === 'off')
+            this._persistHudOverlayTextPreference(mode);
           this._syncShareState();
         },
         setHudOverlayText: (mode) => {
@@ -3538,9 +3542,12 @@ export class StyleManager {
       this._hudLayoutSelect.value = 'tactical';
     }
     this._setHudVariant('tactical');
-    this.hud.setMode('on');
-    const persistedMode = this._readHudOverlayTextPreference();
-    if (persistedMode) this.hud.setMode(persistedMode);
+    const hasShareHudPreference =
+      typeof this._initialShareState?.hudVisible === 'boolean';
+    if (this.hud.getMode?.() === 'auto' && !hasShareHudPreference) {
+      const persistedMode = this._readHudOverlayTextPreference();
+      this.hud.setMode(persistedMode || 'on');
+    }
     this._updateHudButtonState();
 
     this._lifetime.listen(this._cockpitDisplayToggleBtn, 'click', () => {
