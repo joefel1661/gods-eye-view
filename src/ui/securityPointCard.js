@@ -37,7 +37,7 @@ function renderCard(detail) {
     : '';
   const phoneValue = detail.telHref
     ? `<a class="security-point-card-phone" href="${escapeHtml(detail.telHref)}">${escapeHtml(detail.phone)}</a>`
-    : `<strong>${escapeHtml(detail.phoneLabel)}</strong>`;
+    : `<strong>${escapeHtml(detail.phoneDisplay || 'Phone not listed')}</strong>`;
   const provider = detail.provider
     ? `<footer class="security-point-card-footer">${detail.providerHref ? `<a href="${escapeHtml(detail.providerHref)}" target="_blank" rel="noopener noreferrer">${escapeHtml(detail.provider)}</a>` : escapeHtml(detail.provider)}</footer>`
     : '';

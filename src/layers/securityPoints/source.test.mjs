@@ -21,6 +21,7 @@ test('fetchViewport builds category-bounded Overpass queries and normalizes reco
               ],
               tags: {
                 amenity: 'police',
+                building: 'yes',
                 name: 'Austin Police HQ',
                 'addr:housenumber': '715',
                 'addr:street': 'E 8th St',

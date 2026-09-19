@@ -91,7 +91,8 @@ function dispatchSelectionModel(record, contextDistanceM = null) {
     typeLabel: google?.primaryType || record.typeLabel,
     address: google?.address || record.address || 'Address not listed',
     phone,
-    phoneLabel: phone ? 'Listed phone' : 'Phone not listed',
+    phoneLabel: 'Listed phone',
+    phoneDisplay: phone || 'Phone not listed',
     telHref: phone ? telHref(phone) : null,
     provider: google?.provider || record.provider || null,
     providerHref: google?.providerHref || record.providerHref || null,
@@ -227,15 +228,18 @@ export function createSecurityPointsLayer({ services, source }) {
               height,
             }
           : undefined,
-        point: {
-          pixelSize:
-            (CATEGORY_CONFIG[record.category]?.markerSize || 9) +
-            (selected ? 3 : 0),
-          color: selected ? Cesium.Color.WHITE : color,
-          outlineColor: color.withAlpha(0.95),
-          outlineWidth: selected ? 3 : 2,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        },
+        point:
+          !record.footprint || selected
+            ? {
+                pixelSize:
+                  (CATEGORY_CONFIG[record.category]?.markerSize || 9) +
+                  (selected ? 3 : 0),
+                color: selected ? Cesium.Color.WHITE : color,
+                outlineColor: color.withAlpha(0.95),
+                outlineWidth: selected ? 3 : 2,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              }
+            : undefined,
       });
       entity.gevTrackedId = `security:${record.id}`;
       entity.gevDisplayPosition = () => position;
@@ -334,6 +338,9 @@ export function createSecurityPointsLayer({ services, source }) {
       state.loading = false;
       state.records = [];
       state.recordById = new Map();
+      state.lastLoadedKey = '';
+      state.stale = false;
+      state.saturated = false;
       clearRendered();
       clearSelection();
       setStatus(
@@ -343,7 +350,6 @@ export function createSecurityPointsLayer({ services, source }) {
     }
     const requestKey = JSON.stringify({ box, params: state.params });
     if (requestKey === state.lastLoadedKey && !state.loading) return;
-    state.lastLoadedKey = requestKey;
     state.abort?.abort();
     const controller = new AbortController();
     state.abort = controller;
@@ -361,6 +367,7 @@ export function createSecurityPointsLayer({ services, source }) {
         return;
       state.records = payload.records;
       state.recordById = new Map(payload.records.map((record) => [record.id, record]));
+      state.lastLoadedKey = requestKey;
       state.lastUpdate = Date.now();
       state.stale = payload.stale === true;
       state.saturated = payload.saturated === true;
@@ -445,6 +452,7 @@ export function createSecurityPointsLayer({ services, source }) {
       state.abort = null;
       state.loading = false;
       if (state.dataSource) state.dataSource.show = false;
+      state.lastLoadedKey = '';
       clearRendered();
       clearSelection();
       setStatus('idle');

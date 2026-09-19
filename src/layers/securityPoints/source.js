@@ -129,7 +129,14 @@ function typeLabelForCategory(category, tags = {}) {
   return 'Security point';
 }
 
-function normalizeFootprint(element) {
+function hasReliableFootprintTags(tags = {}, category = null) {
+  if (category === 'airports') return false;
+  const building = String(tags.building || tags['building:part'] || '').toLowerCase();
+  return Boolean(building) && building !== 'no' && building !== 'roof';
+}
+
+function normalizeFootprint(element, tags, category) {
+  if (!hasReliableFootprintTags(tags, category)) return null;
   const geometry = Array.isArray(element?.geometry) ? element.geometry : null;
   if (!geometry || geometry.length < 3) return null;
   const ring = geometry
@@ -153,7 +160,7 @@ function normalizeRecord(element) {
       ? element.center.lon
       : null;
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
-  const footprint = normalizeFootprint(element);
+  const footprint = normalizeFootprint(element, tags, category);
   return {
     id: `osm:${element.type}:${element.id}`,
     osmType: element.type,
