@@ -225,3 +225,16 @@ test('enrichRecord uses Google place-details by place id for phone metadata', as
   assert.equal(google.phone, '+1 512-555-0110');
   assert.equal(google.provider, 'Google Maps Places');
 });
+
+test('enrichRecord returns null when no googlePlaceId is available', async () => {
+  const source = createSecurityPointSource({
+    fetchImpl: async () => {
+      throw new Error('should not fetch');
+    },
+  });
+  const google = await source.enrichRecord({
+    category: 'police',
+    id: 'osm:node:1',
+  });
+  assert.equal(google, null);
+});

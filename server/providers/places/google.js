@@ -487,7 +487,10 @@ export function googlePlacesContextProxy({
         const place = response.ok ? projectPlaceDetails(data) : null;
         res.statusCode = response.ok ? 200 : response.status;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.setHeader('Cache-Control', 'private, max-age=300');
+        res.setHeader(
+          'Cache-Control',
+          response.ok ? 'private, max-age=300' : 'no-store',
+        );
         res.end(
           JSON.stringify({
             place,
@@ -500,6 +503,7 @@ export function googlePlacesContextProxy({
       } catch (error) {
         res.statusCode = error?.statusCode || 502;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
         res.end(
           JSON.stringify({
             error: error?.message || 'Google Places request failed',

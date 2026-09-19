@@ -424,11 +424,11 @@ export function createSecurityPointSource({
     );
     const deduped = new Map();
     let saturated = false;
-    let failedCategories = 0;
-    for (const entry of settled) {
+    const failedCategories = [];
+    settled.forEach((entry, index) => {
       if (entry.status !== 'fulfilled') {
-        failedCategories += 1;
-        continue;
+        failedCategories.push(enabledCategories[index]);
+        return;
       }
       saturated ||= entry.value.saturated === true;
       for (const place of entry.value.places) {
@@ -437,17 +437,21 @@ export function createSecurityPointSource({
         if (deduped.has(record.id)) continue;
         deduped.set(record.id, record);
       }
-    }
-    if (failedCategories > 0) {
+    });
+    if (failedCategories.length > 0) {
       logSecurityPointDiagnostic('google viewport partial success', {
         enabledCategoryCount: enabledCategories.length,
-        failedCategoryCount: failedCategories,
+        failedCategoryCount: failedCategories.length,
         resultCount: deduped.size,
         bbox: bboxForLog(box),
       });
     }
     const primaryError = settled.find((entry) => entry.status === 'rejected');
-    if (!deduped.size && failedCategories === enabledCategories.length && primaryError)
+    if (
+      !deduped.size &&
+      failedCategories.length === enabledCategories.length &&
+      primaryError
+    )
       throw primaryError.reason || new Error('Security Points unavailable');
     return { records: [...deduped.values()], saturated, failedCategories };
   }
@@ -612,11 +616,33 @@ export function createSecurityPointSource({
     const pending = (async () => {
       try {
         const googleResult = await fetchGoogleViewport(box, enabledCategories, signal);
-        const result = {
-          records: googleResult.records,
-          stale: false,
-          saturated: googleResult.saturated,
-        };
+        let records = [...googleResult.records];
+        let stale = false;
+        let saturated = googleResult.saturated;
+        if (googleResult.failedCategories.length > 0) {
+          try {
+            const fallback = await fetchOverpassFallback(
+              box,
+              googleResult.failedCategories,
+              signal,
+            );
+            const byId = new Map(records.map((record) => [record.id, record]));
+            for (const record of fallback.records) {
+              if (!byId.has(record.id)) byId.set(record.id, record);
+            }
+            records = [...byId.values()];
+            stale ||= fallback.stale === true;
+            saturated ||= fallback.saturated === true;
+          } catch (error) {
+            logSecurityPointDiagnostic('overpass category fallback failed', {
+              bbox: bboxForLog(box),
+              failedCategories: googleResult.failedCategories,
+              message: sanitizedErrorMessage(error),
+            });
+            stale = true;
+          }
+        }
+        const result = { records, stale, saturated };
         boundedPush(cache, key, result);
         return result;
       } catch (error) {
@@ -661,9 +687,7 @@ export function createSecurityPointSource({
       name: String(place?.name || '').trim() || null,
       address: String(place?.address || '').trim() || null,
       phone,
-      primaryType:
-        String(place?.primaryType || '').trim() ||
-        googleTypeLabelForCategory(record?.category, place),
+      primaryType: String(place?.primaryType || '').trim() || null,
       googleMapsUri: String(place?.googleMapsUri || '').trim() || null,
       provider: 'Google Maps Places',
       providerHref: 'https://policies.google.com/terms',
