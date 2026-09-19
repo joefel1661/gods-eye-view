@@ -15,9 +15,37 @@ function mediaBlock(query) {
   const open = css.indexOf('{', start + query.length);
   assert.notEqual(open, -1, `missing opening brace for ${query}`);
   let depth = 0;
+  let quote = '';
+  let inComment = false;
   for (let index = open; index < css.length; index += 1) {
-    if (css[index] === '{') depth += 1;
-    else if (css[index] === '}') {
+    const char = css[index];
+    const next = css[index + 1];
+    if (inComment) {
+      if (char === '*' && next === '/') {
+        inComment = false;
+        index += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      if (char === '\\') {
+        index += 1;
+        continue;
+      }
+      if (char === quote) quote = '';
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      inComment = true;
+      index += 1;
+      continue;
+    }
+    if (char === '"' || char === '\'') {
+      quote = char;
+      continue;
+    }
+    if (char === '{') depth += 1;
+    else if (char === '}') {
       depth -= 1;
       if (depth === 0) return css.slice(start, index + 1);
     }
