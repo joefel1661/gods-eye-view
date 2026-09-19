@@ -37,7 +37,7 @@ export function securityPointMarkerGraphics(record, { selected = false } = {}) {
     outlineColor: color.withAlpha(0.95),
     outlineWidth: selected ? 3 : 2,
     heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
-    disableDepthTestDistance: 0,
+    disableDepthTestDistance: Number.POSITIVE_INFINITY,
   };
 }
 

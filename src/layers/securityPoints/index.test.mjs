@@ -134,6 +134,6 @@ test('security point markers stay bound to geographic coordinates with ground-re
     point.heightReference,
     Cesium.HeightReference.RELATIVE_TO_GROUND,
   );
-  assert.equal(point.disableDepthTestDistance, 0);
+  assert.equal(point.disableDepthTestDistance, Number.POSITIVE_INFINITY);
   assert.equal(point.pixelSize, 9);
 });
