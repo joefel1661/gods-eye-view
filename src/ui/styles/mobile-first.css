@@ -671,9 +671,7 @@
   }
 
   #intel-hud .hud-top-left,
-  #intel-hud .hud-bottom-left,
-  #intel-hud .hud-bottom-right,
-  #intel-hud .hud-top-right {
+  #intel-hud .hud-bottom-left {
     max-width: calc(100vw - 24px);
   }
 
@@ -710,8 +708,7 @@
     letter-spacing: 1.2px;
   }
 
-  #intel-hud .hud-bottom-left,
-  #intel-hud .hud-bottom-right {
+  #intel-hud .hud-bottom-left {
     bottom: calc(var(--mobile-panel-bottom) + 84px);
   }
 
