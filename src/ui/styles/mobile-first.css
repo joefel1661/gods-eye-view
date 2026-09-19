@@ -27,13 +27,11 @@
   #intel-hud {
     --hud-mobile-telemetry-color: #ffd166;
     --hud-mobile-telemetry-shadow:
-      0 1px 1px rgba(0, 0, 0, 0.92),
-      0 0 10px rgba(0, 0, 0, 0.6);
-    --hud-mobile-telemetry-backing: linear-gradient(
-      180deg,
-      rgba(6, 8, 10, 0.56),
-      rgba(6, 8, 10, 0.32)
-    );
+      1px 0 0 rgba(0, 0, 0, 0.9),
+      -1px 0 0 rgba(0, 0, 0, 0.9),
+      0 1px 0 rgba(0, 0, 0, 0.9),
+      0 -1px 0 rgba(0, 0, 0, 0.9);
+    --hud-mobile-telemetry-backing: rgba(5, 8, 12, 0.76);
   }
 
   #intel-hud .hud-classification,
@@ -61,10 +59,98 @@
 
   #intel-hud .hud-content,
   #intel-hud .hud-edge {
-    padding: 4px 6px;
-    border-radius: 4px;
+    padding: 5px 8px;
+    border-radius: 6px;
     background: var(--hud-mobile-telemetry-backing);
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.48);
+  }
+
+  #intel-hud .hud-content {
+    position: relative;
+    padding-right: 26px;
+  }
+
+  #intel-hud .hud-mode {
+    font-weight: 700;
+    opacity: 1;
+  }
+
+  #intel-hud .hud-summary-label {
+    opacity: 0.74;
+  }
+
+  #intel-hud .hud-summary {
+    opacity: 0.92;
+  }
+
+  #hud-mgrs {
+    font-weight: 600;
+    opacity: 0.98;
+  }
+
+  #hud-latlon {
+    opacity: 0.88;
+  }
+
+  #hud-mgrs + #hud-latlon,
+  #hud-gsd + #hud-alt {
+    margin-top: 4px;
+  }
+
+  #intel-hud .hud-widget-toggle,
+  #intel-hud .hud-widget-chip {
+    pointer-events: auto;
+    border: 1px solid rgba(255, 209, 102, 0.45);
+    color: var(--hud-mobile-telemetry-color);
+    text-shadow: var(--hud-mobile-telemetry-shadow);
+    font-family: var(--font-mono);
+    line-height: 1;
+  }
+
+  #intel-hud .hud-widget-toggle {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 7px;
+    padding: 0;
+    background: rgba(7, 10, 14, 0.82);
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  #intel-hud .hud-widget-chip {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    min-height: 34px;
+    border-radius: 12px;
+    padding: 0 8px;
+    background: rgba(6, 9, 13, 0.8);
+    font-size: 13px;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+  }
+
+  #intel-hud[data-hud-status-collapsed='true'] .hud-top-left .hud-content,
+  #intel-hud[data-hud-status-collapsed='true'] .hud-top-left .hud-bracket,
+  #intel-hud[data-hud-coordinates-collapsed='true'] .hud-bottom-left .hud-content,
+  #intel-hud[data-hud-coordinates-collapsed='true']
+    .hud-bottom-left
+    .hud-bracket {
+    display: none;
+  }
+
+  #intel-hud[data-hud-status-collapsed='true'] .hud-top-left .hud-widget-chip,
+  #intel-hud[data-hud-coordinates-collapsed='true']
+    .hud-bottom-left
+    .hud-widget-chip {
+    display: inline-flex;
   }
 
   html,
@@ -890,8 +976,8 @@
   }
 
   #intel-hud .hud-corner {
-    gap: 4px;
-    padding: 2px 0;
+    gap: 3px;
+    padding: 1px 0;
   }
 
   #intel-hud .hud-bracket {
@@ -905,24 +991,26 @@
   }
 
   #intel-hud .hud-top-left {
-    top: calc(var(--mobile-safe-top) + 46px);
-    right: 12px;
-    left: 12px;
+    top: calc(var(--mobile-safe-top) + 42px);
+    right: auto;
+    left: 10px;
+    width: max-content;
+    max-width: min(72vw, 22rem);
   }
 
   #intel-hud .hud-top-left,
   #intel-hud .hud-bottom-left {
-    max-width: calc(100vw - 24px);
+    max-width: calc(100vw - 20px);
   }
 
   #intel-hud .hud-mode {
-    font-size: 14px;
-    letter-spacing: 2.6px;
+    font-size: 15px;
+    letter-spacing: 2.2px;
   }
 
   #intel-hud .hud-summary-wrap {
     max-width: none;
-    margin-top: 4px;
+    margin-top: 6px;
   }
 
   #intel-hud .hud-summary-label {
@@ -932,10 +1020,10 @@
 
   #intel-hud .hud-summary {
     display: -webkit-box;
-    margin-top: 3px;
+    margin-top: 4px;
     overflow: hidden;
     font-size: 10px;
-    line-height: 1.4;
+    line-height: 1.5;
     letter-spacing: 0.9px;
     white-space: normal;
     text-overflow: clip;
@@ -949,13 +1037,13 @@
   }
 
   #intel-hud .hud-bottom-left {
-    right: 12px;
-    bottom: calc(var(--mobile-attribution-zone-top) + 54px);
+    right: auto;
+    bottom: calc(var(--mobile-attribution-zone-top) + 56px);
   }
 
   #intel-hud .hud-bottom-left {
-    left: 12px;
-    max-width: calc(100vw - 24px);
+    left: 10px;
+    max-width: min(76vw, 19rem);
   }
 
   #hud-mgrs,
@@ -1077,7 +1165,7 @@
   }
 
   #intel-hud .hud-bottom-left {
-    max-width: min(62vw, 13rem);
+    max-width: min(70vw, 15rem);
   }
 
   body:not([data-mobile-panel='controls'])

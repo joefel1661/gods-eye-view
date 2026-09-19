@@ -56,6 +56,7 @@ function mediaBlock(query) {
 
 test('narrow portrait phones simplify and reflow the fixed HUD readouts', () => {
   const portrait430 = mediaBlock(PORTRAIT_430_QUERY);
+  const mobile = mediaBlock(MOBILE_QUERY);
 
   assert.match(
     portrait430,
@@ -67,11 +68,11 @@ test('narrow portrait phones simplify and reflow the fixed HUD readouts', () => 
   );
   assert.match(
     portrait430,
-    /#intel-hud \.hud-top-left \{[\s\S]*?top: calc\(var\(--mobile-safe-top\) \+ 46px\);[\s\S]*?right: 12px;[\s\S]*?left: 12px;/,
+    /#intel-hud \.hud-top-left \{[\s\S]*?top: calc\(var\(--mobile-safe-top\) \+ 42px\);[\s\S]*?right: auto;[\s\S]*?left: 10px;[\s\S]*?width: max-content;[\s\S]*?max-width: min\(72vw, 22rem\);/,
   );
   assert.match(
     portrait430,
-    /#intel-hud \.hud-bottom-left \{[\s\S]*?bottom: calc\(var\(--mobile-attribution-zone-top\) \+ 54px\);/,
+    /#intel-hud \.hud-bottom-left \{[\s\S]*?bottom: calc\(var\(--mobile-attribution-zone-top\) \+ 56px\);/,
   );
   assert.match(
     portrait430,
@@ -80,6 +81,14 @@ test('narrow portrait phones simplify and reflow the fixed HUD readouts', () => 
   assert.match(
     portrait430,
     /#hud-mgrs,[\s\S]*?#hud-alt \{[\s\S]*?text-overflow: ellipsis;/,
+  );
+  assert.match(
+    mobile,
+    /#intel-hud \.hud-widget-toggle,[\s\S]*?#intel-hud \.hud-widget-chip \{[\s\S]*?pointer-events: auto;/,
+  );
+  assert.match(
+    mobile,
+    /#intel-hud\[data-hud-status-collapsed='true'\] \.hud-top-left \.hud-content,[\s\S]*?display: none;/,
   );
 });
 
