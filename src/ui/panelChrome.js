@@ -672,20 +672,23 @@ export class PanelChrome {
 
   _setMobileControlsSheetExpanded(expanded) {
     const panelIds = ['location-bar', 'control-panel'];
+    const dock = document.getElementById('command-dock');
     if (expanded) {
       if (!this._mobileDockCollapsedState) {
-        this._mobileDockCollapsedState = new Map(
-          panelIds.map((id) => [
-            id,
-            document.getElementById(id)?.classList.contains('collapsed') ?? true,
-          ]),
-        );
+        const entries = panelIds
+          .map((id) => {
+            const panel = document.getElementById(id);
+            return panel ? [id, panel.classList.contains('collapsed')] : null;
+          })
+          .filter(Boolean);
+        this._mobileDockCollapsedState = new Map(entries);
       }
       for (const panelId of panelIds) {
         const panel = document.getElementById(panelId);
         if (!panel) continue;
         panel.classList.remove('collapsed');
       }
+      dock?.style.setProperty('bottom', 'var(--mobile-panel-bottom)');
     } else if (this._mobileDockCollapsedState) {
       for (const [panelId, wasCollapsed] of this._mobileDockCollapsedState) {
         const panel = document.getElementById(panelId);
@@ -693,6 +696,9 @@ export class PanelChrome {
         panel.classList.toggle('collapsed', wasCollapsed);
       }
       this._mobileDockCollapsedState = null;
+      dock?.style.removeProperty('bottom');
+    } else if (dock?.style.getPropertyValue('bottom')) {
+      dock.style.removeProperty('bottom');
     }
   }
 

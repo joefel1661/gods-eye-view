@@ -273,6 +273,12 @@
     max-height: none;
   }
 
+  body[data-mobile-panel='controls'] #command-dock .button-grid {
+    max-height: 10rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
   #global-context-panel .global-context-panel-inner {
     display: flex;
     flex-direction: column;
@@ -339,11 +345,6 @@
     box-sizing: border-box;
     transform: translateX(-50%);
     pointer-events: none;
-  }
-
-  #command-dock:has(#location-bar:not(.collapsed)),
-  #command-dock:has(#control-panel:not(.collapsed)) {
-    bottom: var(--mobile-panel-bottom);
   }
 
   #mobile-command-sheet-header {
@@ -564,21 +565,7 @@
     max-width: 100%;
     min-width: 0;
     overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  body[data-mobile-panel='controls']
-    #command-dock
-    #location-bar
-    .dock-popover-content {
-    max-height: min(9rem, 16vh);
-  }
-
-  body[data-mobile-panel='controls']
-    #command-dock
-    #control-panel
-    .dock-popover-content {
-    max-height: min(16rem, 31vh);
+    overflow-y: visible;
   }
 
   body[data-mobile-panel='controls'] #command-dock .dock-popover-content::after {
@@ -592,7 +579,6 @@
     display: flex !important;
   }
 
-  body[data-mobile-panel='controls'] #command-dock .button-grid,
   body[data-mobile-panel='controls'] #command-dock .location-city-row,
   body[data-mobile-panel='controls'] #command-dock .poi-row-container {
     flex-wrap: wrap;
@@ -600,6 +586,16 @@
     min-width: 0;
     overflow: visible;
     max-height: none;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .button-grid {
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+    max-height: 10rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   body[data-mobile-panel='controls'] #command-dock .location-search-wrap {
@@ -612,7 +608,10 @@
   body[data-mobile-panel='controls'] #command-dock .location-pills {
     flex: 1 1 100%;
     flex-wrap: wrap;
-    overflow: visible;
+    max-height: min(4.5rem, 12vh);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   body[data-mobile-panel='controls'] #command-dock #location-search,
