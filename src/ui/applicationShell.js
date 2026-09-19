@@ -51,6 +51,7 @@ import {
 import { registerNavigationAuthorityListener } from '../navigationPolicy.js';
 
 const HUD_OVERLAY_TEXT_STORAGE_KEY = 'gev:hud-overlay-text:v1';
+const HUD_MOBILE_WIDGET_STORAGE_KEY = 'gev:hud-mobile-widgets:v1';
 
 /** Display labels shown in the mini-status readout for each active style. */
 
@@ -125,6 +126,7 @@ export class StyleManager {
     this._recording = new RecordingControls({
       syncShareState: () => this._syncShareState(),
     });
+    this._hudWidgetStateListenerBound = false;
     Object.assign(this, readShellElements());
     this._panelChrome = new PanelChrome({
       elements: {
@@ -3548,6 +3550,15 @@ export class StyleManager {
       const persistedMode = this._readHudOverlayTextPreference();
       this.hud.setMode(persistedMode || 'on');
     }
+    this.hud.setWidgetCollapseState?.(this._readHudMobileWidgetPreference());
+    if (!this._hudWidgetStateListenerBound) {
+      this._lifetime.listen(window, 'gev:hud-widget-state-change', (event) => {
+        const state = event?.detail?.state;
+        if (!state || typeof state !== 'object') return;
+        this._persistHudMobileWidgetPreference(state);
+      });
+      this._hudWidgetStateListenerBound = true;
+    }
     this._updateHudButtonState();
 
     this._lifetime.listen(this._cockpitDisplayToggleBtn, 'click', () => {
@@ -3573,6 +3584,37 @@ export class StyleManager {
     if (!normalized) return;
     try {
       localStorage.setItem(HUD_OVERLAY_TEXT_STORAGE_KEY, normalized);
+    } catch {
+      /* best effort */
+    }
+  }
+
+  _readHudMobileWidgetPreference() {
+    try {
+      const parsed = JSON.parse(
+        localStorage.getItem(HUD_MOBILE_WIDGET_STORAGE_KEY) || 'null',
+      );
+      if (!parsed || typeof parsed !== 'object') return null;
+      return {
+        status: !!parsed.status,
+        coordinates: !!parsed.coordinates,
+      };
+    } catch {
+      /* best effort */
+    }
+    return null;
+  }
+
+  _persistHudMobileWidgetPreference(state) {
+    const normalized = {
+      status: !!state?.status,
+      coordinates: !!state?.coordinates,
+    };
+    try {
+      localStorage.setItem(
+        HUD_MOBILE_WIDGET_STORAGE_KEY,
+        JSON.stringify(normalized),
+      );
     } catch {
       /* best effort */
     }

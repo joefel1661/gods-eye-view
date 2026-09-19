@@ -25,6 +25,7 @@ import {
 } from './data/geoid.js';
 import { getBasemapLabelContext } from './voice/gevActions.js';
 import { isHudSummaryUnconfigured } from './hudSummaryResponse.js';
+import { MOBILE_LAYOUT_MEDIA_QUERY } from './ui/layoutBreakpoints.js';
 
 /** Color palettes keyed by shader mode; applied as CSS custom properties. */
 const HUD_COLORS = {
@@ -55,6 +56,7 @@ const MILITARY_STYLES = new Set(['retro', 'surveillance', 'thermal']);
 
 /** Allowed HUD layout variants. */
 const HUD_VARIANTS = new Set(['tactical', 'operator', 'minimal']);
+const HUD_WIDGETS = new Set(['status', 'coordinates']);
 const HUD_SUMMARY_INTERVAL_MS = 15000;
 
 /**
@@ -135,6 +137,20 @@ export class IntelHUD {
     this._geoidReady = false;
     this._geoidCellKey = null;
     this._geoidN = null;
+    this._widgetCollapsed = {
+      status: false,
+      coordinates: false,
+    };
+    this._widgetHandlers = [];
+    this._mobileLayoutMedia =
+      typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia(MOBILE_LAYOUT_MEDIA_QUERY)
+        : null;
+    this._onMobileLayoutChange = () => this._syncWidgetPresentation();
+    this._mobileLayoutMedia?.addEventListener?.(
+      'change',
+      this._onMobileLayoutChange,
+    );
     // Whether the LAST painted tick actually had N. The grid resolves mid-
     // session, so this flips once — and both altitude readouts have to move
     // together when it does (see the repaint in _updateCameraData).
@@ -187,6 +203,13 @@ export class IntelHUD {
       <div class="hud-corner hud-top-left">
         <div class="hud-bracket">┌</div>
         <div class="hud-content">
+          <button
+            type="button"
+            class="hud-widget-toggle"
+            data-hud-widget-toggle="status"
+            aria-label="Minimize status HUD"
+            title="Minimize status HUD"
+          >−</button>
           <div class="hud-classification">TOP SECRET // SI-TK // NOFORN</div>
           <div class="hud-system">${this._missionId}  ${this._sensorId}</div>
           <div class="hud-mode" id="hud-mode">NORMAL</div>
@@ -195,6 +218,13 @@ export class IntelHUD {
             <div class="hud-summary" id="hud-summary">Awaiting telemetry...</div>
           </div>
         </div>
+        <button
+          type="button"
+          class="hud-widget-chip"
+          data-hud-widget-restore="status"
+          aria-label="Restore status HUD"
+          title="Restore status HUD"
+        >Σ</button>
       </div>
 
       <div class="hud-corner hud-top-right">
@@ -208,9 +238,23 @@ export class IntelHUD {
       <div class="hud-corner hud-bottom-left">
         <div class="hud-bracket">└</div>
         <div class="hud-content">
+          <button
+            type="button"
+            class="hud-widget-toggle"
+            data-hud-widget-toggle="coordinates"
+            aria-label="Minimize coordinates HUD"
+            title="Minimize coordinates HUD"
+          >−</button>
           <div id="hud-mgrs">MGRS: ---</div>
           <div id="hud-latlon">--°--'--"N ---°--'--"W</div>
         </div>
+        <button
+          type="button"
+          class="hud-widget-chip"
+          data-hud-widget-restore="coordinates"
+          aria-label="Restore coordinates HUD"
+          title="Restore coordinates HUD"
+        >⌖</button>
       </div>
 
       <div class="hud-corner hud-bottom-right">
@@ -238,6 +282,93 @@ export class IntelHUD {
       </div>
     `;
     this._el.dataset.variant = this._variant;
+    this._bindWidgetControls();
+    this._syncWidgetPresentation();
+  }
+
+  _bindWidgetControls() {
+    for (const remove of this._widgetHandlers.splice(0)) remove();
+    if (!this._el) return;
+    for (const widget of HUD_WIDGETS) {
+      const toggle = this._el.querySelector(
+        `[data-hud-widget-toggle="${widget}"]`,
+      );
+      const chip = this._el.querySelector(`[data-hud-widget-restore="${widget}"]`);
+      if (toggle) {
+        const onClick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          this._setWidgetCollapsed(widget, !this._widgetCollapsed[widget]);
+        };
+        toggle.addEventListener('click', onClick);
+        this._widgetHandlers.push(() =>
+          toggle.removeEventListener('click', onClick),
+        );
+      }
+      if (chip) {
+        const onClick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          this._setWidgetCollapsed(widget, false);
+        };
+        chip.addEventListener('click', onClick);
+        this._widgetHandlers.push(() => chip.removeEventListener('click', onClick));
+      }
+    }
+  }
+
+  _syncWidgetPresentation() {
+    if (!this._el) return;
+    const isMobile = !!this._mobileLayoutMedia?.matches;
+    for (const widget of HUD_WIDGETS) {
+      const collapsed = isMobile && !!this._widgetCollapsed[widget];
+      this._el.setAttribute(`data-hud-${widget}-collapsed`, String(collapsed));
+      const toggle = this._el.querySelector(
+        `[data-hud-widget-toggle="${widget}"]`,
+      );
+      const chip = this._el.querySelector(`[data-hud-widget-restore="${widget}"]`);
+      const widgetLabel = widget === 'status' ? 'status HUD' : 'coordinates HUD';
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', String(!collapsed));
+        toggle.setAttribute(
+          'aria-label',
+          collapsed ? `Restore ${widgetLabel}` : `Minimize ${widgetLabel}`,
+        );
+        toggle.title = collapsed
+          ? `Restore ${widgetLabel}`
+          : `Minimize ${widgetLabel}`;
+      }
+      if (chip) {
+        chip.setAttribute('aria-hidden', String(!collapsed));
+        chip.setAttribute('aria-expanded', String(!collapsed));
+        chip.disabled = !collapsed;
+        chip.tabIndex = collapsed ? 0 : -1;
+      }
+    }
+  }
+
+  _setWidgetCollapsed(widget, collapsed, { emit = true } = {}) {
+    if (!HUD_WIDGETS.has(widget)) return;
+    const next = !!collapsed;
+    if (this._widgetCollapsed[widget] === next) return;
+    this._widgetCollapsed[widget] = next;
+    this._syncWidgetPresentation();
+    if (!emit) return;
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.dispatchEvent === 'function' &&
+      typeof CustomEvent === 'function'
+    ) {
+      window.dispatchEvent(
+        new CustomEvent('gev:hud-widget-state-change', {
+          detail: {
+            widget,
+            collapsed: next,
+            state: this.getWidgetCollapseState(),
+          },
+        }),
+      );
+    }
   }
 
   /**
@@ -896,6 +1027,29 @@ export class IntelHUD {
     return this._visible;
   }
 
+  /**
+   * @returns {{status: boolean, coordinates: boolean}} Persistable collapse
+   * preference state for mobile HUD widgets.
+   */
+  getWidgetCollapseState() {
+    return {
+      status: !!this._widgetCollapsed.status,
+      coordinates: !!this._widgetCollapsed.coordinates,
+    };
+  }
+
+  /**
+   * Applies persisted widget collapse preferences.
+   * @param {{status?: boolean, coordinates?: boolean}} state
+   */
+  setWidgetCollapseState(state = {}) {
+    this._setWidgetCollapsed('status', !!state.status, { emit: false });
+    this._setWidgetCollapsed('coordinates', !!state.coordinates, {
+      emit: false,
+    });
+    this._syncWidgetPresentation();
+  }
+
   attachDataManager(dataManager) {
     if (this._dataManagerUnsubscribe) {
       this._dataManagerUnsubscribe();
@@ -917,6 +1071,11 @@ export class IntelHUD {
     clearInterval(this._timestampInterval);
     clearInterval(this._summaryInterval);
     clearInterval(this._summaryTypingInterval);
+    for (const remove of this._widgetHandlers.splice(0)) remove();
+    this._mobileLayoutMedia?.removeEventListener?.(
+      'change',
+      this._onMobileLayoutChange,
+    );
     this.viewer.camera.moveEnd.removeEventListener(this._onCameraMoveEnd);
     this._dataManagerUnsubscribe?.();
     this._summaryRequest?.abort();
