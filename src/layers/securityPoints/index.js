@@ -285,6 +285,11 @@ export function createSecurityPointsLayer({ services, source }) {
       const color = colorForCategory(record.category);
       const height = surfaceHeightM(record);
       const position = securityPointMarkerPosition(record);
+      const displayPosition = Cesium.Cartesian3.fromDegrees(
+        record.longitude,
+        record.latitude,
+        height,
+      );
       const selected = record.id === state.selectedId;
       const entity = state.dataSource.entities.add({
         id: record.id,
@@ -306,7 +311,7 @@ export function createSecurityPointsLayer({ services, source }) {
         point: securityPointMarkerGraphics(record, { selected }),
       });
       entity.gevTrackedId = `security:${record.id}`;
-      entity.gevDisplayPosition = () => position;
+      entity.gevDisplayPosition = () => displayPosition;
       entity.gevLabelModel = buildLabelModel(record);
       services.context.registerEntityContext(entity, {
         id: record.id,
