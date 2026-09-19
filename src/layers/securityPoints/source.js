@@ -231,6 +231,27 @@ function sanitizedErrorMessage(error) {
   return message ? message.slice(0, 240) : 'Request failed';
 }
 
+function requestFailureError(message, { status = null, providerError = null } = {}) {
+  const error = new Error(message);
+  error.status = Number.isFinite(status) ? Number(status) : null;
+  error.providerError = providerError || null;
+  return error;
+}
+
+function isUnsupportedGoogleTypeError(error) {
+  if (Number(error?.status) !== 400) return false;
+  const reason = String(error?.providerError?.reason || '').toLowerCase();
+  const providerMessage = String(error?.providerError?.message || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    reason === 'invalid_argument' ||
+    providerMessage.includes('unsupported') ||
+    providerMessage.includes('includedtypes') ||
+    message.includes('unsupported') ||
+    message.includes('includedtypes')
+  );
+}
+
 function endpointHostFromHeader(value) {
   try {
     return new URL(String(value || '')).hostname || null;
@@ -248,31 +269,8 @@ function bboxForLog(box) {
   };
 }
 
-const GOOGLE_PRIMARY_TYPE_TO_CATEGORY = Object.freeze({
-  police: 'police',
-  fire_station: 'fireEms',
-  ambulance_service: 'fireEms',
-  hospital: 'hospitals',
-  emergency_room: 'hospitals',
-  airport: 'airports',
-  heliport: 'airports',
-});
-
 function normalizedGoogleType(value) {
   return String(value || '').trim().toLowerCase();
-}
-
-function inferGoogleCategory(place = {}, fallbackCategory = null) {
-  const fromPrimary =
-    GOOGLE_PRIMARY_TYPE_TO_CATEGORY[normalizedGoogleType(place.primaryType)] ||
-    null;
-  if (fromPrimary) return fromPrimary;
-  const types = Array.isArray(place.types) ? place.types : [];
-  for (const type of types) {
-    const category = GOOGLE_PRIMARY_TYPE_TO_CATEGORY[normalizedGoogleType(type)];
-    if (category) return category;
-  }
-  return fallbackCategory;
 }
 
 function googleTypeLabelForCategory(category, place = {}) {
@@ -301,7 +299,7 @@ function placeQueryRadiusM(box, category) {
 }
 
 function normalizedGoogleRecord(place, requestedCategory) {
-  const category = inferGoogleCategory(place, requestedCategory);
+  const category = String(requestedCategory || '').trim() || null;
   if (!category) return null;
   const latitude = Number(place?.latitude);
   const longitude = Number(place?.longitude);
@@ -326,7 +324,12 @@ function normalizedGoogleRecord(place, requestedCategory) {
     footprint: null,
     address: String(place?.address || '').trim() || null,
     phone: null,
-    tags: {},
+    tags: {
+      googlePrimaryType: normalizedGoogleType(place?.primaryType) || null,
+      googleTypes: Array.isArray(place?.types)
+        ? place.types.map((type) => normalizedGoogleType(type)).filter(Boolean)
+        : [],
+    },
     provider: 'Google Maps Places',
     providerHref: 'https://maps.google.com',
     google: null,
@@ -339,8 +342,7 @@ export function createSecurityPointSource({
   const cache = new Map();
   const inflight = new Map();
 
-  async function fetchGoogleCategoryViewport(box, category, signal) {
-    const types = CATEGORY_CONFIG[category]?.googleTypes || [];
+  async function fetchGoogleTypeViewport(box, category, type, signal) {
     const centerLat = (box.south + box.north) / 2;
     const centerLon = (box.west + box.east) / 2;
     const query = new URLSearchParams({
@@ -349,7 +351,7 @@ export function createSecurityPointSource({
       radiusM: String(placeQueryRadiusM(box, category)),
       maxResultCount: String(GOOGLE_QUERY_LIMIT),
     });
-    if (types.length) query.set('includedTypes', types.join(','));
+    if (type) query.set('includedTypes', type);
     const request = requestSignal(signal, VIEWPORT_REQUEST_TIMEOUT_MS);
     request.throwIfAborted();
     const startedAt = Date.now();
@@ -358,7 +360,7 @@ export function createSecurityPointSource({
       method: 'GET',
       category,
       bbox: bboxForLog(box),
-      includedTypes: types,
+      includedType: type || null,
     });
     let response;
     try {
@@ -372,16 +374,19 @@ export function createSecurityPointSource({
         status: null,
         responseTimeMs: Date.now() - startedAt,
         timeoutTriggered,
+        includedType: type || null,
         providerError: sanitizedErrorMessage(error),
       });
-      throw new Error(
+      throw requestFailureError(
         timeoutTriggered
           ? 'Security Points query timed out'
           : 'Security Points are temporarily unavailable',
+        { providerError: sanitizeProviderError(error) },
       );
     }
     const payload = await readResponseJsonSafe(response);
     request.throwIfAborted();
+    const providerError = sanitizeProviderError(payload?.providerError || payload);
     if (!response.ok) {
       logSecurityPointDiagnostic('google viewport request failed', {
         endpoint: GOOGLE_NEARBY_URL,
@@ -390,9 +395,10 @@ export function createSecurityPointSource({
         status: response.status,
         responseTimeMs: Date.now() - startedAt,
         timeoutTriggered: response.status === 504,
-        providerError: sanitizeProviderError(payload?.providerError || payload),
+        includedType: type || null,
+        providerError,
       });
-      throw new Error(
+      throw requestFailureError(
         response.status === 429
           ? 'Security Points are temporarily rate-limited'
           : response.status === 403
@@ -400,6 +406,7 @@ export function createSecurityPointSource({
             : response.status === 504
               ? 'Security Points query timed out'
               : 'Security Points are temporarily unavailable',
+        { status: response.status, providerError },
       );
     }
     const places = Array.isArray(payload?.places) ? payload.places : [];
@@ -409,39 +416,118 @@ export function createSecurityPointSource({
       category,
       status: response.status,
       responseTimeMs: Date.now() - startedAt,
+      includedType: type || null,
       resultCount: places.length,
       timeoutTriggered: false,
       providerError: null,
     });
-    return { category, places, saturated: places.length >= GOOGLE_QUERY_LIMIT };
+    return { places, saturated: places.length >= GOOGLE_QUERY_LIMIT };
   }
 
-  async function fetchGoogleViewport(box, enabledCategories, signal) {
+  async function fetchGoogleCategoryViewport(box, category, signal) {
+    const requestedTypes = CATEGORY_CONFIG[category]?.googleTypes || [];
+    const searchTypes = requestedTypes.length ? requestedTypes : [null];
     const settled = await Promise.allSettled(
-      enabledCategories.map((category) =>
-        fetchGoogleCategoryViewport(box, category, signal),
-      ),
+      searchTypes.map((type) => fetchGoogleTypeViewport(box, category, type, signal)),
     );
-    const deduped = new Map();
+    const dedupedPlaces = new Map();
     let saturated = false;
-    const failedCategories = [];
+    let unsupportedTypes = [];
+    const hardFailures = [];
     settled.forEach((entry, index) => {
-      if (entry.status !== 'fulfilled') {
-        failedCategories.push(enabledCategories[index]);
+      const requestedType = searchTypes[index];
+      if (entry.status === 'fulfilled') {
+        saturated ||= entry.value.saturated === true;
+        for (const place of entry.value.places) {
+          const placeId = String(place?.id || '').trim();
+          const key =
+            placeId ||
+            `${formatViewportValue(place?.latitude)}:${formatViewportValue(place?.longitude)}:${String(place?.name || '').toLowerCase()}`;
+          if (dedupedPlaces.has(key)) continue;
+          dedupedPlaces.set(key, place);
+        }
         return;
       }
-      saturated ||= entry.value.saturated === true;
-      for (const place of entry.value.places) {
-        const record = normalizedGoogleRecord(place, entry.value.category);
-        if (!record || !enabledCategories.includes(record.category)) continue;
-        if (deduped.has(record.id)) continue;
-        deduped.set(record.id, record);
+      if (isUnsupportedGoogleTypeError(entry.reason)) {
+        if (requestedType) unsupportedTypes.push(requestedType);
+        return;
       }
+      hardFailures.push(entry.reason);
     });
-    if (failedCategories.length > 0) {
+    unsupportedTypes = unsupportedTypes.filter(Boolean);
+    if (unsupportedTypes.length > 0) {
+      logSecurityPointDiagnostic('google category unsupported types', {
+        category,
+        unsupportedTypes,
+      });
+    }
+    if (!dedupedPlaces.size && hardFailures.length > 0)
+      throw hardFailures[0] || new Error('Security Points unavailable');
+    return {
+      category,
+      places: [...dedupedPlaces.values()],
+      saturated,
+      unsupportedTypes,
+      hardFailureCount: hardFailures.length,
+    };
+  }
+
+  function notifyCategoryProgress(callback, payload) {
+    if (typeof callback !== 'function') return;
+    try {
+      callback(payload);
+    } catch (error) {
+      logSecurityPointDiagnostic('category progress callback failed', {
+        message: sanitizedErrorMessage(error),
+      });
+    }
+  }
+
+  async function fetchGoogleViewport(box, enabledCategories, signal, onCategoryProgress) {
+    const deduped = new Map();
+    let saturated = false;
+    const failedCategories = new Set();
+    const categoryTasks = enabledCategories.map((category) =>
+      fetchGoogleCategoryViewport(box, category, signal).then(
+        (result) => {
+          saturated ||= result.saturated === true;
+          for (const place of result.places) {
+            const record = normalizedGoogleRecord(place, result.category);
+            if (!record) continue;
+            if (deduped.has(record.id)) continue;
+            deduped.set(record.id, record);
+          }
+          notifyCategoryProgress(onCategoryProgress, {
+            provider: 'google',
+            category: result.category,
+            status: 'fulfilled',
+            records: [...deduped.values()],
+            failedCategories: [...failedCategories],
+            stale: false,
+            saturated,
+          });
+          return result;
+        },
+        (error) => {
+          failedCategories.add(category);
+          notifyCategoryProgress(onCategoryProgress, {
+            provider: 'google',
+            category,
+            status: 'rejected',
+            records: [...deduped.values()],
+            failedCategories: [...failedCategories],
+            stale: false,
+            saturated,
+          });
+          throw error;
+        },
+      ),
+    );
+    const settled = await Promise.allSettled(categoryTasks);
+    if (failedCategories.size > 0) {
       logSecurityPointDiagnostic('google viewport partial success', {
         enabledCategoryCount: enabledCategories.length,
-        failedCategoryCount: failedCategories.length,
+        failedCategoryCount: failedCategories.size,
         resultCount: deduped.size,
         bbox: bboxForLog(box),
       });
@@ -449,14 +535,28 @@ export function createSecurityPointSource({
     const primaryError = settled.find((entry) => entry.status === 'rejected');
     if (
       !deduped.size &&
-      failedCategories.length === enabledCategories.length &&
+      failedCategories.size === enabledCategories.length &&
       primaryError
     )
       throw primaryError.reason || new Error('Security Points unavailable');
-    return { records: [...deduped.values()], saturated, failedCategories };
+    return {
+      records: [...deduped.values()],
+      saturated,
+      failedCategories: [...failedCategories],
+    };
   }
 
-  async function fetchOverpassFallback(box, enabledCategories, signal) {
+  async function fetchOverpassFallback(
+    box,
+    enabledCategories,
+    signal,
+    onCategoryProgress,
+    baseRecords = [],
+  ) {
+    const deduped = new Map(baseRecords.map((record) => [record.id, record]));
+    const failedCategories = new Set();
+    let stale = false;
+    let saturated = false;
     const requests = enabledCategories.map(async (category) => {
       const query = buildSecurityPointsOverpassQuery(box, [category], {
         queryLimit: QUERY_LIMIT,
@@ -583,20 +683,44 @@ export function createSecurityPointSource({
         elements: payload.elements.slice(0, QUERY_LIMIT),
       };
     });
-    const settled = await Promise.allSettled(requests);
-    const deduped = new Map();
-    let stale = false;
-    let saturated = false;
-    for (const entry of settled) {
-      if (entry.status !== 'fulfilled') continue;
-      stale ||= entry.value.stale === true;
-      saturated ||= entry.value.saturated === true;
-      for (const element of entry.value.elements) {
-        const record = normalizeRecord(element);
-        if (!record || !enabledCategories.includes(record.category)) continue;
-        deduped.set(record.id, record);
-      }
-    }
+    const settled = await Promise.allSettled(
+      requests.map((request, index) =>
+        request.then(
+          (result) => {
+            stale ||= result.stale === true;
+            saturated ||= result.saturated === true;
+            for (const element of result.elements) {
+              const record = normalizeRecord(element);
+              if (!record || !enabledCategories.includes(record.category)) continue;
+              if (!deduped.has(record.id)) deduped.set(record.id, record);
+            }
+            notifyCategoryProgress(onCategoryProgress, {
+              provider: 'overpass',
+              category: enabledCategories[index],
+              status: 'fulfilled',
+              records: [...deduped.values()],
+              failedCategories: [...failedCategories],
+              stale,
+              saturated,
+            });
+            return result;
+          },
+          (error) => {
+            failedCategories.add(enabledCategories[index]);
+            notifyCategoryProgress(onCategoryProgress, {
+              provider: 'overpass',
+              category: enabledCategories[index],
+              status: 'rejected',
+              records: [...deduped.values()],
+              failedCategories: [...failedCategories],
+              stale,
+              saturated,
+            });
+            throw error;
+          },
+        ),
+      ),
+    );
     const succeeded = settled.some((entry) => entry.status === 'fulfilled');
     if (!succeeded) {
       const primaryError = settled.find((entry) => entry.status === 'rejected');
@@ -605,7 +729,7 @@ export function createSecurityPointSource({
     return { records: [...deduped.values()], stale, saturated };
   }
 
-  async function fetchViewport(box, categories, { signal } = {}) {
+  async function fetchViewport(box, categories, { signal, onCategoryProgress } = {}) {
     validateBox(box);
     const enabledCategories = sanitizeEnabledCategories(categories);
     if (!enabledCategories.length)
@@ -615,7 +739,12 @@ export function createSecurityPointSource({
     if (inflight.has(key)) return inflight.get(key);
     const pending = (async () => {
       try {
-        const googleResult = await fetchGoogleViewport(box, enabledCategories, signal);
+        const googleResult = await fetchGoogleViewport(
+          box,
+          enabledCategories,
+          signal,
+          onCategoryProgress,
+        );
         let records = [...googleResult.records];
         let stale = false;
         let saturated = googleResult.saturated;
@@ -625,13 +754,14 @@ export function createSecurityPointSource({
               box,
               googleResult.failedCategories,
               signal,
+              onCategoryProgress,
+              records,
             );
             const byId = new Map(records.map((record) => [record.id, record]));
             for (const record of fallback.records) {
               if (!byId.has(record.id)) byId.set(record.id, record);
             }
             records = [...byId.values()];
-            stale ||= fallback.stale === true;
             saturated ||= fallback.saturated === true;
           } catch (error) {
             logSecurityPointDiagnostic('overpass category fallback failed', {
@@ -639,7 +769,6 @@ export function createSecurityPointSource({
               failedCategories: googleResult.failedCategories,
               message: sanitizedErrorMessage(error),
             });
-            stale = true;
           }
         }
         const result = { records, stale, saturated };
@@ -651,7 +780,13 @@ export function createSecurityPointSource({
           enabledCategories,
           message: sanitizedErrorMessage(error),
         });
-        const fallback = await fetchOverpassFallback(box, enabledCategories, signal);
+        const fallback = await fetchOverpassFallback(
+          box,
+          enabledCategories,
+          signal,
+          onCategoryProgress,
+          [],
+        );
         boundedPush(cache, key, fallback);
         return fallback;
       }
