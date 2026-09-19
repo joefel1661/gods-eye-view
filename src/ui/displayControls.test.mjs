@@ -58,27 +58,31 @@ test('style, allocation and model choices retain their current data attributes',
   const style = element();
   const allocation = element();
   const mode = element();
+  const hudOverlay = element();
   style.dataset.style = 'thermal';
   allocation.dataset.allocation = 'balanced';
   mode.dataset.mode = 'all';
+  hudOverlay.dataset.mode = 'off';
   const calls = [];
   const control = bindDisplayControls({
     elements: {
       styleButtons: [style],
       allocationButtons: [allocation],
       modelModeButtons: [mode],
+      hudOverlayButtons: [hudOverlay],
     },
     actions: {
       setStyle: (value) => calls.push(value),
       setAllocation: (value) => calls.push(value),
       setModelsMode: (value) => calls.push(value),
+      setHudOverlayText: (value) => calls.push(value),
     },
   });
-  for (const el of [style, allocation, mode])
+  for (const el of [style, allocation, mode, hudOverlay])
     el.dispatchEvent(new Event('click'));
   mode.dataset.mode = 'unknown';
   mode.dispatchEvent(new Event('click'));
-  assert.deepEqual(calls, ['thermal', 'balanced', 'all', 'proximity']);
+  assert.deepEqual(calls, ['thermal', 'balanced', 'all', 'off', 'proximity']);
   control.destroy();
 });
 

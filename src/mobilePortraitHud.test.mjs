@@ -71,7 +71,7 @@ test('narrow portrait phones simplify and reflow the fixed HUD readouts', () => 
   );
   assert.match(
     portrait430,
-    /#intel-hud \.hud-bottom-left \{[\s\S]*?bottom: calc\(var\(--mobile-panel-bottom\) \+ 84px\);/,
+    /#intel-hud \.hud-bottom-left \{[\s\S]*?bottom: calc\(var\(--mobile-attribution-zone-top\) \+ 54px\);/,
   );
   assert.match(
     portrait430,
@@ -79,7 +79,7 @@ test('narrow portrait phones simplify and reflow the fixed HUD readouts', () => 
   );
   assert.match(
     portrait430,
-    /#hud-mgrs,[\s\S]*?#hud-alt \{[\s\S]*?overflow-wrap: anywhere;/,
+    /#hud-mgrs,[\s\S]*?#hud-alt \{[\s\S]*?text-overflow: ellipsis;/,
   );
 });
 
@@ -118,7 +118,7 @@ test('narrow portrait phones keep the floating mic and first-run launcher out of
   );
   assert.match(
     portrait390,
-    /#first-run-launcher \{[\s\S]*?padding: 0\.8rem;/,
+    /#first-run-launcher \{[\s\S]*?padding: 0\.72rem 0\.78rem;/,
   );
   assert.match(
     portrait390,

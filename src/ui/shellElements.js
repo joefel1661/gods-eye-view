@@ -17,6 +17,9 @@ export function readShellElements(document = globalThis.document) {
     _hudBtn: document.getElementById('hud-toggle'),
     _hudLayoutRow: document.getElementById('hud-layout-row'),
     _hudLayoutSelect: document.getElementById('hud-layout-select'),
+    _hudOverlayRow: document.getElementById('hud-overlay-row'),
+    _hudOverlayOnBtn: document.getElementById('hud-overlay-on'),
+    _hudOverlayOffBtn: document.getElementById('hud-overlay-off'),
     _detectionSliderRow: document.getElementById('detection-slider-row'),
     _detectionDensitySlider: document.getElementById(
       'detection-density-slider',

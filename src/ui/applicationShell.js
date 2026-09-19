@@ -50,6 +50,8 @@ import {
 } from '../worldFocus.js';
 import { registerNavigationAuthorityListener } from '../navigationPolicy.js';
 
+const HUD_OVERLAY_TEXT_STORAGE_KEY = 'gev:hud-overlay-text:v1';
+
 /** Display labels shown in the mini-status readout for each active style. */
 
 /**
@@ -232,6 +234,9 @@ export class StyleManager {
         _hudBtn: this._hudBtn,
         _hudLayoutRow: this._hudLayoutRow,
         _hudLayoutSelect: this._hudLayoutSelect,
+        _hudOverlayRow: this._hudOverlayRow,
+        _hudOverlayOnBtn: this._hudOverlayOnBtn,
+        _hudOverlayOffBtn: this._hudOverlayOffBtn,
         _ppToggles: this._ppToggles,
         _scopeBtn: this._scopeBtn,
         _scopeFeatherSlider: this._scopeFeatherSlider,
@@ -1187,6 +1192,7 @@ export class StyleManager {
           this.shareLinkManager?.claimRestoreLane?.('visual');
           this.hud.toggle();
           this._updateHudButtonState();
+          this._persistHudOverlayTextPreference(this.hud.visible ? 'on' : 'off');
           this._syncShareState();
         },
         toggleOrbit: () => this._toggleOrbit(),
@@ -1214,6 +1220,7 @@ export class StyleManager {
         scopeButton: this._scopeBtn,
         scopeFeatherSlider: this._scopeFeatherSlider,
         hudLayout: this._hudLayoutSelect,
+        hudOverlayButtons: [this._hudOverlayOnBtn, this._hudOverlayOffBtn],
         hudButton: this._hudBtn,
         cleanViewButton: this._cleanViewBtn,
         cleanViewExitButton: this._cleanViewExitBtn,
@@ -1300,7 +1307,11 @@ export class StyleManager {
           this.shareLinkManager?.claimRestoreLane?.('visual');
           this.hud.toggle();
           this._updateHudButtonState();
+          this._persistHudOverlayTextPreference(this.hud.visible ? 'on' : 'off');
           this._syncShareState();
+        },
+        setHudOverlayText: (mode) => {
+          this.setHudVisible(mode);
         },
         cycleDetection: () => {
           this.shareLinkManager?.claimRestoreLane?.('visual');
@@ -2197,6 +2208,7 @@ export class StyleManager {
     this.shareLinkManager?.claimRestoreLane?.('visual');
     this.hud.setMode(normalized);
     this._updateHudButtonState();
+    if (normalized !== 'auto') this._persistHudOverlayTextPreference(normalized);
     this._syncShareState();
     return {
       ok: true,
@@ -3527,6 +3539,8 @@ export class StyleManager {
     }
     this._setHudVariant('tactical');
     this.hud.setMode('on');
+    const persistedMode = this._readHudOverlayTextPreference();
+    if (persistedMode) this.hud.setMode(persistedMode);
     this._updateHudButtonState();
 
     this._lifetime.listen(this._cockpitDisplayToggleBtn, 'click', () => {
@@ -3535,6 +3549,26 @@ export class StyleManager {
       this._setCockpitDisclosure?.('display', !open);
     });
     this._initCockpitDisplayPortal();
+  }
+
+  _readHudOverlayTextPreference() {
+    try {
+      const value = localStorage.getItem(HUD_OVERLAY_TEXT_STORAGE_KEY);
+      if (value === 'on' || value === 'off') return value;
+    } catch {
+      /* best effort */
+    }
+    return null;
+  }
+
+  _persistHudOverlayTextPreference(mode) {
+    const normalized = mode === 'off' ? 'off' : mode === 'on' ? 'on' : null;
+    if (!normalized) return;
+    try {
+      localStorage.setItem(HUD_OVERLAY_TEXT_STORAGE_KEY, normalized);
+    } catch {
+      /* best effort */
+    }
   }
 
   /**
