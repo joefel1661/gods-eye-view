@@ -474,7 +474,13 @@ export function createSecurityPointSource({
 
   function notifyCategoryProgress(callback, payload) {
     if (typeof callback !== 'function') return;
-    callback(payload);
+    try {
+      callback(payload);
+    } catch (error) {
+      logSecurityPointDiagnostic('category progress callback failed', {
+        message: sanitizedErrorMessage(error),
+      });
+    }
   }
 
   async function fetchGoogleViewport(box, enabledCategories, signal, onCategoryProgress) {
