@@ -1405,6 +1405,18 @@ export class VisualSettings {
     if (this._hudLayoutRow) {
       this._hudLayoutRow.classList.toggle('visible', this.hud.visible);
     }
+    const hudMode = this.hud?.getMode?.() || (this.hud.visible ? 'on' : 'off');
+    const overlayOn = hudMode === 'on' || (hudMode === 'auto' && this.hud.visible);
+    if (this._hudOverlayOnBtn) {
+      this._hudOverlayOnBtn.classList.toggle('active', overlayOn);
+      this._hudOverlayOnBtn.setAttribute('aria-checked', String(overlayOn));
+      this._hudOverlayOnBtn.tabIndex = overlayOn ? 0 : -1;
+    }
+    if (this._hudOverlayOffBtn) {
+      this._hudOverlayOffBtn.classList.toggle('active', !overlayOn);
+      this._hudOverlayOffBtn.setAttribute('aria-checked', String(!overlayOn));
+      this._hudOverlayOffBtn.tabIndex = overlayOn ? -1 : 0;
+    }
     this._scheduleAdaptivePanelLayout({ settle: true });
   }
 

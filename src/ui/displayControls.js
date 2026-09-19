@@ -41,6 +41,10 @@ export function bindDisplayControls({ elements, actions }) {
     listen(el, 'click', 'setModelsMode', (el) =>
       el.dataset.mode === 'all' ? 'all' : 'proximity',
     );
+  for (const el of elements.hudOverlayButtons || [])
+    listen(el, 'click', 'setHudOverlayText', (el) =>
+      el.dataset.mode === 'off' ? 'off' : 'on',
+    );
   for (const el of elements.fadeSliders || []) listen(el, 'input', 'setFade');
   return {
     destroy() {

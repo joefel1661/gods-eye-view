@@ -683,6 +683,15 @@
   min-width: 200px;
 }
 
+#hud-overlay-row {
+  min-width: 200px;
+  gap: 10px;
+}
+
+#hud-overlay-row .pp-slider-mini-label {
+  min-width: 92px;
+}
+
 /* Map Source tiles live with Visual Presets in the bottom command tray. */
 .map-source-section {
   display: grid;
