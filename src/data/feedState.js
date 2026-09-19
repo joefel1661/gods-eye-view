@@ -3,7 +3,7 @@ import { GUIDANCE_STATUSES } from '../loadingFeedback.js';
 /**
  * Normalize heterogeneous layer stats into one honest control-chip state.
  * @param {object|null} stats Layer getStats() result.
- * @returns {'nominal'|'loading'|'degraded'|'stale'|'fallback'|'unavailable'} Feed state.
+ * @returns {'nominal'|'loading'|'partial'|'degraded'|'stale'|'fallback'|'unavailable'} Feed state.
  */
 export function layerFeedState(stats = {}) {
   const state = stats || {};
@@ -43,6 +43,7 @@ export function layerFeedState(stats = {}) {
     return 'fallback';
   }
   if (state.stale || status === 'stale') return 'stale';
+  if (state.partial === true || status === 'partial') return 'partial';
   if (
     state.degraded ||
     presentedError ||

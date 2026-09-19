@@ -1812,7 +1812,7 @@ test('manager awaits asynchronous dependency teardown before a rapid re-enable',
   await mgr.destroyAll();
 });
 
-test('layer feed states distinguish unavailable, fallback, stale, and degraded controls', () => {
+test('layer feed states distinguish unavailable, fallback, stale, partial, and degraded controls', () => {
   assert.equal(layerFeedState({ error: 'feed down', count: 0, lastUpdate: null }), 'unavailable');
   assert.equal(layerFeedState({
     status: 'unavailable',
@@ -1829,6 +1829,10 @@ test('layer feed states distinguish unavailable, fallback, stale, and degraded c
     lastUpdate: 1,
   }), 'nominal', 'an explicitly primary adsb.lol feed is not a fallback');
   assert.equal(layerFeedState({ stale: true, count: 0, lastUpdate: 1 }), 'stale');
+  assert.equal(
+    layerFeedState({ status: 'partial', count: 50, lastUpdate: 1 }),
+    'partial',
+  );
   assert.equal(layerFeedState({ error: 'partial group failure', count: 50, lastUpdate: 1 }), 'degraded');
   assert.equal(layerFeedState({ loading: true }), 'loading');
   assert.equal(layerFeedState({ count: 5, lastUpdate: 1 }), 'nominal');
@@ -1844,6 +1848,15 @@ test('layer metadata names degraded state instead of presenting an ordinary age'
     source: 'TomTom',
     stats: { mode: 'sim', count: 120, lastUpdate: 1, loadingLabel: 'simulated traffic' },
   }), 'FALLBACK · TomTom · simulated traffic');
+  assert.equal(mgr._buildMetaText({
+    source: 'Google Maps Places',
+    stats: {
+      status: 'partial',
+      count: 18,
+      lastUpdate: 1,
+      loadingLabel: 'Google Places returned partial Security Points coverage',
+    },
+  }), 'PARTIAL · Google Maps Places · Google Places returned partial Security Points coverage');
   assert.equal(mgr._buildMetaText({
     source: 'CelesTrak',
     stats: { error: 'CelesTrak unreachable', count: 0, lastUpdate: null },

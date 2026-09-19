@@ -116,6 +116,38 @@ function dispatchSelectionModel(record, contextDistanceM = null) {
   });
 }
 
+export function statusForSuccessfulSecurityPointsLoad({
+  records = [],
+  stale = false,
+  failedCategories = [],
+  primaryProvider = 'google',
+} = {}) {
+  if (stale) return 'stale';
+  if (primaryProvider === 'overpass') return 'fallback';
+  if (Array.isArray(failedCategories) && failedCategories.length > 0)
+    return 'partial';
+  if (!Array.isArray(records) || records.length === 0) return 'empty';
+  return 'ready';
+}
+
+export function statusForFailedSecurityPointsLoad({ hasCachedRecords = false } = {}) {
+  return hasCachedRecords ? 'stale' : 'unavailable';
+}
+
+export function securityPointsStatusMessage({
+  status = '',
+  saturated = false,
+} = {}) {
+  const messages = [];
+  if (status === 'partial')
+    messages.push('Google Places returned partial Security Points coverage');
+  if (status === 'fallback')
+    messages.push('Google Places unavailable — showing OpenStreetMap fallback');
+  if (status === 'stale') messages.push('Showing cached Security Points');
+  if (saturated) messages.push('Coverage limited — zoom in for fewer facilities');
+  return messages.join(' · ') || null;
+}
+
 export function createSecurityPointsLayer({ services, source }) {
   if (
     typeof source?.fetchViewport !== 'function' ||
@@ -139,6 +171,8 @@ export function createSecurityPointsLayer({ services, source }) {
     loading: false,
     stale: false,
     saturated: false,
+    failedCategories: [],
+    primaryProvider: 'google',
     status: 'idle',
     error: null,
     lastUpdate: null,
@@ -161,7 +195,7 @@ export function createSecurityPointsLayer({ services, source }) {
     services.render.governorRequestRender(reason);
   }
 
-  function setStatus(status, error = null) {
+  function setStatus(status, { error = null } = {}) {
     if (state.status === status && state.error === error) return;
     state.status = status;
     state.error = error;
@@ -362,6 +396,8 @@ export function createSecurityPointsLayer({ services, source }) {
       state.lastLoadedKey = '';
       state.stale = false;
       state.saturated = false;
+      state.failedCategories = [];
+      state.primaryProvider = 'google';
       clearRendered();
       clearSelection();
       setStatus(
@@ -393,6 +429,11 @@ export function createSecurityPointsLayer({ services, source }) {
         state.lastUpdate = Date.now();
         state.stale = payload.stale === true;
         state.saturated = payload.saturated === true;
+        state.failedCategories = Array.isArray(payload.failedCategories)
+          ? [...payload.failedCategories]
+          : [];
+        state.primaryProvider =
+          payload.primaryProvider === 'overpass' ? 'overpass' : 'google';
         if (state.selectedId && !state.recordById.has(state.selectedId))
           clearSelection();
         renderRecords();
@@ -415,13 +456,18 @@ export function createSecurityPointsLayer({ services, source }) {
       state.lastUpdate = Date.now();
       state.stale = payload.stale === true;
       state.saturated = payload.saturated === true;
+      state.failedCategories = Array.isArray(payload.failedCategories)
+        ? [...payload.failedCategories]
+        : [];
+      state.primaryProvider =
+        payload.primaryProvider === 'overpass' ? 'overpass' : 'google';
       setStatus(
-        state.records.length ? (state.stale ? 'stale' : 'ready') : 'empty',
-        state.stale
-          ? 'Showing cached Security Points'
-          : state.saturated
-            ? 'Coverage limited — zoom in for fewer facilities'
-            : null,
+        statusForSuccessfulSecurityPointsLoad({
+          records: state.records,
+          stale: state.stale,
+          failedCategories: state.failedCategories,
+          primaryProvider: state.primaryProvider,
+        }),
       );
       if (state.selectedId && !state.recordById.has(state.selectedId))
         clearSelection();
@@ -441,17 +487,17 @@ export function createSecurityPointsLayer({ services, source }) {
       if (state.records.length > 0) {
         state.lastLoadedKey = requestKey;
         state.lastUpdate = Date.now();
+        state.stale = true;
+        state.failedCategories = [];
+        state.primaryProvider = 'google';
         setStatus(
-          state.stale ? 'stale' : 'ready',
-          state.stale
-            ? 'Showing cached Security Points'
-            : state.saturated
-              ? 'Coverage limited — zoom in for fewer facilities'
-              : null,
+          statusForFailedSecurityPointsLoad({ hasCachedRecords: true }),
         );
         return;
       }
-      setStatus('unavailable', error?.message || 'Security Points unavailable');
+      setStatus(statusForFailedSecurityPointsLoad(), {
+        error: error?.message || 'Security Points unavailable',
+      });
     } finally {
       if (state.abort === controller) {
         state.abort = null;
@@ -519,6 +565,8 @@ export function createSecurityPointsLayer({ services, source }) {
       state.loading = false;
       if (state.dataSource) state.dataSource.show = false;
       state.lastLoadedKey = '';
+      state.failedCategories = [];
+      state.primaryProvider = 'google';
       clearRendered();
       clearSelection();
       setStatus('idle');
@@ -586,16 +634,26 @@ export function createSecurityPointsLayer({ services, source }) {
         lastUpdate: state.lastUpdate,
         stale: state.stale,
         saturated: state.saturated,
+        fallback: state.primaryProvider === 'overpass',
         error: state.error,
         status: state.status,
         loading: state.loading,
+        loadingLabel: state.loading
+          ? 'loading Security Points'
+          : securityPointsStatusMessage({
+              status: state.status,
+              saturated: state.saturated,
+            }) || '',
         statusMessage:
           activeCategories === 0
             ? 'Enable at least one Security Points category'
             : state.status === 'zoom-in'
               ? 'Zoom in to load Security Points'
-              : state.error,
-        loadingLabel: state.loading ? 'loading Security Points' : '',
+              : state.error ||
+                securityPointsStatusMessage({
+                  status: state.status,
+                  saturated: state.saturated,
+                }),
       };
     },
   };

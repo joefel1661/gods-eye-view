@@ -5,6 +5,7 @@ import { keySetupRequirement } from '../keySetupCore.mjs';
 const FEED_STATE_LABELS = Object.freeze({
   nominal: 'ON',
   loading: 'LOADING',
+  partial: 'PARTIAL',
   degraded: 'DEGRADED',
   stale: 'STALE',
   fallback: 'FALLBACK',
@@ -504,6 +505,13 @@ export class LayerPanel {
         typeof stats.loadingLabel === 'string' && stats.loadingLabel.trim()
           ? stats.loadingLabel.trim()
           : stats.coverage || ago;
+      return `${stateLabel} · ${source} · ${detail}`;
+    }
+    if (feedState === 'partial') {
+      const detail =
+        typeof stats.loadingLabel === 'string' && stats.loadingLabel.trim()
+          ? stats.loadingLabel.trim()
+          : ago;
       return `${stateLabel} · ${source} · ${detail}`;
     }
     if (feedState === 'stale') {

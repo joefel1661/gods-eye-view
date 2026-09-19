@@ -664,6 +664,7 @@
 }
 
 .data-toggle-btn.feed-loading,
+.data-toggle-btn.feed-partial,
 .data-toggle-btn.feed-degraded,
 .data-toggle-btn.feed-stale,
 .data-toggle-btn.feed-fallback,
@@ -692,6 +693,7 @@
   box-shadow: 0 0 10px rgba(255, 174, 51, 0.12);
 }
 
+.data-toggle-btn.active.feed-partial,
 .data-toggle-btn.active.feed-degraded {
   color: #ffad72;
   border-color: rgba(255, 137, 72, 0.78);
