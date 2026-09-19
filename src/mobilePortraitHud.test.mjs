@@ -9,15 +9,24 @@ const css = fs.readFileSync(
 const PORTRAIT_430_QUERY = '@media (max-width: 430px) and (orientation: portrait)';
 const PORTRAIT_390_QUERY = '@media (max-width: 390px) and (orientation: portrait)';
 
-function mediaBlock(query, nextQuery) {
+function mediaBlock(query) {
   const start = css.indexOf(query);
   assert.notEqual(start, -1, `missing media query: ${query}`);
-  const end = nextQuery ? css.indexOf(nextQuery, start + query.length) : css.length;
-  return css.slice(start, end === -1 ? css.length : end);
+  const open = css.indexOf('{', start + query.length);
+  assert.notEqual(open, -1, `missing opening brace for ${query}`);
+  let depth = 0;
+  for (let index = open; index < css.length; index += 1) {
+    if (css[index] === '{') depth += 1;
+    else if (css[index] === '}') {
+      depth -= 1;
+      if (depth === 0) return css.slice(start, index + 1);
+    }
+  }
+  assert.fail(`unterminated media block: ${query}`);
 }
 
 test('narrow portrait phones simplify and reflow the fixed HUD readouts', () => {
-  const portrait430 = mediaBlock(PORTRAIT_430_QUERY, PORTRAIT_390_QUERY);
+  const portrait430 = mediaBlock(PORTRAIT_430_QUERY);
 
   assert.match(
     portrait430,
@@ -42,7 +51,7 @@ test('narrow portrait phones simplify and reflow the fixed HUD readouts', () => 
 });
 
 test('narrow portrait phones keep the floating mic and first-run launcher out of the bottom-nav lane', () => {
-  const portrait430 = mediaBlock(PORTRAIT_430_QUERY, PORTRAIT_390_QUERY);
+  const portrait430 = mediaBlock(PORTRAIT_430_QUERY);
   const portrait390 = mediaBlock(PORTRAIT_390_QUERY);
 
   assert.match(
