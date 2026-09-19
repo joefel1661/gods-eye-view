@@ -36,20 +36,27 @@
     );
   }
 
-  #intel-hud .hud-content,
-  #intel-hud .hud-top-bar,
-  #intel-hud .hud-bottom-bar,
-  #intel-hud .hud-edge {
+  #intel-hud .hud-classification,
+  #intel-hud .hud-system,
+  #intel-hud .hud-mode,
+  #intel-hud .hud-summary-label,
+  #intel-hud .hud-summary,
+  #intel-hud .hud-rec,
+  #intel-hud #hud-timestamp,
+  #intel-hud .hud-orbital,
+  #intel-hud #hud-mgrs,
+  #intel-hud #hud-latlon,
+  #intel-hud #hud-gsd,
+  #intel-hud #hud-alt,
+  #intel-hud .hud-ais-vessel,
+  #intel-hud #hud-coll,
+  #intel-hud #hud-ona,
+  #intel-hud .hud-left-edge > div,
+  #intel-hud .hud-right-edge > div,
+  #intel-hud .hud-top-bar > *,
+  #intel-hud .hud-bottom-bar > * {
     color: var(--hud-mobile-telemetry-color);
     text-shadow: var(--hud-mobile-telemetry-shadow);
-  }
-
-  #intel-hud .hud-content *,
-  #intel-hud .hud-top-bar *,
-  #intel-hud .hud-bottom-bar *,
-  #intel-hud .hud-edge * {
-    color: inherit;
-    text-shadow: inherit;
   }
 
   #intel-hud .hud-content,
