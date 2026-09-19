@@ -83,3 +83,27 @@ test('HUD widget collapse restore tolerates null and preserves valid preferences
     'sync',
   ]);
 });
+
+test('startup defaults do not override an explicit persisted HUD overlay mode', () => {
+  const calls = [];
+  StyleManager.prototype._applyGlobalPostDefaults.call({
+    _visualSettings: {
+      _applyGlobalPostDefaults() {
+        calls.push('defaults');
+      },
+    },
+    _initialShareState: null,
+    _readHudOverlayTextPreference() {
+      return 'off';
+    },
+    hud: {
+      setMode(mode) {
+        calls.push(['mode', mode]);
+      },
+    },
+    _updateHudButtonState() {
+      calls.push('buttons');
+    },
+  });
+  assert.deepEqual(calls, ['defaults', ['mode', 'off'], 'buttons']);
+});

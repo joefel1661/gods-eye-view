@@ -1465,7 +1465,17 @@ export class StyleManager {
    * @returns {void}
    */
   _applyGlobalPostDefaults() {
-    return this._visualSettings._applyGlobalPostDefaults(...arguments);
+    const result = this._visualSettings._applyGlobalPostDefaults(...arguments);
+    const hasShareHudPreference =
+      typeof this._initialShareState?.hudVisible === 'boolean';
+    if (!hasShareHudPreference) {
+      const persistedMode = this._readHudOverlayTextPreference();
+      if (persistedMode === 'on' || persistedMode === 'off') {
+        this.hud.setMode(persistedMode);
+        this._updateHudButtonState();
+      }
+    }
+    return result;
   }
 
   /**
