@@ -392,10 +392,11 @@
   }
 
   body[data-mobile-panel='controls'] #command-dock {
+    --mobile-controls-popover-position: static;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 0 0 14px;
+    gap: 8px;
+    padding: 0 0 10px;
     overflow-x: hidden;
     overflow-y: auto;
     background: rgba(8, 20, 30, 0.96);
@@ -416,7 +417,7 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px 14px 0;
+    padding: 10px 14px 0;
     background: linear-gradient(
       180deg,
       rgba(8, 20, 30, 0.98) 0%,
@@ -475,8 +476,8 @@
     height: auto;
     min-height: 0;
     margin: 0 14px;
-    padding: 12px 14px;
-    gap: 10px;
+    padding: 10px 12px;
+    gap: 8px;
     border-radius: 18px;
     box-sizing: border-box;
     overflow-x: hidden;
@@ -557,7 +558,7 @@
 
   body[data-mobile-panel='controls'] #command-dock .location-toolbar,
   body[data-mobile-panel='controls'] #command-dock .panel-header {
-    margin: 0 0 8px;
+    margin: 0 0 6px;
     padding: 0;
   }
 
@@ -583,6 +584,11 @@
     pointer-events: auto;
   }
 
+  #command-dock #location-bar .dock-popover-content,
+  #command-dock #control-panel .dock-popover-content {
+    position: var(--mobile-controls-popover-position, absolute);
+  }
+
   body[data-mobile-panel='controls'] #command-dock #location-bar .dock-popover-content,
   body[data-mobile-panel='controls'] #command-dock #control-panel .dock-popover-content {
     right: auto;
@@ -598,7 +604,6 @@
     display: none;
   }
 
-  body[data-mobile-panel='controls'] #command-dock .button-grid,
   body[data-mobile-panel='controls'] #command-dock .location-city-row,
   body[data-mobile-panel='controls'] #command-dock .poi-row-container.expanded,
   body[data-mobile-panel='controls'] #command-dock .poi-row-container {
@@ -614,11 +619,12 @@
     max-height: none;
   }
 
-  body[data-mobile-panel='controls'] #command-dock .button-grid {
-    flex-wrap: wrap;
+  body[data-mobile-panel='controls'] #command-dock #control-panel .button-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     min-width: 0;
-    max-height: min(48vh, 20rem);
+    max-height: min(27vh, 11rem);
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -711,8 +717,11 @@
   }
 
   body[data-mobile-panel='controls'] #command-dock .style-btn {
-    flex: 1 1 calc(33.333% - 8px);
-    min-width: calc(33.333% - 8px);
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
   }
 
   body[data-mobile-panel='controls'] #command-dock .gev-voice-error-tray {
@@ -808,8 +817,8 @@
   }
 
   body[data-mobile-panel='controls'] #command-dock .style-btn {
-    flex-basis: calc(50% - 8px);
-    min-width: calc(50% - 8px);
+    flex-basis: auto;
+    min-width: 0;
   }
 }
 
