@@ -634,3 +634,150 @@
     min-width: calc(50% - 8px);
   }
 }
+
+@media (max-width: 430px) and (orientation: portrait) {
+  #intel-hud.active .hud-top-bar,
+  #intel-hud.active .hud-bottom-bar,
+  #intel-hud .hud-top-right,
+  #intel-hud .hud-bottom-right,
+  #intel-hud .hud-left-edge,
+  #intel-hud .hud-right-edge,
+  #intel-hud .hud-classification,
+  #intel-hud .hud-system,
+  #intel-hud .hud-orbital,
+  #intel-hud .hud-ais-vessel {
+    display: none;
+  }
+
+  #intel-hud .hud-corner {
+    gap: 4px;
+    padding: 2px 0;
+  }
+
+  #intel-hud .hud-bracket {
+    font-size: 18px;
+    opacity: 0.45;
+  }
+
+  #intel-hud .hud-content {
+    font-size: 12px;
+    letter-spacing: 1.3px;
+  }
+
+  #intel-hud .hud-top-left {
+    top: calc(var(--mobile-safe-top) + 46px);
+    right: 12px;
+    left: 12px;
+  }
+
+  #intel-hud .hud-top-left,
+  #intel-hud .hud-bottom-left,
+  #intel-hud .hud-bottom-right,
+  #intel-hud .hud-top-right {
+    max-width: calc(100vw - 24px);
+  }
+
+  #intel-hud .hud-mode {
+    font-size: 14px;
+    letter-spacing: 2.6px;
+  }
+
+  #intel-hud .hud-summary-wrap {
+    max-width: none;
+    margin-top: 4px;
+  }
+
+  #intel-hud .hud-summary-label {
+    font-size: 8px;
+    letter-spacing: 1.4px;
+  }
+
+  #intel-hud .hud-summary {
+    display: -webkit-box;
+    margin-top: 3px;
+    overflow: hidden;
+    font-size: 10px;
+    line-height: 1.4;
+    letter-spacing: 0.9px;
+    white-space: normal;
+    text-overflow: clip;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  #intel-hud .hud-rec {
+    font-size: 10px;
+    letter-spacing: 1.2px;
+  }
+
+  #intel-hud .hud-bottom-left,
+  #intel-hud .hud-bottom-right {
+    bottom: calc(var(--mobile-panel-bottom) + 84px);
+  }
+
+  #intel-hud .hud-bottom-left {
+    left: 12px;
+    max-width: min(58vw, 13rem);
+  }
+
+  #hud-mgrs,
+  #hud-latlon,
+  #hud-gsd,
+  #hud-alt {
+    font-size: 10px;
+    line-height: 1.35;
+    letter-spacing: 0.75px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  #hud-gsd {
+    opacity: 0.74;
+  }
+
+  #command-dock > #gev-voice-control:not([data-status='idle']) {
+    left: auto;
+    width: min(15rem, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+  }
+
+  #command-dock > #gev-voice-control:not([data-status='idle']) .gev-voice-readout {
+    text-align: left;
+  }
+
+  #command-dock > #gev-voice-control:not([data-status='idle']) #gev-voice-detail {
+    max-width: none;
+    white-space: normal;
+  }
+
+  #first-run-launcher {
+    bottom: calc(var(--mobile-panel-bottom) + 12px);
+    width: min(30rem, calc(100vw - 1rem));
+    max-height: calc(
+      100dvh - var(--mobile-safe-top) - var(--mobile-panel-bottom) - 16px
+    );
+  }
+}
+
+@media (max-width: 390px) and (orientation: portrait) {
+  #hud-gsd {
+    display: none;
+  }
+
+  #intel-hud .hud-bottom-left {
+    max-width: min(62vw, 13rem);
+  }
+
+  #command-dock > #gev-voice-control:not([data-status='idle']) {
+    width: min(13.5rem, calc(100vw - 24px));
+  }
+
+  #first-run-launcher {
+    padding: 0.8rem;
+  }
+
+  #first-run-description {
+    font-size: 0.68rem;
+    line-height: 1.4;
+  }
+}
