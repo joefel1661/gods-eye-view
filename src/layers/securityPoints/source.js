@@ -1,10 +1,12 @@
 import {
   CATEGORY_CONFIG,
   CATEGORY_ORDER,
+  DETAIL_REQUEST_TIMEOUT_MS,
   GOOGLE_NEARBY_URL,
   MAX_VIEWPORT_DEGREES,
   OVERPASS_URL,
   QUERY_LIMIT,
+  VIEWPORT_REQUEST_TIMEOUT_MS,
 } from './policy.js';
 
 function validateBox(box) {
@@ -38,11 +40,23 @@ function buildOverpassQuery(box, enabledCategories) {
     clauses.push(`node["amenity"="police"]${bbox};`);
     clauses.push(`way["amenity"="police"]${bbox};`);
     clauses.push(`relation["amenity"="police"]${bbox};`);
+    clauses.push(`node["office"="government"]["name"~"sheriff",i]${bbox};`);
+    clauses.push(`way["office"="government"]["name"~"sheriff",i]${bbox};`);
+    clauses.push(`relation["office"="government"]["name"~"sheriff",i]${bbox};`);
+    clauses.push(`node["law_enforcement"="sheriff"]${bbox};`);
+    clauses.push(`way["law_enforcement"="sheriff"]${bbox};`);
+    clauses.push(`relation["law_enforcement"="sheriff"]${bbox};`);
   }
   if (enabledCategories.includes('fireEms')) {
     clauses.push(`node["amenity"="fire_station"]${bbox};`);
     clauses.push(`way["amenity"="fire_station"]${bbox};`);
     clauses.push(`relation["amenity"="fire_station"]${bbox};`);
+    clauses.push(`node["emergency"="fire_station"]${bbox};`);
+    clauses.push(`way["emergency"="fire_station"]${bbox};`);
+    clauses.push(`relation["emergency"="fire_station"]${bbox};`);
+    clauses.push(`node["amenity"="ambulance_station"]${bbox};`);
+    clauses.push(`way["amenity"="ambulance_station"]${bbox};`);
+    clauses.push(`relation["amenity"="ambulance_station"]${bbox};`);
     clauses.push(`node["emergency"="ambulance_station"]${bbox};`);
     clauses.push(`way["emergency"="ambulance_station"]${bbox};`);
     clauses.push(`relation["emergency"="ambulance_station"]${bbox};`);
@@ -62,6 +76,9 @@ function buildOverpassQuery(box, enabledCategories) {
     clauses.push(`relation["emergency"="emergency_department"]${bbox};`);
   }
   if (enabledCategories.includes('airports')) {
+    clauses.push(`node["aeroway"="airport"]${bbox};`);
+    clauses.push(`way["aeroway"="airport"]${bbox};`);
+    clauses.push(`relation["aeroway"="airport"]${bbox};`);
     clauses.push(`node["aeroway"="aerodrome"]${bbox};`);
     clauses.push(`way["aeroway"="aerodrome"]${bbox};`);
     clauses.push(`relation["aeroway"="aerodrome"]${bbox};`);
@@ -92,10 +109,14 @@ function normalizePhone(tags = {}) {
 
 function inferCategory(tags = {}) {
   const aeroway = String(tags.aeroway || '').toLowerCase();
-  if (aeroway === 'aerodrome' || aeroway === 'heliport') return 'airports';
+  if (aeroway === 'airport' || aeroway === 'aerodrome' || aeroway === 'heliport')
+    return 'airports';
   const emergency = String(tags.emergency || '').toLowerCase();
   const amenity = String(tags.amenity || '').toLowerCase();
   const healthcare = String(tags.healthcare || '').toLowerCase();
+  const office = String(tags.office || '').toLowerCase();
+  const lawEnforcement = String(tags.law_enforcement || '').toLowerCase();
+  const name = String(tags.name || '').toLowerCase();
   if (
     amenity === 'hospital' ||
     healthcare === 'hospital' ||
@@ -103,9 +124,19 @@ function inferCategory(tags = {}) {
     emergency === 'emergency_department'
   )
     return 'hospitals';
-  if (amenity === 'fire_station' || emergency === 'ambulance_station')
+  if (
+    amenity === 'fire_station' ||
+    emergency === 'fire_station' ||
+    amenity === 'ambulance_station' ||
+    emergency === 'ambulance_station'
+  )
     return 'fireEms';
-  if (amenity === 'police') return 'police';
+  if (
+    amenity === 'police' ||
+    lawEnforcement === 'sheriff' ||
+    (office === 'government' && /\bsheriff\b/.test(name))
+  )
+    return 'police';
   return null;
 }
 
@@ -121,11 +152,17 @@ function typeLabelForCategory(category, tags = {}) {
     return 'Hospital';
   }
   if (category === 'fireEms') {
-    if (String(tags.emergency || '').toLowerCase() === 'ambulance_station')
+    if (
+      String(tags.emergency || '').toLowerCase() === 'ambulance_station' ||
+      String(tags.amenity || '').toLowerCase() === 'ambulance_station'
+    )
       return 'EMS station';
     return 'Fire station';
   }
-  if (category === 'police') return 'Police facility';
+  if (category === 'police')
+    return /\bsheriff\b/i.test(String(tags.name || ''))
+      ? 'Sheriff office'
+      : 'Police facility';
   return 'Security point';
 }
 
@@ -192,6 +229,29 @@ function boundedPush(map, key, value, maxEntries = 24) {
   while (map.size > maxEntries) map.delete(map.keys().next().value);
 }
 
+function requestSignal(signal, timeoutMs) {
+  return signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+    : AbortSignal.timeout(timeoutMs);
+}
+
+function readResponseJsonSafe(response) {
+  return response.json().catch(() => ({}));
+}
+
+function sanitizeProviderError(error) {
+  if (!error || typeof error !== 'object') return null;
+  const status =
+    Number.isFinite(error.code) && error.code > 0 ? Number(error.code) : null;
+  const reason = String(error.status || '').trim() || null;
+  const message = String(error.message || '').trim() || null;
+  return { status, reason, message };
+}
+
+function logSecurityPointDiagnostic(scope, detail) {
+  console.warn(`[SecurityPoints] ${scope}`, detail);
+}
+
 function normalizeName(value) {
   return String(value || '')
     .toLowerCase()
@@ -236,30 +296,42 @@ export function createSecurityPointSource({
     if (cache.has(key)) return cache.get(key);
     if (inflight.has(key)) return inflight.get(key);
     const request = (async () => {
-      signal?.throwIfAborted();
+      const request = requestSignal(signal, VIEWPORT_REQUEST_TIMEOUT_MS);
+      request.throwIfAborted();
       const response = await fetchImpl(OVERPASS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `data=${encodeURIComponent(buildOverpassQuery(box, enabledCategories))}`,
-        signal,
+        signal: request,
       });
       if (!response.ok) {
+        const bodyText = await response.text().catch(() => '');
         try {
           await response.body?.cancel();
         } catch {
           /* already closed */
         }
+        logSecurityPointDiagnostic('viewport request failed', {
+          endpoint: OVERPASS_URL,
+          method: 'POST',
+          status: response.status,
+          providerError: bodyText
+            ? bodyText.slice(0, 240)
+            : 'No response body',
+        });
         throw new Error(
           response.status === 429
             ? 'Security Points are temporarily rate-limited'
             : response.status === 504
               ? 'Security Points query timed out'
+              : response.status === 403
+                ? 'Security Points provider refused the request'
               : 'Security Points are temporarily unavailable',
         );
       }
       const stale = response.headers.get('x-overpass-cache') === 'STALE';
       const payload = await response.json();
-      signal?.throwIfAborted();
+      request.throwIfAborted();
       if (!Array.isArray(payload?.elements) || payload.remark)
         throw new Error('Security Points returned an incomplete response');
       const deduped = new Map();
@@ -291,11 +363,23 @@ export function createSecurityPointSource({
       maxResultCount: '8',
     });
     if (types.length) query.set('includedTypes', types.join(','));
-    signal?.throwIfAborted();
-    const response = await fetchImpl(`${GOOGLE_NEARBY_URL}?${query}`, { signal });
-    const payload = await response.json();
-    signal?.throwIfAborted();
-    if (!response.ok || !Array.isArray(payload?.places)) return null;
+    const request = requestSignal(signal, DETAIL_REQUEST_TIMEOUT_MS);
+    request.throwIfAborted();
+    const response = await fetchImpl(`${GOOGLE_NEARBY_URL}?${query}`, {
+      signal: request,
+    });
+    const payload = await readResponseJsonSafe(response);
+    request.throwIfAborted();
+    if (!response.ok) {
+      logSecurityPointDiagnostic('detail request failed', {
+        endpoint: GOOGLE_NEARBY_URL,
+        method: 'GET',
+        status: response.status,
+        providerError: sanitizeProviderError(payload?.error || payload),
+      });
+      return null;
+    }
+    if (!Array.isArray(payload?.places)) return null;
     let best = null;
     let bestScore = -Infinity;
     for (const place of payload.places) {

@@ -47,6 +47,7 @@ test('fetchViewport builds category-bounded Overpass queries and normalizes reco
   assert.equal(String(calls[0][0]), '/api/overpass');
   const decodedBody = decodeURIComponent(String(calls[0][1].body));
   assert.match(decodedBody, /amenity"="police/);
+  assert.match(decodedBody, /name"~"sheriff"/);
   assert.doesNotMatch(decodedBody, /fire_station/);
   assert.equal(result.stale, true);
   assert.equal(result.records.length, 1);
@@ -54,6 +55,71 @@ test('fetchViewport builds category-bounded Overpass queries and normalizes reco
   assert.equal(result.records[0].address, '715 E 8th St · Austin');
   assert.equal(result.records[0].phone, '+1 512-974-5000');
   assert.equal(result.records[0].footprint.length, 3);
+});
+
+test('fetchViewport maps sheriff, EMS, emergency department, and airport records into the expected categories', async () => {
+  const source = createSecurityPointSource({
+    fetchImpl: async () =>
+      Response.json({
+        elements: [
+          {
+            type: 'node',
+            id: 1,
+            lat: 30.1,
+            lon: -97.1,
+            tags: {
+              office: 'government',
+              name: 'Travis County Sheriff Office',
+            },
+          },
+          {
+            type: 'node',
+            id: 2,
+            lat: 30.2,
+            lon: -97.2,
+            tags: {
+              amenity: 'ambulance_station',
+              name: 'Austin EMS',
+            },
+          },
+          {
+            type: 'node',
+            id: 3,
+            lat: 30.3,
+            lon: -97.3,
+            tags: {
+              emergency: 'emergency_department',
+              name: 'Dell Seton ER',
+            },
+          },
+          {
+            type: 'node',
+            id: 4,
+            lat: 30.4,
+            lon: -97.4,
+            tags: {
+              aeroway: 'airport',
+              name: 'Example Airfield',
+            },
+          },
+        ],
+      }),
+  });
+
+  const result = await source.fetchViewport(
+    { south: 30, west: -98, north: 31, east: -97 },
+    { police: true, fireEms: true, hospitals: true, airports: true },
+  );
+
+  assert.deepEqual(
+    result.records.map((record) => [record.category, record.typeLabel]),
+    [
+      ['police', 'Sheriff office'],
+      ['fireEms', 'EMS station'],
+      ['hospitals', 'Emergency department'],
+      ['airports', 'Airport'],
+    ],
+  );
 });
 
 test('enrichRecord narrows nearby places by category and returns phone metadata', async () => {

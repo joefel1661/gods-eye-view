@@ -63,6 +63,21 @@ function telHref(phone) {
   return href ? `tel:${href}` : null;
 }
 
+export function countLabelForState(state) {
+  if (!state.enabled) return '';
+  if (state.loading) return 'Loading';
+  switch (state.status) {
+    case 'zoom-in':
+      return 'Zoom in to view';
+    case 'empty':
+      return 'No facilities found';
+    case 'unavailable':
+      return 'Provider unavailable';
+    default:
+      return `${state.records.length} nearby`;
+  }
+}
+
 function approximateDistanceM(latA, lonA, latB, lonB) {
   const latitudeScale = 111320;
   const longitudeScale = latitudeScale * Math.cos((latA * Math.PI) / 180);
@@ -229,17 +244,15 @@ export function createSecurityPointsLayer({ services, source }) {
             }
           : undefined,
         point:
-          !record.footprint || selected
-            ? {
-                pixelSize:
-                  (CATEGORY_CONFIG[record.category]?.markerSize || 9) +
-                  (selected ? 3 : 0),
-                color: selected ? Cesium.Color.WHITE : color,
-                outlineColor: color.withAlpha(0.95),
-                outlineWidth: selected ? 3 : 2,
-                disableDepthTestDistance: Number.POSITIVE_INFINITY,
-              }
-            : undefined,
+          {
+            pixelSize:
+              (CATEGORY_CONFIG[record.category]?.markerSize || 9) +
+              (selected ? 3 : 0),
+            color: selected ? Cesium.Color.WHITE : color,
+            outlineColor: color.withAlpha(0.95),
+            outlineWidth: selected ? 3 : 2,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
       });
       entity.gevTrackedId = `security:${record.id}`;
       entity.gevDisplayPosition = () => position;
@@ -393,6 +406,10 @@ export function createSecurityPointsLayer({ services, source }) {
         error?.name === 'AbortError'
       )
         return;
+      console.warn('[SecurityPoints] viewport load failed', {
+        status: 'unavailable',
+        message: error?.message || 'Security Points unavailable',
+      });
       setStatus('unavailable', error?.message || 'Security Points unavailable');
     } finally {
       if (state.abort === controller) {
@@ -512,7 +529,7 @@ export function createSecurityPointsLayer({ services, source }) {
       const activeCategories = selectedCategoryIds(state.params).length;
       return {
         count: state.records.length,
-        countLabel: state.enabled ? `${state.records.length} nearby` : '',
+        countLabel: countLabelForState(state),
         lastUpdate: state.lastUpdate,
         stale: state.stale,
         saturated: state.saturated,
