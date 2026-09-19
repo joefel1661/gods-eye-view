@@ -441,10 +441,13 @@ export function createSecurityPointsLayer({ services, source }) {
       if (state.records.length > 0) {
         state.lastLoadedKey = requestKey;
         state.lastUpdate = Date.now();
-        state.stale = false;
         setStatus(
-          'ready',
-          state.saturated ? 'Coverage limited — zoom in for fewer facilities' : null,
+          state.stale ? 'stale' : 'ready',
+          state.stale
+            ? 'Showing cached Security Points'
+            : state.saturated
+              ? 'Coverage limited — zoom in for fewer facilities'
+              : null,
         );
         return;
       }
