@@ -24,6 +24,42 @@
     );
   }
 
+  #intel-hud {
+    --hud-mobile-telemetry-color: #ffd166;
+    --hud-mobile-telemetry-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.92),
+      0 0 10px rgba(0, 0, 0, 0.6);
+    --hud-mobile-telemetry-backing: linear-gradient(
+      180deg,
+      rgba(6, 8, 10, 0.56),
+      rgba(6, 8, 10, 0.32)
+    );
+  }
+
+  #intel-hud .hud-content,
+  #intel-hud .hud-top-bar,
+  #intel-hud .hud-bottom-bar,
+  #intel-hud .hud-edge {
+    color: var(--hud-mobile-telemetry-color);
+    text-shadow: var(--hud-mobile-telemetry-shadow);
+  }
+
+  #intel-hud .hud-content *,
+  #intel-hud .hud-top-bar *,
+  #intel-hud .hud-bottom-bar *,
+  #intel-hud .hud-edge * {
+    color: inherit;
+    text-shadow: inherit;
+  }
+
+  #intel-hud .hud-content,
+  #intel-hud .hud-edge {
+    padding: 4px 6px;
+    border-radius: 4px;
+    background: var(--hud-mobile-telemetry-backing);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+  }
+
   html,
   body,
   #cesiumContainer {
