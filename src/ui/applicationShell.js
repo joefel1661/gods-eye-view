@@ -1465,7 +1465,17 @@ export class StyleManager {
    * @returns {void}
    */
   _applyGlobalPostDefaults() {
-    return this._visualSettings._applyGlobalPostDefaults(...arguments);
+    const result = this._visualSettings._applyGlobalPostDefaults(...arguments);
+    const hasShareHudPreference =
+      typeof this._initialShareState?.hudVisible === 'boolean';
+    if (!hasShareHudPreference) {
+      const persistedMode = this._readHudOverlayTextPreference();
+      if (persistedMode === 'on' || persistedMode === 'off') {
+        this.hud.setMode(persistedMode);
+        this._updateHudButtonState();
+      }
+    }
+    return result;
   }
 
   /**
@@ -3594,7 +3604,9 @@ export class StyleManager {
       const parsed = JSON.parse(
         localStorage.getItem(HUD_MOBILE_WIDGET_STORAGE_KEY) || 'null',
       );
-      if (!parsed || typeof parsed !== 'object') return null;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return { status: false, coordinates: false };
+      }
       return {
         status: !!parsed.status,
         coordinates: !!parsed.coordinates,
@@ -3602,7 +3614,7 @@ export class StyleManager {
     } catch {
       /* best effort */
     }
-    return null;
+    return { status: false, coordinates: false };
   }
 
   _persistHudMobileWidgetPreference(state) {
