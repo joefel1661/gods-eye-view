@@ -64,8 +64,8 @@ function sanitizeOverpassProviderText(bodyText, contentType = '') {
   if (parsedJson && !text) return null;
   if (!text) {
     text = raw
-      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ')
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/&nbsp;/gi, ' ')
       .replace(/&amp;/gi, '&')
@@ -236,6 +236,7 @@ async function fetchOverpassPayload(
     attempts,
     fallbackAttempted: attempts.length > 1,
     providerError: attempts.at(-1)?.providerError || null,
+    reportedAttempt: attempts.at(-1) || null,
   });
 }
 

@@ -227,6 +227,15 @@ function overpassProxy({ routing = {} } = {}) {
         );
       } catch (error) {
         const attempts = summarizeOverpassAttempts(error?.attempts);
+        const reportedAttempt = attempts.find(
+          (attempt) =>
+            attempt.endpoint.hostname
+              === overpassEndpointDetail(error?.reportedAttempt?.endpoint).hostname
+            && attempt.httpStatus
+              === (Number.isFinite(error?.reportedAttempt?.status)
+                ? Number(error.reportedAttempt.status)
+                : null),
+        );
         res.writeHead(200, {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store',
@@ -241,8 +250,9 @@ function overpassProxy({ routing = {} } = {}) {
               || sanitizeOverpassError(error),
             fallbackAttempted: error?.fallbackAttempted === true,
             attempts,
-            endpoint: attempts.at(-1)?.endpoint || responseBody.endpoint,
-            httpStatus: attempts.at(-1)?.httpStatus ?? responseBody.httpStatus,
+            endpoint: reportedAttempt?.endpoint || responseBody.endpoint,
+            httpStatus:
+              reportedAttempt?.httpStatus ?? responseBody.httpStatus,
           }),
         );
       }
