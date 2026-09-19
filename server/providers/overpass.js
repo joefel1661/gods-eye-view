@@ -31,6 +31,61 @@ const _overpassRateLimiter = makeRateLimiter({
   globalMax: 300,
 });
 
+const OVERPASS_HEALTH_DEFAULTS = Object.freeze({
+  south: 30.267,
+  west: -97.744,
+  north: 30.268,
+  east: -97.742,
+});
+
+function overpassEndpointDetail(endpoint) {
+  try {
+    const target = new URL(String(endpoint || ''));
+    return {
+      hostname: target.hostname || null,
+      path: target.pathname || null,
+    };
+  } catch {
+    return { hostname: null, path: null };
+  }
+}
+
+function clampCoordinate(value, fallback, min, max) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(min, Math.min(max, numeric));
+}
+
+function overpassHealthQuery({ south, west, north, east }) {
+  return `[out:json][timeout:12];(node["amenity"="police"](${south},${west},${north},${east});node["amenity"="fire_station"](${south},${west},${north},${east});node["amenity"="hospital"](${south},${west},${north},${east});node["aeroway"~"airport|aerodrome|heliport"](${south},${west},${north},${east}););out tags center 20;`;
+}
+
+function overpassTimeoutTriggered(error, payload = null) {
+  if (payload?.runtimeError) return true;
+  const name = String(error?.name || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    name === 'aborterror' ||
+    name === 'timeouterror' ||
+    message.includes('timed out') ||
+    message.includes('timeout')
+  );
+}
+
+function overpassResultCount(payload) {
+  try {
+    const parsed = JSON.parse(String(payload?.body || '{}'));
+    return Array.isArray(parsed?.elements) ? parsed.elements.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function sanitizeOverpassError(error) {
+  const message = String(error?.message || '').trim();
+  return message ? message.slice(0, 240) : null;
+}
+
 /**
  * Write a completed Overpass payload to the HTTP response.
  *
@@ -61,6 +116,90 @@ function sendOverpassResponse(res, payload, cacheStatus = 'MISS') {
  */
 function overpassProxy({ routing = {} } = {}) {
   const installMiddleware = (server) => {
+    server.middlewares.use('/api/overpass/health', async (req, res) => {
+      if (req.method !== 'GET') {
+        res.writeHead(405, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+        return;
+      }
+      const requestUrl = new URL(req.url || '', 'http://localhost');
+      const south = clampCoordinate(
+        requestUrl.searchParams.get('south'),
+        OVERPASS_HEALTH_DEFAULTS.south,
+        -90,
+        90,
+      );
+      const west = clampCoordinate(
+        requestUrl.searchParams.get('west'),
+        OVERPASS_HEALTH_DEFAULTS.west,
+        -180,
+        180,
+      );
+      const north = clampCoordinate(
+        requestUrl.searchParams.get('north'),
+        OVERPASS_HEALTH_DEFAULTS.north,
+        -90,
+        90,
+      );
+      const east = clampCoordinate(
+        requestUrl.searchParams.get('east'),
+        OVERPASS_HEALTH_DEFAULTS.east,
+        -180,
+        180,
+      );
+      const [safeSouth, safeNorth] =
+        south <= north ? [south, north] : [north, south];
+      const [safeWest, safeEast] = west <= east ? [west, east] : [east, west];
+      const query = overpassHealthQuery({
+        south: safeSouth.toFixed(5),
+        west: safeWest.toFixed(5),
+        north: safeNorth.toFixed(5),
+        east: safeEast.toFixed(5),
+      });
+      const body = `data=${encodeURIComponent(query)}`;
+      const startedAt = Date.now();
+      const responseBody = {
+        reachable: false,
+        endpoint: { hostname: null, path: null },
+        httpStatus: null,
+        latencyMs: null,
+        timeoutTriggered: false,
+        resultCount: 0,
+      };
+      try {
+        const payload = await fetchOverpassPayload(body);
+        const latencyMs = Date.now() - startedAt;
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+        });
+        res.end(
+          JSON.stringify({
+            ...responseBody,
+            reachable: overpassPayloadIsData(payload),
+            endpoint: overpassEndpointDetail(payload?.endpoint),
+            httpStatus: Number(payload?.status) || null,
+            latencyMs,
+            timeoutTriggered: overpassTimeoutTriggered(null, payload),
+            resultCount: overpassResultCount(payload),
+          }),
+        );
+      } catch (error) {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+        });
+        res.end(
+          JSON.stringify({
+            ...responseBody,
+            latencyMs: Date.now() - startedAt,
+            timeoutTriggered: overpassTimeoutTriggered(error),
+            error: sanitizeOverpassError(error),
+          }),
+        );
+      }
+    });
+
     server.middlewares.use('/api/overpass', async (req, res) => {
       // Hoisted out of the try so the catch's serve-stale lookup can see it
       // (a body-read failure would otherwise hit an out-of-scope reference).

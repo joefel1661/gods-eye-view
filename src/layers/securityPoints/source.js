@@ -86,7 +86,7 @@ function buildOverpassQuery(box, enabledCategories) {
     clauses.push(`way["aeroway"="heliport"]${bbox};`);
     clauses.push(`relation["aeroway"="heliport"]${bbox};`);
   }
-  return `[out:json][timeout:25];(\n${clauses.join('\n')}\n);out tags center geom ${QUERY_LIMIT};`;
+  return `[out:json][timeout:25];(\n${clauses.join('\n')}\n);out tags center ${QUERY_LIMIT};`;
 }
 
 function formatAddress(tags = {}) {
@@ -264,6 +264,39 @@ function logSecurityPointDiagnostic(scope, detail) {
   console.warn(`[SecurityPoints] ${scope}`, detail);
 }
 
+function isTimeoutError(error) {
+  if (!error) return false;
+  const name = String(error?.name || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    name === 'timeouterror' ||
+    message.includes('timed out') ||
+    message.includes('timeout')
+  );
+}
+
+function sanitizedErrorMessage(error) {
+  const message = String(error?.message || '').trim();
+  return message ? message.slice(0, 240) : 'Request failed';
+}
+
+function endpointHostFromHeader(value) {
+  try {
+    return new URL(String(value || '')).hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+function bboxForLog(box) {
+  return {
+    south: formatViewportValue(box.south),
+    west: formatViewportValue(box.west),
+    north: formatViewportValue(box.north),
+    east: formatViewportValue(box.east),
+  };
+}
+
 function normalizeName(value) {
   return String(value || '')
     .toLowerCase()
@@ -307,59 +340,176 @@ export function createSecurityPointSource({
     const key = queryKey(box, enabledCategories);
     if (cache.has(key)) return cache.get(key);
     if (inflight.has(key)) return inflight.get(key);
-    const request = (async () => {
-      const request = requestSignal(signal, VIEWPORT_REQUEST_TIMEOUT_MS);
-      request.throwIfAborted();
-      const response = await fetchImpl(OVERPASS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `data=${encodeURIComponent(buildOverpassQuery(box, enabledCategories))}`,
-        signal: request,
-      });
-      if (!response.ok) {
-        const bodyText = await response.text().catch(() => '');
-        try {
-          await response.body?.cancel();
-        } catch {
-          /* already closed */
-        }
-        logSecurityPointDiagnostic('viewport request failed', {
+    const pending = (async () => {
+      const requests = enabledCategories.map(async (category) => {
+        const query = buildOverpassQuery(box, [category]);
+        const requestBody = `data=${encodeURIComponent(query)}`;
+        const request = requestSignal(signal, VIEWPORT_REQUEST_TIMEOUT_MS);
+        request.throwIfAborted();
+        const startedAt = Date.now();
+        logSecurityPointDiagnostic('viewport request started', {
           endpoint: OVERPASS_URL,
+          endpointHost: null,
           method: 'POST',
-          status: response.status,
-          providerError: bodyText ? bodyText.slice(0, 240) : 'No response body',
+          category,
+          querySize: query.length,
+          bbox: bboxForLog(box),
         });
-        throw new Error(
-          response.status === 429
-            ? 'Security Points are temporarily rate-limited'
-            : response.status === 504
+        let response;
+        try {
+          response = await fetchImpl(OVERPASS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: requestBody,
+            signal: request,
+          });
+        } catch (error) {
+          const elapsedMs = Date.now() - startedAt;
+          const timeoutTriggered = request.aborted || isTimeoutError(error);
+          logSecurityPointDiagnostic('viewport request failed', {
+            endpoint: OVERPASS_URL,
+            endpointHost: null,
+            method: 'POST',
+            category,
+            querySize: query.length,
+            bbox: bboxForLog(box),
+            status: null,
+            responseTimeMs: elapsedMs,
+            responseSize: null,
+            resultCount: 0,
+            timeoutTriggered,
+            providerError: sanitizedErrorMessage(error),
+          });
+          throw new Error(
+            timeoutTriggered
               ? 'Security Points query timed out'
-              : response.status === 403
-                ? 'Security Points provider refused the request'
-                : 'Security Points are temporarily unavailable',
+              : 'Security Points are temporarily unavailable',
+          );
+        }
+        const elapsedMs = Date.now() - startedAt;
+        const stale = response.headers.get('x-overpass-cache') === 'STALE';
+        const endpointHost = endpointHostFromHeader(
+          response.headers.get('x-overpass-upstream'),
         );
+        const contentLength = Number(response.headers.get('content-length'));
+        if (!response.ok) {
+          const bodyText = await response.text().catch(() => '');
+          try {
+            await response.body?.cancel();
+          } catch {
+            /* already closed */
+          }
+          const timeoutTriggered =
+            response.status === 504 || isTimeoutError({ message: bodyText });
+          logSecurityPointDiagnostic('viewport request failed', {
+            endpoint: OVERPASS_URL,
+            endpointHost,
+            method: 'POST',
+            category,
+            querySize: query.length,
+            bbox: bboxForLog(box),
+            status: response.status,
+            responseTimeMs: elapsedMs,
+            responseSize: Number.isFinite(contentLength)
+              ? contentLength
+              : bodyText.length,
+            resultCount: 0,
+            timeoutTriggered,
+            providerError: bodyText
+              ? bodyText.slice(0, 240)
+              : 'No response body',
+          });
+          throw new Error(
+            response.status === 429
+              ? 'Security Points are temporarily rate-limited'
+              : timeoutTriggered
+                ? 'Security Points query timed out'
+                : response.status === 403
+                  ? 'Security Points provider refused the request'
+                  : 'Security Points are temporarily unavailable',
+          );
+        }
+        const payload = await response.json();
+        request.throwIfAborted();
+        if (!Array.isArray(payload?.elements) || payload.remark) {
+          logSecurityPointDiagnostic('viewport request failed', {
+            endpoint: OVERPASS_URL,
+            endpointHost,
+            method: 'POST',
+            category,
+            querySize: query.length,
+            bbox: bboxForLog(box),
+            status: response.status,
+            responseTimeMs: elapsedMs,
+            responseSize: Number.isFinite(contentLength) ? contentLength : null,
+            resultCount: 0,
+            timeoutTriggered: false,
+            providerError:
+              String(payload?.remark || '').slice(0, 240) ||
+              'Security Points returned an incomplete response',
+          });
+          throw new Error('Security Points returned an incomplete response');
+        }
+        logSecurityPointDiagnostic('viewport request completed', {
+          endpoint: OVERPASS_URL,
+          endpointHost,
+          method: 'POST',
+          category,
+          querySize: query.length,
+          bbox: bboxForLog(box),
+          status: response.status,
+          responseTimeMs: elapsedMs,
+          responseSize: Number.isFinite(contentLength) ? contentLength : null,
+          resultCount: payload.elements.length,
+          timeoutTriggered: false,
+          providerError: null,
+        });
+        return {
+          category,
+          stale,
+          saturated: payload.elements.length >= QUERY_LIMIT,
+          elements: payload.elements.slice(0, QUERY_LIMIT),
+        };
+      });
+      const settled = await Promise.allSettled(requests);
+      const succeeded = settled.filter((entry) => entry.status === 'fulfilled');
+      if (!succeeded.length) {
+        const primaryError = settled.find(
+          (entry) => entry.status === 'rejected',
+        );
+        throw primaryError?.reason || new Error('Security Points unavailable');
       }
-      const stale = response.headers.get('x-overpass-cache') === 'STALE';
-      const payload = await response.json();
-      request.throwIfAborted();
-      if (!Array.isArray(payload?.elements) || payload.remark)
-        throw new Error('Security Points returned an incomplete response');
       const deduped = new Map();
-      for (const element of payload.elements.slice(0, QUERY_LIMIT)) {
-        const record = normalizeRecord(element);
-        if (!record || !enabledCategories.includes(record.category)) continue;
-        deduped.set(record.id, record);
+      let stale = false;
+      let saturated = false;
+      let failedCategories = 0;
+      for (const entry of settled) {
+        if (entry.status !== 'fulfilled') {
+          failedCategories += 1;
+          continue;
+        }
+        stale ||= entry.value.stale === true;
+        saturated ||= entry.value.saturated === true;
+        for (const element of entry.value.elements) {
+          const record = normalizeRecord(element);
+          if (!record || !enabledCategories.includes(record.category)) continue;
+          deduped.set(record.id, record);
+        }
       }
-      const result = {
-        records: [...deduped.values()],
-        stale,
-        saturated: payload.elements.length >= QUERY_LIMIT,
-      };
+      if (failedCategories > 0) {
+        logSecurityPointDiagnostic('viewport request partial success', {
+          enabledCategoryCount: enabledCategories.length,
+          failedCategoryCount: failedCategories,
+          resultCount: deduped.size,
+          bbox: bboxForLog(box),
+        });
+      }
+      const result = { records: [...deduped.values()], stale, saturated };
       boundedPush(cache, key, result);
       return result;
     })().finally(() => inflight.delete(key));
-    inflight.set(key, request);
-    return request;
+    inflight.set(key, pending);
+    return pending;
   }
 
   async function enrichRecord(record, { signal } = {}) {

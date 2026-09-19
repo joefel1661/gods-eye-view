@@ -49,6 +49,8 @@ test('fetchViewport builds category-bounded Overpass queries and normalizes reco
   assert.match(decodedBody, /amenity"="police/);
   assert.match(decodedBody, /name"~"sheriff"/);
   assert.doesNotMatch(decodedBody, /fire_station/);
+  assert.match(decodedBody, /out tags center 250/);
+  assert.doesNotMatch(decodedBody, /out tags center geom/);
   assert.equal(result.stale, true);
   assert.equal(result.records.length, 1);
   assert.equal(result.records[0].category, 'police');
@@ -165,4 +167,32 @@ test('enrichRecord narrows nearby places by category and returns phone metadata'
   assert.equal(google.address, '101 Main St');
   assert.equal(google.phone, '+1 512-555-0110');
   assert.equal(google.provider, 'Google Maps Places');
+});
+
+test('fetchViewport returns partial category results when one category request fails', async () => {
+  const source = createSecurityPointSource({
+    fetchImpl: async (_url, options) => {
+      const body = decodeURIComponent(String(options?.body || ''));
+      if (body.includes('amenity"="police"'))
+        throw new DOMException('signal timed out', 'AbortError');
+      return Response.json({
+        elements: [
+          {
+            type: 'node',
+            id: 77,
+            lat: 30.25,
+            lon: -97.75,
+            tags: { amenity: 'fire_station', name: 'Austin Fire Station' },
+          },
+        ],
+      });
+    },
+  });
+
+  const result = await source.fetchViewport(
+    { south: 30.2, west: -97.8, north: 30.3, east: -97.7 },
+    { police: true, fireEms: true, hospitals: false, airports: false },
+  );
+  assert.equal(result.records.length, 1);
+  assert.equal(result.records[0].category, 'fireEms');
 });
