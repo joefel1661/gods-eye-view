@@ -8,6 +8,11 @@ import {
   QUERY_LIMIT,
   VIEWPORT_REQUEST_TIMEOUT_MS,
 } from './policy.js';
+import {
+  buildSecurityPointsOverpassQuery,
+  formatSecurityPointViewportValue,
+} from './overpassQuery.js';
+import { encodeOverpassFormBody } from '../../sources/overpass.js';
 
 function validateBox(box) {
   const { south, west, north, east } = box || {};
@@ -30,63 +35,7 @@ function sanitizeEnabledCategories(categories = {}) {
 }
 
 function formatViewportValue(value) {
-  return Number(value).toFixed(5);
-}
-
-function buildOverpassQuery(box, enabledCategories) {
-  const bbox = `(${formatViewportValue(box.south)},${formatViewportValue(box.west)},${formatViewportValue(box.north)},${formatViewportValue(box.east)})`;
-  const clauses = [];
-  if (enabledCategories.includes('police')) {
-    clauses.push(`node["amenity"="police"]${bbox};`);
-    clauses.push(`way["amenity"="police"]${bbox};`);
-    clauses.push(`relation["amenity"="police"]${bbox};`);
-    clauses.push(`node["office"="government"]["name"~"sheriff",i]${bbox};`);
-    clauses.push(`way["office"="government"]["name"~"sheriff",i]${bbox};`);
-    clauses.push(`relation["office"="government"]["name"~"sheriff",i]${bbox};`);
-    clauses.push(`node["law_enforcement"="sheriff"]${bbox};`);
-    clauses.push(`way["law_enforcement"="sheriff"]${bbox};`);
-    clauses.push(`relation["law_enforcement"="sheriff"]${bbox};`);
-  }
-  if (enabledCategories.includes('fireEms')) {
-    clauses.push(`node["amenity"="fire_station"]${bbox};`);
-    clauses.push(`way["amenity"="fire_station"]${bbox};`);
-    clauses.push(`relation["amenity"="fire_station"]${bbox};`);
-    clauses.push(`node["emergency"="fire_station"]${bbox};`);
-    clauses.push(`way["emergency"="fire_station"]${bbox};`);
-    clauses.push(`relation["emergency"="fire_station"]${bbox};`);
-    clauses.push(`node["amenity"="ambulance_station"]${bbox};`);
-    clauses.push(`way["amenity"="ambulance_station"]${bbox};`);
-    clauses.push(`relation["amenity"="ambulance_station"]${bbox};`);
-    clauses.push(`node["emergency"="ambulance_station"]${bbox};`);
-    clauses.push(`way["emergency"="ambulance_station"]${bbox};`);
-    clauses.push(`relation["emergency"="ambulance_station"]${bbox};`);
-  }
-  if (enabledCategories.includes('hospitals')) {
-    clauses.push(`node["amenity"="hospital"]${bbox};`);
-    clauses.push(`way["amenity"="hospital"]${bbox};`);
-    clauses.push(`relation["amenity"="hospital"]${bbox};`);
-    clauses.push(`node["healthcare"="hospital"]${bbox};`);
-    clauses.push(`way["healthcare"="hospital"]${bbox};`);
-    clauses.push(`relation["healthcare"="hospital"]${bbox};`);
-    clauses.push(`node["emergency"="emergency_ward"]${bbox};`);
-    clauses.push(`way["emergency"="emergency_ward"]${bbox};`);
-    clauses.push(`relation["emergency"="emergency_ward"]${bbox};`);
-    clauses.push(`node["emergency"="emergency_department"]${bbox};`);
-    clauses.push(`way["emergency"="emergency_department"]${bbox};`);
-    clauses.push(`relation["emergency"="emergency_department"]${bbox};`);
-  }
-  if (enabledCategories.includes('airports')) {
-    clauses.push(`node["aeroway"="airport"]${bbox};`);
-    clauses.push(`way["aeroway"="airport"]${bbox};`);
-    clauses.push(`relation["aeroway"="airport"]${bbox};`);
-    clauses.push(`node["aeroway"="aerodrome"]${bbox};`);
-    clauses.push(`way["aeroway"="aerodrome"]${bbox};`);
-    clauses.push(`relation["aeroway"="aerodrome"]${bbox};`);
-    clauses.push(`node["aeroway"="heliport"]${bbox};`);
-    clauses.push(`way["aeroway"="heliport"]${bbox};`);
-    clauses.push(`relation["aeroway"="heliport"]${bbox};`);
-  }
-  return `[out:json][timeout:25];(\n${clauses.join('\n')}\n);out tags center ${QUERY_LIMIT};`;
+  return formatSecurityPointViewportValue(value);
 }
 
 function formatAddress(tags = {}) {
@@ -342,8 +291,11 @@ export function createSecurityPointSource({
     if (inflight.has(key)) return inflight.get(key);
     const pending = (async () => {
       const requests = enabledCategories.map(async (category) => {
-        const query = buildOverpassQuery(box, [category]);
-        const requestBody = `data=${encodeURIComponent(query)}`;
+      const query = buildSecurityPointsOverpassQuery(box, [category], {
+        queryLimit: QUERY_LIMIT,
+        timeoutSec: 25,
+      });
+      const requestBody = encodeOverpassFormBody(query);
         const request = requestSignal(signal, VIEWPORT_REQUEST_TIMEOUT_MS);
         request.throwIfAborted();
         const startedAt = Date.now();

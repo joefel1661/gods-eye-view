@@ -1,4 +1,5 @@
 import { makeRateLimiter, clientKey } from './common/rate-limit.js';
+import { encodeOverpassFormBody } from '../../src/sources/overpass.js';
 import {
   MILITARY_INSTALLATION_ELEMENT_CAP,
   MILITARY_INSTALLATION_MAX_RESPONSE_BYTES,
@@ -34,7 +35,7 @@ function militaryInstallationsProxy() {
     const bbox = `${box.south},${box.west},${box.north},${box.east}`;
     const ql = `[out:json][timeout:20];(nwr["military"~"^(airfield|naval_base|range|barracks|base)$"](${bbox});nwr["landuse"="military"](${bbox}););out center tags geom ${MILITARY_INSTALLATION_ELEMENT_CAP};`;
     const upstream = await fetchOverpassPayload(
-      `data=${encodeURIComponent(ql)}`,
+      encodeOverpassFormBody(ql),
       MILITARY_INSTALLATION_MAX_RESPONSE_BYTES,
     );
     if (

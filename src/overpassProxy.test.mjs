@@ -12,6 +12,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import createViteConfig, { fetchOverpassPayload, overpassPayloadIsData, readOverpassDisk } from '../vite.config.js';
+import { encodeOverpassFormBody } from './sources/overpass.js';
 
 const ENDPOINTS = ['https://a.example/api', 'https://b.example/api', 'https://c.example/api'];
 
@@ -104,7 +105,12 @@ test('every mirror is asked with a User-Agent that identifies the application', 
   // is exactly the case the fan-out exists to survive.
   const seen = [];
   const fetchImpl = async (url, options) => {
-    seen.push({ url, agent: options?.headers?.['User-Agent'] });
+    seen.push({
+      url,
+      agent: options?.headers?.['User-Agent'],
+      accept: options?.headers?.Accept,
+      contentType: options?.headers?.['Content-Type'],
+    });
     // Refuse everywhere, so the loop is forced through the whole list.
     return { status: 503, headers: { get: () => 'text/html' } };
   };
@@ -135,6 +141,16 @@ test('every mirror is asked with a User-Agent that identifies the application', 
       agent,
       /github\.com\/bilawalsidhu\/gods-eye-view/,
       `${request.url} must carry a route back to the project`,
+    );
+    assert.equal(
+      request.accept,
+      'application/json',
+      `${request.url} must explicitly accept JSON`,
+    );
+    assert.equal(
+      request.contentType,
+      'application/x-www-form-urlencoded; charset=UTF-8',
+      `${request.url} must use the conventional Overpass form encoding`,
     );
   }
 });
@@ -178,6 +194,25 @@ test('a mirror that refuses the old label serves the same query under the identi
   assert.equal(served.status, 200, 'the header the proxy now sends is served');
   assert.equal(overpassPayloadIsData(served), true);
   assert.equal(served.body, DATA.body);
+});
+
+test('a 406 HTML refusal is sanitized into provider diagnostics while fallback continues', async () => {
+  const refusal = `<!DOCTYPE HTML><html><head><title>406 Not Acceptable</title></head><body><h1>Not Acceptable</h1><p>An appropriate representation of the requested resource could not be found on this server.</p></body></html>`;
+  const { payload, tried } = await run({
+    [ENDPOINTS[0]]: { status: 406, contentType: 'text/html', body: refusal },
+    [ENDPOINTS[1]]: DATA,
+    [ENDPOINTS[2]]: DATA,
+  });
+
+  assert.equal(payload.status, 200);
+  assert.equal(payload.fallbackAttempted, true);
+  assert.equal(payload.finalEndpoint, ENDPOINTS[1]);
+  assert.equal(payload.attempts.length, 2);
+  assert.match(
+    String(payload.attempts[0].providerError),
+    /appropriate representation/i,
+  );
+  assert.deepEqual(tried, ENDPOINTS.slice(0, 2));
 });
 
 test('the first mirror to answer wins, and the rest are left alone', async () => {
@@ -269,7 +304,7 @@ test('coalesced outage callers both receive last-good data, never a cached refus
   const handler = proxyHandler();
   for (const status of [406, 503, 429]) {
     const query = `[out:json][timeout:12];node(around:10,30.27,-97.74)["name"="${randomUUID()}"];out;`;
-    const body = `data=${encodeURIComponent(query)}`;
+    const body = encodeOverpassFormBody(query);
     const directory = path.join(process.cwd(), '.gev-cache', 'overpass');
     const file = path.join(directory, `${createHash('sha1').update(body).digest('hex')}.json`);
     await mkdir(directory, { recursive: true });

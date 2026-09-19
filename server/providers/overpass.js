@@ -19,6 +19,12 @@ import {
   fetchOverpassPayload,
 } from './overpass/transport.js';
 import { installRouteMiddleware } from './places/routes.js';
+import { encodeOverpassFormBody } from '../../src/sources/overpass.js';
+import { CATEGORY_ORDER } from '../../src/layers/securityPoints/policy.js';
+import {
+  buildSecurityPointsOverpassQuery,
+  formatSecurityPointViewportValue,
+} from '../../src/layers/securityPoints/overpassQuery.js';
 
 /** @type {Map<string,Promise>} In-flight Overpass requests keyed by normalized query body. */
 const _overpassInFlight = new Map();
@@ -56,8 +62,12 @@ function clampCoordinate(value, fallback, min, max) {
   return Math.max(min, Math.min(max, numeric));
 }
 
-function overpassHealthQuery({ south, west, north, east }) {
-  return `[out:json][timeout:12];(node["amenity"="police"](${south},${west},${north},${east});node["amenity"="fire_station"](${south},${west},${north},${east});node["amenity"="hospital"](${south},${west},${north},${east});node["aeroway"~"airport|aerodrome|heliport"](${south},${west},${north},${east}););out tags center 20;`;
+function overpassHealthQuery(box) {
+  return buildSecurityPointsOverpassQuery(box, CATEGORY_ORDER);
+}
+
+function overpassTinyHealthQuery({ south, west, north, east }) {
+  return `[out:json][timeout:10];node["amenity"="police"](${south},${west},${north},${east});out tags 1;`;
 }
 
 function overpassTimeoutTriggered(error, payload = null) {
@@ -84,6 +94,19 @@ function overpassResultCount(payload) {
 function sanitizeOverpassError(error) {
   const message = String(error?.message || '').trim();
   return message ? message.slice(0, 240) : null;
+}
+
+function summarizeOverpassAttempts(attempts = []) {
+  return attempts.map((attempt) => ({
+    endpoint: overpassEndpointDetail(attempt?.endpoint),
+    method: String(attempt?.method || 'POST'),
+    httpStatus: Number.isFinite(attempt?.status) ? Number(attempt.status) : null,
+    latencyMs: Number.isFinite(attempt?.latencyMs)
+      ? Number(attempt.latencyMs)
+      : null,
+    timeoutTriggered: attempt?.timeoutTriggered === true,
+    providerError: String(attempt?.providerError || '').trim() || null,
+  }));
 }
 
 /**
@@ -150,25 +173,37 @@ function overpassProxy({ routing = {} } = {}) {
       const [safeSouth, safeNorth] =
         south <= north ? [south, north] : [north, south];
       const [safeWest, safeEast] = west <= east ? [west, east] : [east, west];
-      const query = overpassHealthQuery({
-        south: safeSouth.toFixed(5),
-        west: safeWest.toFixed(5),
-        north: safeNorth.toFixed(5),
-        east: safeEast.toFixed(5),
-      });
-      const body = `data=${encodeURIComponent(query)}`;
+      const probe = requestUrl.searchParams.get('probe') === 'tiny'
+        ? 'tiny'
+        : 'security-points';
+      const box = {
+        south: Number(formatSecurityPointViewportValue(safeSouth)),
+        west: Number(formatSecurityPointViewportValue(safeWest)),
+        north: Number(formatSecurityPointViewportValue(safeNorth)),
+        east: Number(formatSecurityPointViewportValue(safeEast)),
+      };
+      const query =
+        probe === 'tiny' ? overpassTinyHealthQuery(box) : overpassHealthQuery(box);
+      const body = encodeOverpassFormBody(query);
       const startedAt = Date.now();
       const responseBody = {
+        probe,
         reachable: false,
+        method: 'POST',
         endpoint: { hostname: null, path: null },
         httpStatus: null,
         latencyMs: null,
         timeoutTriggered: false,
         resultCount: 0,
+        providerError: null,
+        fallbackAttempted: false,
+        finalSuccessfulEndpoint: null,
+        attempts: [],
       };
       try {
         const payload = await fetchOverpassPayload(body);
         const latencyMs = Date.now() - startedAt;
+        const attempts = summarizeOverpassAttempts(payload?.attempts);
         res.writeHead(200, {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store',
@@ -182,9 +217,16 @@ function overpassProxy({ routing = {} } = {}) {
             latencyMs,
             timeoutTriggered: overpassTimeoutTriggered(null, payload),
             resultCount: overpassResultCount(payload),
+            providerError: String(payload?.providerError || '').trim() || null,
+            fallbackAttempted: payload?.fallbackAttempted === true,
+            finalSuccessfulEndpoint: overpassPayloadIsData(payload)
+              ? overpassEndpointDetail(payload?.finalEndpoint || payload?.endpoint)
+              : null,
+            attempts,
           }),
         );
       } catch (error) {
+        const attempts = summarizeOverpassAttempts(error?.attempts);
         res.writeHead(200, {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store',
@@ -194,7 +236,13 @@ function overpassProxy({ routing = {} } = {}) {
             ...responseBody,
             latencyMs: Date.now() - startedAt,
             timeoutTriggered: overpassTimeoutTriggered(error),
-            error: sanitizeOverpassError(error),
+            providerError:
+              String(error?.providerError || '').trim()
+              || sanitizeOverpassError(error),
+            fallbackAttempted: error?.fallbackAttempted === true,
+            attempts,
+            endpoint: attempts.at(-1)?.endpoint || responseBody.endpoint,
+            httpStatus: attempts.at(-1)?.httpStatus ?? responseBody.httpStatus,
           }),
         );
       }

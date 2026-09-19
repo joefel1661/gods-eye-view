@@ -45,7 +45,7 @@ test('fetchViewport builds category-bounded Overpass queries and normalizes reco
   );
 
   assert.equal(String(calls[0][0]), '/api/overpass');
-  const decodedBody = decodeURIComponent(String(calls[0][1].body));
+  const decodedBody = new URLSearchParams(String(calls[0][1].body)).get('data');
   assert.match(decodedBody, /amenity"="police/);
   assert.match(decodedBody, /name"~"sheriff"/);
   assert.doesNotMatch(decodedBody, /fire_station/);
@@ -172,7 +172,7 @@ test('enrichRecord narrows nearby places by category and returns phone metadata'
 test('fetchViewport returns partial category results when one category request fails', async () => {
   const source = createSecurityPointSource({
     fetchImpl: async (_url, options) => {
-      const body = decodeURIComponent(String(options?.body || ''));
+      const body = new URLSearchParams(String(options?.body || '')).get('data');
       if (body.includes('amenity"="police"'))
         throw new DOMException('signal timed out', 'AbortError');
       return Response.json({
