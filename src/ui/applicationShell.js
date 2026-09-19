@@ -3587,36 +3587,36 @@ export class StyleManager {
     } catch {
       /* best effort */
     }
+  }
 
-    _readHudMobileWidgetPreference() {
-      try {
-        const parsed = JSON.parse(
-          localStorage.getItem(HUD_MOBILE_WIDGET_STORAGE_KEY) || 'null',
-        );
-        if (!parsed || typeof parsed !== 'object') return null;
-        return {
-          status: !!parsed.status,
-          coordinates: !!parsed.coordinates,
-        };
-      } catch {
-        /* best effort */
-      }
-      return null;
-    }
-
-    _persistHudMobileWidgetPreference(state) {
-      const normalized = {
-        status: !!state?.status,
-        coordinates: !!state?.coordinates,
+  _readHudMobileWidgetPreference() {
+    try {
+      const parsed = JSON.parse(
+        localStorage.getItem(HUD_MOBILE_WIDGET_STORAGE_KEY) || 'null',
+      );
+      if (!parsed || typeof parsed !== 'object') return null;
+      return {
+        status: !!parsed.status,
+        coordinates: !!parsed.coordinates,
       };
-      try {
-        localStorage.setItem(
-          HUD_MOBILE_WIDGET_STORAGE_KEY,
-          JSON.stringify(normalized),
-        );
-      } catch {
-        /* best effort */
-      }
+    } catch {
+      /* best effort */
+    }
+    return null;
+  }
+
+  _persistHudMobileWidgetPreference(state) {
+    const normalized = {
+      status: !!state?.status,
+      coordinates: !!state?.coordinates,
+    };
+    try {
+      localStorage.setItem(
+        HUD_MOBILE_WIDGET_STORAGE_KEY,
+        JSON.stringify(normalized),
+      );
+    } catch {
+      /* best effort */
     }
   }
 

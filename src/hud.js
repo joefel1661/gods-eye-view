@@ -340,6 +340,9 @@ export class IntelHUD {
       }
       if (chip) {
         chip.setAttribute('aria-hidden', String(!collapsed));
+        chip.setAttribute('aria-expanded', String(!collapsed));
+        chip.disabled = !collapsed;
+        chip.tabIndex = collapsed ? 0 : -1;
       }
     }
   }
@@ -351,15 +354,21 @@ export class IntelHUD {
     this._widgetCollapsed[widget] = next;
     this._syncWidgetPresentation();
     if (!emit) return;
-    window.dispatchEvent(
-      new CustomEvent('gev:hud-widget-state-change', {
-        detail: {
-          widget,
-          collapsed: next,
-          state: this.getWidgetCollapseState(),
-        },
-      }),
-    );
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.dispatchEvent === 'function' &&
+      typeof CustomEvent === 'function'
+    ) {
+      window.dispatchEvent(
+        new CustomEvent('gev:hud-widget-state-change', {
+          detail: {
+            widget,
+            collapsed: next,
+            state: this.getWidgetCollapseState(),
+          },
+        }),
+      );
+    }
   }
 
   /**
