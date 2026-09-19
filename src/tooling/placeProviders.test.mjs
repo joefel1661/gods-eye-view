@@ -210,7 +210,11 @@ for (const preview of [false, true]) {
       200,
     );
     assert.equal(
-      JSON.parse(calls[1].options.body).locationBias.circle.radius,
+      JSON.parse(
+        calls.find((entry) =>
+          String(entry.url).includes('/v1/places:searchText'),
+        ).options.body,
+      ).locationBias.circle.radius,
       50,
     );
     assert.equal((await request(search, '?lat=30&lon=-97')).statusCode, 400);
