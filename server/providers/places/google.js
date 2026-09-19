@@ -117,8 +117,16 @@ export function googlePlacesContextProxy({
         25,
         Math.min(5000, Number(requestUrl.searchParams.get('radiusM')) || 250),
       );
-      const maxResultCount = Math.max(1, Math.min(20, Number(requestUrl.searchParams.get('maxResultCount')) || 20));
-      const includedTypes = String(requestUrl.searchParams.get('includedTypes') || '')
+      const maxResultCount = Math.max(
+        1,
+        Math.min(
+          20,
+          Number(requestUrl.searchParams.get('maxResultCount')) || 20,
+        ),
+      );
+      const includedTypes = String(
+        requestUrl.searchParams.get('includedTypes') || '',
+      )
         .split(',')
         .map((value) => value.trim())
         .filter(Boolean)
@@ -163,7 +171,8 @@ export function googlePlacesContextProxy({
         );
         const data = await response.json().catch(() => ({}));
         const places = projectNearbyPlaces(data, latitude, longitude);
-        if (!response.ok) logGoogleFailure('/api/google/nearby-places', response, data);
+        if (!response.ok)
+          logGoogleFailure('/api/google/nearby-places', response, data);
 
         res.statusCode = response.ok ? 200 : response.status;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -283,7 +292,8 @@ export function googlePlacesContextProxy({
         );
         const data = await response.json().catch(() => ({}));
         const places = projectTextSearchPlaces(data, latitude, longitude);
-        if (!response.ok) logGoogleFailure('/api/google/text-search', response, data);
+        if (!response.ok)
+          logGoogleFailure('/api/google/text-search', response, data);
 
         res.statusCode = response.ok ? 200 : response.status;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');

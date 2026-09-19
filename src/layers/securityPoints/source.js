@@ -94,7 +94,11 @@ function formatAddress(tags = {}) {
     .filter(Boolean)
     .join(' ')
     .trim();
-  const locality = [tags['addr:city'], tags['addr:state'], tags['addr:postcode']]
+  const locality = [
+    tags['addr:city'],
+    tags['addr:state'],
+    tags['addr:postcode'],
+  ]
     .filter(Boolean)
     .join(', ')
     .trim();
@@ -109,7 +113,11 @@ function normalizePhone(tags = {}) {
 
 function inferCategory(tags = {}) {
   const aeroway = String(tags.aeroway || '').toLowerCase();
-  if (aeroway === 'airport' || aeroway === 'aerodrome' || aeroway === 'heliport')
+  if (
+    aeroway === 'airport' ||
+    aeroway === 'aerodrome' ||
+    aeroway === 'heliport'
+  )
     return 'airports';
   const emergency = String(tags.emergency || '').toLowerCase();
   const amenity = String(tags.amenity || '').toLowerCase();
@@ -168,7 +176,9 @@ function typeLabelForCategory(category, tags = {}) {
 
 function hasReliableFootprintTags(tags = {}, category = null) {
   if (category === 'airports') return false;
-  const building = String(tags.building || tags['building:part'] || '').toLowerCase();
+  const building = String(
+    tags.building || tags['building:part'] || '',
+  ).toLowerCase();
   return Boolean(building) && building !== 'no' && building !== 'roof';
 }
 
@@ -177,7 +187,9 @@ function normalizeFootprint(element, tags, category) {
   const geometry = Array.isArray(element?.geometry) ? element.geometry : null;
   if (!geometry || geometry.length < 3) return null;
   const ring = geometry
-    .filter((point) => Number.isFinite(point?.lon) && Number.isFinite(point?.lat))
+    .filter(
+      (point) => Number.isFinite(point?.lon) && Number.isFinite(point?.lat),
+    )
     .map((point) => [point.lon, point.lat]);
   return ring.length >= 3 ? ring : null;
 }
@@ -315,9 +327,7 @@ export function createSecurityPointSource({
           endpoint: OVERPASS_URL,
           method: 'POST',
           status: response.status,
-          providerError: bodyText
-            ? bodyText.slice(0, 240)
-            : 'No response body',
+          providerError: bodyText ? bodyText.slice(0, 240) : 'No response body',
         });
         throw new Error(
           response.status === 429
@@ -326,7 +336,7 @@ export function createSecurityPointSource({
               ? 'Security Points query timed out'
               : response.status === 403
                 ? 'Security Points provider refused the request'
-              : 'Security Points are temporarily unavailable',
+                : 'Security Points are temporarily unavailable',
         );
       }
       const stale = response.headers.get('x-overpass-cache') === 'STALE';
@@ -353,7 +363,11 @@ export function createSecurityPointSource({
   }
 
   async function enrichRecord(record, { signal } = {}) {
-    if (!record || !Number.isFinite(record.latitude) || !Number.isFinite(record.longitude))
+    if (
+      !record ||
+      !Number.isFinite(record.latitude) ||
+      !Number.isFinite(record.longitude)
+    )
       return null;
     const types = CATEGORY_CONFIG[record.category]?.googleTypes || [];
     const query = new URLSearchParams({

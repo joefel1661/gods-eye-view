@@ -92,14 +92,22 @@ test('a failed direct request retries through ion before falling back', async ()
   });
 
   test('direct Google 3D failures are wrapped with authorization guidance', async () => {
-    const Cesium = fakeCesium([new Error('Request has failed. Status Code: 403')]);
+    const Cesium = fakeCesium([
+      new Error('Request has failed. Status Code: 403'),
+    ]);
     const result = await loadPhotorealisticTileset(Cesium, {
       googleApiKey: 'google-secret',
     });
     assert.equal(result.tileset, null);
     assert.equal(result.route, 'osm');
-    assert.match(result.errors[0].message, /Google 3D tiles were denied \(HTTP 403\)/);
-    assert.match(result.errors[0].message, /GOOGLE_MAPS_API_KEY referrer restrictions/);
+    assert.match(
+      result.errors[0].message,
+      /Google 3D tiles were denied \(HTTP 403\)/,
+    );
+    assert.match(
+      result.errors[0].message,
+      /GOOGLE_MAPS_API_KEY referrer restrictions/,
+    );
   });
   assert.equal(result.tileset, tileset);
   assert.equal(result.route, 'google-ion');

@@ -102,7 +102,8 @@ function dispatchSelectionModel(record, contextDistanceM = null) {
   dispatchSelectionDetail({
     id: record.id,
     name: google?.name || record.name,
-    categoryLabel: CATEGORY_CONFIG[record.category]?.cardLabel || 'Security Point',
+    categoryLabel:
+      CATEGORY_CONFIG[record.category]?.cardLabel || 'Security Point',
     typeLabel: google?.primaryType || record.typeLabel,
     address: google?.address || record.address || 'Address not listed',
     phone,
@@ -243,16 +244,15 @@ export function createSecurityPointsLayer({ services, source }) {
               height,
             }
           : undefined,
-        point:
-          {
-            pixelSize:
-              (CATEGORY_CONFIG[record.category]?.markerSize || 9) +
-              (selected ? 3 : 0),
-            color: selected ? Cesium.Color.WHITE : color,
-            outlineColor: color.withAlpha(0.95),
-            outlineWidth: selected ? 3 : 2,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          },
+        point: {
+          pixelSize:
+            (CATEGORY_CONFIG[record.category]?.markerSize || 9) +
+            (selected ? 3 : 0),
+          color: selected ? Cesium.Color.WHITE : color,
+          outlineColor: color.withAlpha(0.95),
+          outlineWidth: selected ? 3 : 2,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
       });
       entity.gevTrackedId = `security:${record.id}`;
       entity.gevDisplayPosition = () => position;
@@ -262,7 +262,9 @@ export function createSecurityPointsLayer({ services, source }) {
         layerId: LAYER_ID,
         dataSource: state.dataSource,
         layerName: 'Security Points',
-        source: record.google ? 'OpenStreetMap + Google Maps Places' : 'OpenStreetMap',
+        source: record.google
+          ? 'OpenStreetMap + Google Maps Places'
+          : 'OpenStreetMap',
         label: record.name,
         latitude: record.latitude,
         longitude: record.longitude,
@@ -304,7 +306,9 @@ export function createSecurityPointsLayer({ services, source }) {
     const controller = new AbortController();
     state.enrichAbort = controller;
     try {
-      const google = await source.enrichRecord(record, { signal: controller.signal });
+      const google = await source.enrichRecord(record, {
+        signal: controller.signal,
+      });
       if (
         controller.signal.aborted ||
         state.selectedId !== record.id ||
@@ -317,7 +321,8 @@ export function createSecurityPointsLayer({ services, source }) {
         renderRecords();
       }
     } catch (error) {
-      if (error?.name !== 'AbortError') console.warn('[SecurityPoints] enrich failed', error);
+      if (error?.name !== 'AbortError')
+        console.warn('[SecurityPoints] enrich failed', error);
     } finally {
       if (state.enrichAbort === controller) state.enrichAbort = null;
     }
@@ -379,24 +384,23 @@ export function createSecurityPointsLayer({ services, source }) {
       )
         return;
       state.records = payload.records;
-      state.recordById = new Map(payload.records.map((record) => [record.id, record]));
+      state.recordById = new Map(
+        payload.records.map((record) => [record.id, record]),
+      );
       state.lastLoadedKey = requestKey;
       state.lastUpdate = Date.now();
       state.stale = payload.stale === true;
       state.saturated = payload.saturated === true;
       setStatus(
-        state.records.length
-          ? state.stale
-            ? 'stale'
-            : 'ready'
-          : 'empty',
+        state.records.length ? (state.stale ? 'stale' : 'ready') : 'empty',
         state.stale
           ? 'Showing cached Security Points'
           : state.saturated
             ? 'Coverage limited — zoom in for fewer facilities'
             : null,
       );
-      if (state.selectedId && !state.recordById.has(state.selectedId)) clearSelection();
+      if (state.selectedId && !state.recordById.has(state.selectedId))
+        clearSelection();
       renderRecords();
     } catch (error) {
       if (
@@ -421,7 +425,9 @@ export function createSecurityPointsLayer({ services, source }) {
 
   function installInteraction(viewer) {
     if (state.clickHandler) return;
-    state.clickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    state.clickHandler = new Cesium.ScreenSpaceEventHandler(
+      viewer.scene.canvas,
+    );
     state.clickHandler.setInputAction((click) => {
       if (!isPointerFree() || !state.enabled) return;
       const picked = viewer.scene.pick(click.position);
@@ -447,18 +453,24 @@ export function createSecurityPointsLayer({ services, source }) {
       state.viewer = viewer;
       state.dataSource = new Cesium.CustomDataSource('security-points');
       viewer.dataSources.add(state.dataSource);
-      state.moveEndRemove = viewer.camera.moveEnd.addEventListener(scheduleLoad);
+      state.moveEndRemove =
+        viewer.camera.moveEnd.addEventListener(scheduleLoad);
       installInteraction(viewer);
       state.dismissListener = () => {
         if (!state.selectedId) return;
         clearSelection();
         renderRecords();
       };
-      window.addEventListener('gev:security-point-dismiss', state.dismissListener);
+      window.addEventListener(
+        'gev:security-point-dismiss',
+        state.dismissListener,
+      );
     },
     enable() {
       state.enabled = true;
-      services.picking.registerPickOwner(LAYER_ID, (id) => state.recordById.has(id));
+      services.picking.registerPickOwner(LAYER_ID, (id) =>
+        state.recordById.has(id),
+      );
       state.dataSource.show = true;
     },
     disable() {
@@ -484,9 +496,13 @@ export function createSecurityPointsLayer({ services, source }) {
       state.clickHandler?.destroy();
       state.clickHandler = null;
       if (state.dismissListener)
-        window.removeEventListener('gev:security-point-dismiss', state.dismissListener);
+        window.removeEventListener(
+          'gev:security-point-dismiss',
+          state.dismissListener,
+        );
       state.dismissListener = null;
-      if (state.dataSource && viewer) viewer.dataSources.remove(state.dataSource, true);
+      if (state.dataSource && viewer)
+        viewer.dataSources.remove(state.dataSource, true);
       state.dataSource = null;
       state.viewer = null;
     },

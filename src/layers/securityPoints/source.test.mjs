@@ -17,7 +17,7 @@ test('fetchViewport builds category-bounded Overpass queries and normalizes reco
               geometry: [
                 { lat: 30.2671, lon: -97.7432 },
                 { lat: 30.2673, lon: -97.7432 },
-                { lat: 30.2673, lon: -97.7430 },
+                { lat: 30.2673, lon: -97.743 },
               ],
               tags: {
                 amenity: 'police',
