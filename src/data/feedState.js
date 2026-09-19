@@ -43,7 +43,6 @@ export function layerFeedState(stats = {}) {
     return 'fallback';
   }
   if (state.stale || status === 'stale') return 'stale';
-  if (state.partial === true || status === 'partial') return 'partial';
   if (
     state.degraded ||
     presentedError ||
@@ -51,5 +50,6 @@ export function layerFeedState(stats = {}) {
     state.available === false
   )
     return 'degraded';
+  if (state.partial === true || status === 'partial') return 'partial';
   return 'nominal';
 }

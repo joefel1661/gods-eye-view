@@ -544,7 +544,7 @@ test('fetchViewport rejects clinics and medical offices unless Google classifies
         name: 'Regional Emergency Clinic',
         latitude: 30.32,
         longitude: -97.32,
-        primaryType: 'medical_office',
+        primaryType: 'hospital',
         types: ['hospital', 'medical_office', 'health'],
       },
     ],

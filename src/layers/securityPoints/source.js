@@ -288,8 +288,8 @@ function googleTypesForPlace(place = {}) {
 
 function isAcceptedGooglePlaceForCategory(category, place = {}) {
   if (category !== 'hospitals') return true;
-  const types = googleTypesForPlace(place);
-  return types.has('hospital') || types.has('emergency_room');
+  const primaryType = normalizedGoogleType(place?.primaryType);
+  return primaryType === 'hospital' || primaryType === 'emergency_room';
 }
 
 function googleTypeLabelForCategory(category, place = {}) {
