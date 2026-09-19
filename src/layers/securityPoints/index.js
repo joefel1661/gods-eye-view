@@ -15,6 +15,32 @@ function colorForCategory(category) {
   );
 }
 
+export const SECURITY_POINT_MARKER_HEIGHT_M = 1.5;
+
+export function securityPointMarkerPosition(
+  record,
+  heightM = SECURITY_POINT_MARKER_HEIGHT_M,
+) {
+  return Cesium.Cartesian3.fromDegrees(
+    record.longitude,
+    record.latitude,
+    heightM,
+  );
+}
+
+export function securityPointMarkerGraphics(record, { selected = false } = {}) {
+  const color = colorForCategory(record.category);
+  return {
+    pixelSize:
+      (CATEGORY_CONFIG[record.category]?.markerSize || 9) + (selected ? 3 : 0),
+    color: selected ? Cesium.Color.WHITE : color,
+    outlineColor: color.withAlpha(0.95),
+    outlineWidth: selected ? 3 : 2,
+    heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+    disableDepthTestDistance: 0,
+  };
+}
+
 function cloneCategoryParams(params = DEFAULT_CATEGORY_PARAMS) {
   return Object.fromEntries(
     CATEGORY_ORDER.map((id) => [id, params[id] !== false]),
@@ -255,11 +281,7 @@ export function createSecurityPointsLayer({ services, source }) {
     for (const record of state.records) {
       const color = colorForCategory(record.category);
       const height = surfaceHeightM(record);
-      const position = Cesium.Cartesian3.fromDegrees(
-        record.longitude,
-        record.latitude,
-        height,
-      );
+      const position = securityPointMarkerPosition(record);
       const selected = record.id === state.selectedId;
       const entity = state.dataSource.entities.add({
         id: record.id,
@@ -278,15 +300,7 @@ export function createSecurityPointsLayer({ services, source }) {
               height,
             }
           : undefined,
-        point: {
-          pixelSize:
-            (CATEGORY_CONFIG[record.category]?.markerSize || 9) +
-            (selected ? 3 : 0),
-          color: selected ? Cesium.Color.WHITE : color,
-          outlineColor: color.withAlpha(0.95),
-          outlineWidth: selected ? 3 : 2,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        },
+        point: securityPointMarkerGraphics(record, { selected }),
       });
       entity.gevTrackedId = `security:${record.id}`;
       entity.gevDisplayPosition = () => position;
