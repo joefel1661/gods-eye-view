@@ -3,6 +3,8 @@ import {
   CATEGORY_ORDER,
   DETAIL_REQUEST_TIMEOUT_MS,
   GOOGLE_NEARBY_URL,
+  GOOGLE_PLACE_DETAILS_URL,
+  GOOGLE_QUERY_LIMIT,
   MAX_VIEWPORT_DEGREES,
   OVERPASS_URL,
   QUERY_LIMIT,
@@ -246,33 +248,89 @@ function bboxForLog(box) {
   };
 }
 
-function normalizeName(value) {
-  return String(value || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
+const GOOGLE_PRIMARY_TYPE_TO_CATEGORY = Object.freeze({
+  police: 'police',
+  fire_station: 'fireEms',
+  ambulance_service: 'fireEms',
+  hospital: 'hospitals',
+  emergency_room: 'hospitals',
+  airport: 'airports',
+  heliport: 'airports',
+});
+
+function normalizedGoogleType(value) {
+  return String(value || '').trim().toLowerCase();
 }
 
-function matchScore(record, place) {
-  let score = 0;
-  const recordName = normalizeName(record.name);
-  const placeName = normalizeName(place?.name);
-  if (recordName && placeName) {
-    if (recordName === placeName) score += 100;
-    else if (recordName.includes(placeName) || placeName.includes(recordName))
-      score += 45;
+function inferGoogleCategory(place = {}, fallbackCategory = null) {
+  const fromPrimary =
+    GOOGLE_PRIMARY_TYPE_TO_CATEGORY[normalizedGoogleType(place.primaryType)] ||
+    null;
+  if (fromPrimary) return fromPrimary;
+  const types = Array.isArray(place.types) ? place.types : [];
+  for (const type of types) {
+    const category = GOOGLE_PRIMARY_TYPE_TO_CATEGORY[normalizedGoogleType(type)];
+    if (category) return category;
   }
-  const distance = Number(place?.distanceM);
-  if (Number.isFinite(distance)) score += Math.max(0, 60 - distance / 10);
-  const placeTypes = new Set(
-    [place?.primaryType, ...(Array.isArray(place?.types) ? place.types : [])]
-      .map((value) => String(value || '').toLowerCase())
-      .filter(Boolean),
-  );
-  for (const type of CATEGORY_CONFIG[record.category]?.googleTypes || []) {
-    if (placeTypes.has(String(type).toLowerCase())) score += 35;
-  }
-  return score;
+  return fallbackCategory;
+}
+
+function googleTypeLabelForCategory(category, place = {}) {
+  const type = normalizedGoogleType(place.primaryType);
+  const name = String(place.name || '').trim();
+  if (category === 'airports') return type === 'heliport' ? 'Heliport' : 'Airport';
+  if (category === 'hospitals')
+    return type === 'emergency_room' ? 'Emergency department' : 'Hospital';
+  if (category === 'fireEms')
+    return type === 'ambulance_service' ? 'EMS station' : 'Fire station';
+  if (category === 'police')
+    return /\bsheriff\b/i.test(name) ? 'Sheriff office' : 'Police facility';
+  return 'Security point';
+}
+
+function placeQueryRadiusM(box, category) {
+  const centerLat = (box.south + box.north) / 2;
+  const centerLon = (box.west + box.east) / 2;
+  const latitudeScale = 111320;
+  const longitudeScale = latitudeScale * Math.cos((centerLat * Math.PI) / 180);
+  const northM = Math.abs((box.north - centerLat) * latitudeScale);
+  const eastM = Math.abs((box.east - centerLon) * longitudeScale);
+  const viewportRadius = Math.ceil(Math.hypot(northM, eastM));
+  const categoryMinimum = category === 'airports' ? 1200 : 350;
+  return Math.max(categoryMinimum, Math.min(5000, viewportRadius || categoryMinimum));
+}
+
+function normalizedGoogleRecord(place, requestedCategory) {
+  const category = inferGoogleCategory(place, requestedCategory);
+  if (!category) return null;
+  const latitude = Number(place?.latitude);
+  const longitude = Number(place?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  const placeId = String(place?.id || '').trim() || null;
+  const name =
+    String(place?.name || '').trim() ||
+    CATEGORY_CONFIG[category]?.cardLabel ||
+    'Security Point';
+  return {
+    id: placeId
+      ? `google:${placeId}`
+      : `google:${category}:${formatViewportValue(latitude)}:${formatViewportValue(longitude)}`,
+    googlePlaceId: placeId,
+    osmType: null,
+    osmId: null,
+    category,
+    name,
+    typeLabel: googleTypeLabelForCategory(category, place),
+    latitude,
+    longitude,
+    footprint: null,
+    address: String(place?.address || '').trim() || null,
+    phone: null,
+    tags: {},
+    provider: 'Google Maps Places',
+    providerHref: 'https://maps.google.com',
+    google: null,
+  };
 }
 
 export function createSecurityPointSource({
@@ -280,6 +338,272 @@ export function createSecurityPointSource({
 } = {}) {
   const cache = new Map();
   const inflight = new Map();
+
+  async function fetchGoogleCategoryViewport(box, category, signal) {
+    const types = CATEGORY_CONFIG[category]?.googleTypes || [];
+    const centerLat = (box.south + box.north) / 2;
+    const centerLon = (box.west + box.east) / 2;
+    const query = new URLSearchParams({
+      lat: centerLat.toFixed(6),
+      lon: centerLon.toFixed(6),
+      radiusM: String(placeQueryRadiusM(box, category)),
+      maxResultCount: String(GOOGLE_QUERY_LIMIT),
+    });
+    if (types.length) query.set('includedTypes', types.join(','));
+    const request = requestSignal(signal, VIEWPORT_REQUEST_TIMEOUT_MS);
+    request.throwIfAborted();
+    const startedAt = Date.now();
+    logSecurityPointDiagnostic('google viewport request started', {
+      endpoint: GOOGLE_NEARBY_URL,
+      method: 'GET',
+      category,
+      bbox: bboxForLog(box),
+      includedTypes: types,
+    });
+    let response;
+    try {
+      response = await fetchImpl(`${GOOGLE_NEARBY_URL}?${query}`, { signal: request });
+    } catch (error) {
+      const timeoutTriggered = request.aborted || isTimeoutError(error);
+      logSecurityPointDiagnostic('google viewport request failed', {
+        endpoint: GOOGLE_NEARBY_URL,
+        method: 'GET',
+        category,
+        status: null,
+        responseTimeMs: Date.now() - startedAt,
+        timeoutTriggered,
+        providerError: sanitizedErrorMessage(error),
+      });
+      throw new Error(
+        timeoutTriggered
+          ? 'Security Points query timed out'
+          : 'Security Points are temporarily unavailable',
+      );
+    }
+    const payload = await readResponseJsonSafe(response);
+    request.throwIfAborted();
+    if (!response.ok) {
+      logSecurityPointDiagnostic('google viewport request failed', {
+        endpoint: GOOGLE_NEARBY_URL,
+        method: 'GET',
+        category,
+        status: response.status,
+        responseTimeMs: Date.now() - startedAt,
+        timeoutTriggered: response.status === 504,
+        providerError: sanitizeProviderError(payload?.providerError || payload),
+      });
+      throw new Error(
+        response.status === 429
+          ? 'Security Points are temporarily rate-limited'
+          : response.status === 403
+            ? 'Security Points provider refused the request'
+            : response.status === 504
+              ? 'Security Points query timed out'
+              : 'Security Points are temporarily unavailable',
+      );
+    }
+    const places = Array.isArray(payload?.places) ? payload.places : [];
+    logSecurityPointDiagnostic('google viewport request completed', {
+      endpoint: GOOGLE_NEARBY_URL,
+      method: 'GET',
+      category,
+      status: response.status,
+      responseTimeMs: Date.now() - startedAt,
+      resultCount: places.length,
+      timeoutTriggered: false,
+      providerError: null,
+    });
+    return { category, places, saturated: places.length >= GOOGLE_QUERY_LIMIT };
+  }
+
+  async function fetchGoogleViewport(box, enabledCategories, signal) {
+    const settled = await Promise.allSettled(
+      enabledCategories.map((category) =>
+        fetchGoogleCategoryViewport(box, category, signal),
+      ),
+    );
+    const deduped = new Map();
+    let saturated = false;
+    const failedCategories = [];
+    settled.forEach((entry, index) => {
+      if (entry.status !== 'fulfilled') {
+        failedCategories.push(enabledCategories[index]);
+        return;
+      }
+      saturated ||= entry.value.saturated === true;
+      for (const place of entry.value.places) {
+        const record = normalizedGoogleRecord(place, entry.value.category);
+        if (!record || !enabledCategories.includes(record.category)) continue;
+        if (deduped.has(record.id)) continue;
+        deduped.set(record.id, record);
+      }
+    });
+    if (failedCategories.length > 0) {
+      logSecurityPointDiagnostic('google viewport partial success', {
+        enabledCategoryCount: enabledCategories.length,
+        failedCategoryCount: failedCategories.length,
+        resultCount: deduped.size,
+        bbox: bboxForLog(box),
+      });
+    }
+    const primaryError = settled.find((entry) => entry.status === 'rejected');
+    if (
+      !deduped.size &&
+      failedCategories.length === enabledCategories.length &&
+      primaryError
+    )
+      throw primaryError.reason || new Error('Security Points unavailable');
+    return { records: [...deduped.values()], saturated, failedCategories };
+  }
+
+  async function fetchOverpassFallback(box, enabledCategories, signal) {
+    const requests = enabledCategories.map(async (category) => {
+      const query = buildSecurityPointsOverpassQuery(box, [category], {
+        queryLimit: QUERY_LIMIT,
+        timeoutSec: 25,
+      });
+      const requestBody = encodeOverpassFormBody(query);
+      const request = requestSignal(signal, VIEWPORT_REQUEST_TIMEOUT_MS);
+      request.throwIfAborted();
+      const startedAt = Date.now();
+      logSecurityPointDiagnostic('overpass viewport request started', {
+        endpoint: OVERPASS_URL,
+        endpointHost: null,
+        method: 'POST',
+        category,
+        querySize: query.length,
+        bbox: bboxForLog(box),
+      });
+      let response;
+      try {
+        response = await fetchImpl(OVERPASS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: requestBody,
+          signal: request,
+        });
+      } catch (error) {
+        const elapsedMs = Date.now() - startedAt;
+        const timeoutTriggered = request.aborted || isTimeoutError(error);
+        logSecurityPointDiagnostic('overpass viewport request failed', {
+          endpoint: OVERPASS_URL,
+          endpointHost: null,
+          method: 'POST',
+          category,
+          querySize: query.length,
+          bbox: bboxForLog(box),
+          status: null,
+          responseTimeMs: elapsedMs,
+          responseSize: null,
+          resultCount: 0,
+          timeoutTriggered,
+          providerError: sanitizedErrorMessage(error),
+        });
+        throw new Error(
+          timeoutTriggered
+            ? 'Security Points query timed out'
+            : 'Security Points are temporarily unavailable',
+        );
+      }
+      const elapsedMs = Date.now() - startedAt;
+      const stale = response.headers.get('x-overpass-cache') === 'STALE';
+      const endpointHost = endpointHostFromHeader(
+        response.headers.get('x-overpass-upstream'),
+      );
+      const contentLength = Number(response.headers.get('content-length'));
+      if (!response.ok) {
+        const bodyText = await response.text().catch(() => '');
+        const timeoutTriggered =
+          response.status === 504 || isTimeoutError({ message: bodyText });
+        logSecurityPointDiagnostic('overpass viewport request failed', {
+          endpoint: OVERPASS_URL,
+          endpointHost,
+          method: 'POST',
+          category,
+          querySize: query.length,
+          bbox: bboxForLog(box),
+          status: response.status,
+          responseTimeMs: elapsedMs,
+          responseSize: Number.isFinite(contentLength)
+            ? contentLength
+            : bodyText.length,
+          resultCount: 0,
+          timeoutTriggered,
+          providerError: bodyText ? bodyText.slice(0, 240) : 'No response body',
+        });
+        throw new Error(
+          response.status === 429
+            ? 'Security Points are temporarily rate-limited'
+            : timeoutTriggered
+              ? 'Security Points query timed out'
+              : response.status === 403
+                ? 'Security Points provider refused the request'
+                : 'Security Points are temporarily unavailable',
+        );
+      }
+      const payload = await response.json();
+      request.throwIfAborted();
+      if (!Array.isArray(payload?.elements) || payload.remark) {
+        logSecurityPointDiagnostic('overpass viewport request failed', {
+          endpoint: OVERPASS_URL,
+          endpointHost,
+          method: 'POST',
+          category,
+          querySize: query.length,
+          bbox: bboxForLog(box),
+          status: response.status,
+          responseTimeMs: elapsedMs,
+          responseSize: Number.isFinite(contentLength) ? contentLength : null,
+          resultCount: 0,
+          timeoutTriggered: false,
+          providerError:
+            String(payload?.remark || '').slice(0, 240) ||
+            'Security Points returned an incomplete response',
+        });
+        throw new Error('Security Points returned an incomplete response');
+      }
+      logSecurityPointDiagnostic('overpass viewport request completed', {
+        endpoint: OVERPASS_URL,
+        endpointHost,
+        method: 'POST',
+        category,
+        querySize: query.length,
+        bbox: bboxForLog(box),
+        status: response.status,
+        responseTimeMs: elapsedMs,
+        responseSize: Number.isFinite(contentLength) ? contentLength : null,
+        resultCount: payload.elements.length,
+        timeoutTriggered: false,
+        providerError: null,
+      });
+      return {
+        category,
+        stale,
+        saturated: payload.elements.length >= QUERY_LIMIT,
+        elements: payload.elements.slice(0, QUERY_LIMIT),
+      };
+    });
+    const settled = await Promise.allSettled(requests);
+    const deduped = new Map();
+    let stale = false;
+    let saturated = false;
+    for (const entry of settled) {
+      if (entry.status !== 'fulfilled') continue;
+      stale ||= entry.value.stale === true;
+      saturated ||= entry.value.saturated === true;
+      for (const element of entry.value.elements) {
+        const record = normalizeRecord(element);
+        if (!record || !enabledCategories.includes(record.category)) continue;
+        deduped.set(record.id, record);
+      }
+    }
+    const succeeded = settled.some((entry) => entry.status === 'fulfilled');
+    if (!succeeded) {
+      const primaryError = settled.find((entry) => entry.status === 'rejected');
+      throw primaryError?.reason || new Error('Security Points unavailable');
+    }
+    return { records: [...deduped.values()], stale, saturated };
+  }
 
   async function fetchViewport(box, categories, { signal } = {}) {
     validateBox(box);
@@ -290,228 +614,81 @@ export function createSecurityPointSource({
     if (cache.has(key)) return cache.get(key);
     if (inflight.has(key)) return inflight.get(key);
     const pending = (async () => {
-      const requests = enabledCategories.map(async (category) => {
-      const query = buildSecurityPointsOverpassQuery(box, [category], {
-        queryLimit: QUERY_LIMIT,
-        timeoutSec: 25,
-      });
-      const requestBody = encodeOverpassFormBody(query);
-        const request = requestSignal(signal, VIEWPORT_REQUEST_TIMEOUT_MS);
-        request.throwIfAborted();
-        const startedAt = Date.now();
-        logSecurityPointDiagnostic('viewport request started', {
-          endpoint: OVERPASS_URL,
-          endpointHost: null,
-          method: 'POST',
-          category,
-          querySize: query.length,
-          bbox: bboxForLog(box),
-        });
-        let response;
-        try {
-          response = await fetchImpl(OVERPASS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: requestBody,
-            signal: request,
-          });
-        } catch (error) {
-          const elapsedMs = Date.now() - startedAt;
-          const timeoutTriggered = request.aborted || isTimeoutError(error);
-          logSecurityPointDiagnostic('viewport request failed', {
-            endpoint: OVERPASS_URL,
-            endpointHost: null,
-            method: 'POST',
-            category,
-            querySize: query.length,
-            bbox: bboxForLog(box),
-            status: null,
-            responseTimeMs: elapsedMs,
-            responseSize: null,
-            resultCount: 0,
-            timeoutTriggered,
-            providerError: sanitizedErrorMessage(error),
-          });
-          throw new Error(
-            timeoutTriggered
-              ? 'Security Points query timed out'
-              : 'Security Points are temporarily unavailable',
-          );
-        }
-        const elapsedMs = Date.now() - startedAt;
-        const stale = response.headers.get('x-overpass-cache') === 'STALE';
-        const endpointHost = endpointHostFromHeader(
-          response.headers.get('x-overpass-upstream'),
-        );
-        const contentLength = Number(response.headers.get('content-length'));
-        if (!response.ok) {
-          const bodyText = await response.text().catch(() => '');
+      try {
+        const googleResult = await fetchGoogleViewport(box, enabledCategories, signal);
+        let records = [...googleResult.records];
+        let stale = false;
+        let saturated = googleResult.saturated;
+        if (googleResult.failedCategories.length > 0) {
           try {
-            await response.body?.cancel();
-          } catch {
-            /* already closed */
+            const fallback = await fetchOverpassFallback(
+              box,
+              googleResult.failedCategories,
+              signal,
+            );
+            const byId = new Map(records.map((record) => [record.id, record]));
+            for (const record of fallback.records) {
+              if (!byId.has(record.id)) byId.set(record.id, record);
+            }
+            records = [...byId.values()];
+            stale ||= fallback.stale === true;
+            saturated ||= fallback.saturated === true;
+          } catch (error) {
+            logSecurityPointDiagnostic('overpass category fallback failed', {
+              bbox: bboxForLog(box),
+              failedCategories: googleResult.failedCategories,
+              message: sanitizedErrorMessage(error),
+            });
+            stale = true;
           }
-          const timeoutTriggered =
-            response.status === 504 || isTimeoutError({ message: bodyText });
-          logSecurityPointDiagnostic('viewport request failed', {
-            endpoint: OVERPASS_URL,
-            endpointHost,
-            method: 'POST',
-            category,
-            querySize: query.length,
-            bbox: bboxForLog(box),
-            status: response.status,
-            responseTimeMs: elapsedMs,
-            responseSize: Number.isFinite(contentLength)
-              ? contentLength
-              : bodyText.length,
-            resultCount: 0,
-            timeoutTriggered,
-            providerError: bodyText
-              ? bodyText.slice(0, 240)
-              : 'No response body',
-          });
-          throw new Error(
-            response.status === 429
-              ? 'Security Points are temporarily rate-limited'
-              : timeoutTriggered
-                ? 'Security Points query timed out'
-                : response.status === 403
-                  ? 'Security Points provider refused the request'
-                  : 'Security Points are temporarily unavailable',
-          );
         }
-        const payload = await response.json();
-        request.throwIfAborted();
-        if (!Array.isArray(payload?.elements) || payload.remark) {
-          logSecurityPointDiagnostic('viewport request failed', {
-            endpoint: OVERPASS_URL,
-            endpointHost,
-            method: 'POST',
-            category,
-            querySize: query.length,
-            bbox: bboxForLog(box),
-            status: response.status,
-            responseTimeMs: elapsedMs,
-            responseSize: Number.isFinite(contentLength) ? contentLength : null,
-            resultCount: 0,
-            timeoutTriggered: false,
-            providerError:
-              String(payload?.remark || '').slice(0, 240) ||
-              'Security Points returned an incomplete response',
-          });
-          throw new Error('Security Points returned an incomplete response');
-        }
-        logSecurityPointDiagnostic('viewport request completed', {
-          endpoint: OVERPASS_URL,
-          endpointHost,
-          method: 'POST',
-          category,
-          querySize: query.length,
+        const result = { records, stale, saturated };
+        boundedPush(cache, key, result);
+        return result;
+      } catch (error) {
+        logSecurityPointDiagnostic('google primary unavailable, trying overpass fallback', {
           bbox: bboxForLog(box),
-          status: response.status,
-          responseTimeMs: elapsedMs,
-          responseSize: Number.isFinite(contentLength) ? contentLength : null,
-          resultCount: payload.elements.length,
-          timeoutTriggered: false,
-          providerError: null,
+          enabledCategories,
+          message: sanitizedErrorMessage(error),
         });
-        return {
-          category,
-          stale,
-          saturated: payload.elements.length >= QUERY_LIMIT,
-          elements: payload.elements.slice(0, QUERY_LIMIT),
-        };
-      });
-      const settled = await Promise.allSettled(requests);
-      const succeeded = settled.filter((entry) => entry.status === 'fulfilled');
-      if (!succeeded.length) {
-        const primaryError = settled.find(
-          (entry) => entry.status === 'rejected',
-        );
-        throw primaryError?.reason || new Error('Security Points unavailable');
+        const fallback = await fetchOverpassFallback(box, enabledCategories, signal);
+        boundedPush(cache, key, fallback);
+        return fallback;
       }
-      const deduped = new Map();
-      let stale = false;
-      let saturated = false;
-      let failedCategories = 0;
-      for (const entry of settled) {
-        if (entry.status !== 'fulfilled') {
-          failedCategories += 1;
-          continue;
-        }
-        stale ||= entry.value.stale === true;
-        saturated ||= entry.value.saturated === true;
-        for (const element of entry.value.elements) {
-          const record = normalizeRecord(element);
-          if (!record || !enabledCategories.includes(record.category)) continue;
-          deduped.set(record.id, record);
-        }
-      }
-      if (failedCategories > 0) {
-        logSecurityPointDiagnostic('viewport request partial success', {
-          enabledCategoryCount: enabledCategories.length,
-          failedCategoryCount: failedCategories,
-          resultCount: deduped.size,
-          bbox: bboxForLog(box),
-        });
-      }
-      const result = { records: [...deduped.values()], stale, saturated };
-      boundedPush(cache, key, result);
-      return result;
     })().finally(() => inflight.delete(key));
     inflight.set(key, pending);
     return pending;
   }
 
   async function enrichRecord(record, { signal } = {}) {
-    if (
-      !record ||
-      !Number.isFinite(record.latitude) ||
-      !Number.isFinite(record.longitude)
-    )
-      return null;
-    const types = CATEGORY_CONFIG[record.category]?.googleTypes || [];
-    const query = new URLSearchParams({
-      lat: record.latitude.toFixed(5),
-      lon: record.longitude.toFixed(5),
-      radiusM: record.category === 'airports' ? '900' : '250',
-      maxResultCount: '8',
-    });
-    if (types.length) query.set('includedTypes', types.join(','));
+    const placeId = String(record?.googlePlaceId || '').trim();
+    if (!placeId) return null;
     const request = requestSignal(signal, DETAIL_REQUEST_TIMEOUT_MS);
     request.throwIfAborted();
-    const response = await fetchImpl(`${GOOGLE_NEARBY_URL}?${query}`, {
-      signal: request,
-    });
+    const response = await fetchImpl(
+      `${GOOGLE_PLACE_DETAILS_URL}?${new URLSearchParams({ placeId })}`,
+      { signal: request },
+    );
     const payload = await readResponseJsonSafe(response);
     request.throwIfAborted();
     if (!response.ok) {
       logSecurityPointDiagnostic('detail request failed', {
-        endpoint: GOOGLE_NEARBY_URL,
+        endpoint: GOOGLE_PLACE_DETAILS_URL,
         method: 'GET',
         status: response.status,
-        providerError: sanitizeProviderError(payload?.error || payload),
+        providerError: sanitizeProviderError(payload?.providerError || payload),
       });
       return null;
     }
-    if (!Array.isArray(payload?.places)) return null;
-    let best = null;
-    let bestScore = -Infinity;
-    for (const place of payload.places) {
-      const score = matchScore(record, place);
-      if (score > bestScore) {
-        best = place;
-        bestScore = score;
-      }
-    }
-    if (!best || bestScore < 35) return null;
+    const place = payload?.place;
+    if (!place || typeof place !== 'object') return null;
+    const phone = String(place?.phone || '').trim() || null;
     return {
-      name: best.name || null,
-      address: best.address || null,
-      phone: best.phone || null,
-      primaryType: best.primaryType || null,
-      googleMapsUri: best.googleMapsUri || null,
+      name: String(place?.name || '').trim() || null,
+      address: String(place?.address || '').trim() || null,
+      phone,
+      primaryType: String(place?.primaryType || '').trim() || null,
+      googleMapsUri: String(place?.googleMapsUri || '').trim() || null,
       provider: 'Google Maps Places',
       providerHref: 'https://policies.google.com/terms',
     };

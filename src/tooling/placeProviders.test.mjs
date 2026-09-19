@@ -81,7 +81,7 @@ test('nearby labels rank landmarks, deduplicate names/addresses and bound the pr
   assert.deepEqual(projectNearbyPlaces({}, 0, 0), []);
 });
 
-test('nearby projections retain phone and Maps URI fields when present', () => {
+test('nearby projections return only initial discovery fields', () => {
   const result = projectNearbyPlaces(
     {
       places: [
@@ -98,8 +98,11 @@ test('nearby projections retain phone and Maps URI fields when present', () => {
     30,
     -97,
   );
-  assert.equal(result[0].phone, '+1 512-555-0100');
-  assert.equal(result[0].googleMapsUri, 'https://maps.google.test/place/1');
+  assert.equal(result[0].name, 'Hospital');
+  assert.equal(result[0].address, '101 Main');
+  assert.equal(result[0].primaryType, null);
+  assert.equal('phone' in result[0], false);
+  assert.equal('googleMapsUri' in result[0], false);
 });
 
 test('text search preserves bounds, rejects malformed bounds and tolerates absent locations', () => {
@@ -153,6 +156,7 @@ for (const preview of [false, true]) {
       });
     });
     const nearby = '/api/google/nearby-places';
+    const details = '/api/google/place-details';
     const search = '/api/google/text-search';
     const health = '/api/google/health';
     assert.equal(
@@ -167,7 +171,6 @@ for (const preview of [false, true]) {
     );
     assert.equal(result.statusCode, 200);
     assert.equal(result.body.places[0].name, 'Museum');
-    assert.equal(result.body.places[0].phone, '+1 512-555-0101');
     assert.equal(
       JSON.parse(calls[0].options.body).locationRestriction.circle.radius,
       5000,
@@ -177,14 +180,41 @@ for (const preview of [false, true]) {
       'fire_station',
     ]);
     assert.equal(JSON.parse(calls[0].options.body).maxResultCount, 5);
+    assert.equal(
+      calls[0].options.headers['X-Goog-FieldMask'],
+      'places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.types',
+    );
     assert.equal(result.headers['cache-control'], 'private, max-age=300');
+    t.mock.method(globalThis, 'fetch', async (url, options) => {
+      calls.push({ url, options });
+      if (String(url).includes('/v1/places/')) {
+        assert.equal(options.method, 'GET');
+        return Response.json({
+          id: 'abc123',
+          displayName: { text: 'Museum' },
+          formattedAddress: '101 Main',
+          nationalPhoneNumber: '+1 512-555-0101',
+          googleMapsUri: 'https://maps.google.test/place/abc123',
+          primaryType: 'police',
+        });
+      }
+      return Response.json({ places: [] });
+    });
+    const detailResult = await request(details, '?placeId=abc123');
+    assert.equal(detailResult.statusCode, 200);
+    assert.equal(detailResult.body.place.phone, '+1 512-555-0101');
+    assert.equal(detailResult.body.place.id, 'abc123');
     key = 'rotated-fixture-key';
     assert.equal(
       (await request(search, '?q=museum&lat=30&lon=-97&radiusM=1')).statusCode,
       200,
     );
     assert.equal(
-      JSON.parse(calls[1].options.body).locationBias.circle.radius,
+      JSON.parse(
+        calls.find((entry) =>
+          String(entry.url).includes('/v1/places:searchText'),
+        ).options.body,
+      ).locationBias.circle.radius,
       50,
     );
     assert.equal((await request(search, '?lat=30&lon=-97')).statusCode, 400);

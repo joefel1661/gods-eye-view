@@ -33,9 +33,6 @@ export function projectNearbyPlaces(data, latitude, longitude) {
             name: place.displayName?.text || null,
             address:
               place.shortFormattedAddress || place.formattedAddress || null,
-            phone:
-              place.nationalPhoneNumber || place.internationalPhoneNumber || null,
-            googleMapsUri: place.googleMapsUri || null,
             latitude: placeLatitude,
             longitude: placeLongitude,
             distanceM: approximateDistanceM(
@@ -64,6 +61,19 @@ export function projectNearbyPlaces(data, latitude, longitude) {
         .slice(0, 20)
     : [];
   return places;
+}
+
+export function projectPlaceDetails(data) {
+  if (!data || typeof data !== 'object') return null;
+  return {
+    id: data.id || null,
+    name: data.displayName?.text || null,
+    address: data.shortFormattedAddress || data.formattedAddress || null,
+    phone: data.nationalPhoneNumber || data.internationalPhoneNumber || null,
+    googleMapsUri: data.googleMapsUri || null,
+    primaryType:
+      data.primaryTypeDisplayName?.text || data.primaryType || null,
+  };
 }
 
 export function projectTextSearchPlaces(data, latitude, longitude) {

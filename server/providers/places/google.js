@@ -6,6 +6,7 @@ import {
 import { makeOptInRateLimiter, clientKey } from '../common/rate-limit.js';
 import {
   projectNearbyPlaces,
+  projectPlaceDetails,
   projectTextSearchPlaces,
 } from '../../../src/data/placeProviderPayloads.js';
 
@@ -39,10 +40,10 @@ function sanitizeGoogleError(data = {}) {
   };
 }
 
-function logGoogleFailure(endpoint, response, data) {
+function logGoogleFailure(endpoint, response, data, method = 'POST') {
   console.warn('[GooglePlaces]', {
     endpoint,
-    method: 'POST',
+    method,
     status: response.status,
     keyMode: googleServerKeyMode(),
     providerError: sanitizeGoogleError(data),
@@ -76,7 +77,8 @@ async function executeGooglePlacesRequest({
   endpoint,
   apiKey,
   fieldMask,
-  body,
+  body = null,
+  method = 'POST',
   fetchImpl,
 }) {
   const endpointDetail = googleEndpointDetail(endpoint);
@@ -92,7 +94,7 @@ async function executeGooglePlacesRequest({
   console.info('[GooglePlaces] request begins', {
     route,
     endpoint: endpointDetail,
-    method: 'POST',
+    method,
     keyMode: googleServerKeyMode(),
     serverKeyConfigured: Boolean(
       String(process.env.GOOGLE_MAPS_SERVER_API_KEY || '').trim(),
@@ -101,15 +103,15 @@ async function executeGooglePlacesRequest({
   });
   try {
     const response = await fetchImpl(endpoint, {
-      method: 'POST',
+      method,
       redirect: 'error',
       signal: controller.signal,
       headers: {
-        'Content-Type': 'application/json',
         'X-Goog-Api-Key': apiKey,
         'X-Goog-FieldMask': fieldMask,
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
       },
-      body: JSON.stringify(body),
+      ...(body ? { body: JSON.stringify(body) } : {}),
     });
     const data = await response.json().catch(() => ({}));
     const providerError = response.ok ? null : sanitizeGoogleError(data);
@@ -117,7 +119,7 @@ async function executeGooglePlacesRequest({
     const logPayload = {
       route,
       endpoint: endpointDetail,
-      method: 'POST',
+      method,
       status: response.status,
       providerError,
       elapsedMs,
@@ -127,7 +129,7 @@ async function executeGooglePlacesRequest({
       console.info('[GooglePlaces] request completed', logPayload);
     else {
       console.warn('[GooglePlaces] request completed', logPayload);
-      logGoogleFailure(route, response, data);
+      logGoogleFailure(route, response, data, method);
     }
     return {
       response,
@@ -144,7 +146,7 @@ async function executeGooglePlacesRequest({
     console.warn('[GooglePlaces] request failed', {
       route,
       endpoint: endpointDetail,
-      method: 'POST',
+      method,
       status: null,
       providerError: null,
       elapsedMs,
@@ -377,9 +379,6 @@ export function googlePlacesContextProxy({
               'places.primaryType',
               'places.primaryTypeDisplayName',
               'places.types',
-              'places.nationalPhoneNumber',
-              'places.internationalPhoneNumber',
-              'places.googleMapsUri',
             ].join(','),
             body: {
               maxResultCount,
@@ -414,6 +413,101 @@ export function googlePlacesContextProxy({
           JSON.stringify({
             error: error?.message || 'Google Places request failed',
             places: [],
+            providerError: null,
+          }),
+        );
+      }
+    });
+
+    middlewares.use('/api/google/place-details', async (req, res) => {
+      if (req.method !== 'GET') {
+        res.statusCode = 405;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Method not allowed', place: null }));
+        return;
+      }
+
+      const apiKey = resolveApiKey();
+      const keyless = keylessGooglePlacesResponse(apiKey);
+      if (keyless) {
+        res.statusCode = keyless.statusCode;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        res.end(
+          JSON.stringify({
+            configured: keyless.payload.configured,
+            error: null,
+            place: null,
+          }),
+        );
+        return;
+      }
+
+      const requestUrl = new URL(req.url || '', 'http://localhost');
+      const placeId = String(requestUrl.searchParams.get('placeId') || '').trim();
+      if (!placeId) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'placeId is required', place: null }));
+        return;
+      }
+
+      const _grl = googleRateLimiter();
+      if (_grl && !_grl(clientKey(req))) {
+        res.statusCode = 429;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Retry-After', '5');
+        res.end(JSON.stringify({ error: 'Rate limit exceeded', place: null }));
+        return;
+      }
+
+      const encodedPlaceId = encodeURIComponent(placeId);
+      const endpointRoot = (
+        endpoints.placeDetails || 'https://places.googleapis.com/v1/places'
+      ).replace(/\/$/, '');
+      try {
+        const { response, data, providerError } = await executeGooglePlacesRequest({
+          route: '/api/google/place-details',
+          endpoint: `${endpointRoot}/${encodedPlaceId}`,
+          apiKey,
+          fieldMask: [
+            'id',
+            'displayName',
+            'formattedAddress',
+            'shortFormattedAddress',
+            'primaryType',
+            'primaryTypeDisplayName',
+            'nationalPhoneNumber',
+            'internationalPhoneNumber',
+            'googleMapsUri',
+          ].join(','),
+          method: 'GET',
+          fetchImpl,
+        });
+        const place = response.ok ? projectPlaceDetails(data) : null;
+        res.statusCode = response.ok ? 200 : response.status;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader(
+          'Cache-Control',
+          response.ok ? 'private, max-age=300' : 'no-store',
+        );
+        res.end(
+          JSON.stringify({
+            place,
+            error: response.ok
+              ? null
+              : googleProxyErrorMessage(response.status, providerError),
+            providerError,
+          }),
+        );
+      } catch (error) {
+        res.statusCode = error?.statusCode || 502;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        res.end(
+          JSON.stringify({
+            error: error?.message || 'Google Places request failed',
+            place: null,
             providerError: null,
           }),
         );

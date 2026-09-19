@@ -133,7 +133,7 @@ test('both Places routes select the intended key and keep it out of responses', 
         googlePlacesContextProxy()[install]({
           middlewares: { use: (name, handler) => routes.set(name, handler) },
         });
-        assert.equal(routes.size, 3);
+        assert.equal(routes.size, 4);
         for (const [route, handler] of routes.entries()) {
           const before = calls.length;
           let body;
@@ -146,7 +146,10 @@ test('both Places routes select the intended key and keep it out of responses', 
           await handler(
             {
               method: 'GET',
-              url: '/?lat=30&lon=-97&q=capitol',
+              url:
+                route === '/api/google/place-details'
+                  ? '/?placeId=test-place'
+                  : '/?lat=30&lon=-97&q=capitol',
               headers: {},
               socket: { remoteAddress: '127.0.0.1' },
             },
@@ -162,6 +165,8 @@ test('both Places routes select the intended key and keep it out of responses', 
             const parsed = JSON.parse(body);
             if (route === '/api/google/health')
               assert.equal(parsed.reachable, false);
+            else if (route === '/api/google/place-details')
+              assert.equal(parsed.place, null);
             else assert.equal(parsed.configured, false);
           }
         }
