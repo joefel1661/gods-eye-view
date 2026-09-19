@@ -3,6 +3,9 @@ import { readRequestBodyCapped } from './common/request.js';
 import {
   OVERPASS_MAX_BODY_BYTES,
   OVERPASS_MAX_CONCURRENT,
+  OVERPASS_MAX_RESPONSE_BYTES,
+  OVERPASS_TIMEOUT_MS,
+  OVERPASS_UPSTREAMS,
 } from './overpass/constants.js';
 import { sanitizeOverpassBody } from './overpass/query.js';
 import {
@@ -17,9 +20,11 @@ import {
 import {
   overpassPayloadIsData,
   fetchOverpassPayload,
+  sanitizeOverpassProviderText,
 } from './overpass/transport.js';
 import { installRouteMiddleware } from './places/routes.js';
 import { encodeOverpassFormBody } from '../../src/sources/overpass.js';
+import { readResponseTextCapped } from './common/http.js';
 import { CATEGORY_ORDER } from '../../src/layers/securityPoints/policy.js';
 import {
   buildSecurityPointsOverpassQuery,
@@ -68,6 +73,72 @@ function overpassHealthQuery(box) {
 
 function overpassTinyHealthQuery({ south, west, north, east }) {
   return `[out:json][timeout:10];node["amenity"="police"](${south},${west},${north},${east});out tags 1;`;
+}
+
+function overpassPrimaryHealthEndpoint() {
+  return String(OVERPASS_UPSTREAMS?.[0] || '');
+}
+
+async function fetchOverpassGetDataProbe(body) {
+  const endpoint = overpassPrimaryHealthEndpoint();
+  const upstreamTarget = new URL(endpoint);
+  const target = new URL(`${upstreamTarget.origin}${upstreamTarget.pathname}`);
+  const params = new URLSearchParams(String(body || ''));
+  target.search = params.toString();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), OVERPASS_TIMEOUT_MS);
+  const startedAt = Date.now();
+  try {
+    const upstream = await fetch(target, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    const responseBody = await readResponseTextCapped(
+      upstream,
+      OVERPASS_MAX_RESPONSE_BYTES,
+    );
+    const contentType =
+      upstream.headers.get('content-type') || 'application/json';
+    const status = upstream.status;
+    const providerError = sanitizeOverpassProviderText(responseBody, contentType);
+    return {
+      status,
+      body: responseBody,
+      contentType,
+      endpoint,
+      providerError,
+      attempts: [
+        {
+          endpoint,
+          method: 'GET',
+          status,
+          latencyMs: Date.now() - startedAt,
+          timeoutTriggered: false,
+          providerError,
+        },
+      ],
+      fallbackAttempted: false,
+      finalEndpoint: status >= 200 && status < 300 ? endpoint : null,
+    };
+  } catch (error) {
+    throw Object.assign(error, {
+      attempts: [
+        {
+          endpoint,
+          method: 'GET',
+          status: null,
+          latencyMs: Date.now() - startedAt,
+          timeoutTriggered:
+            error?.name === 'AbortError' || error?.name === 'TimeoutError',
+          providerError: String(error?.message || '').trim().slice(0, 240) || null,
+        },
+      ],
+      fallbackAttempted: false,
+      providerError: String(error?.message || '').trim().slice(0, 240) || null,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function overpassTimeoutTriggered(error, payload = null) {
@@ -176,6 +247,10 @@ function overpassProxy({ routing = {} } = {}) {
       const probe = requestUrl.searchParams.get('probe') === 'tiny'
         ? 'tiny'
         : 'security-points';
+      const requestForm = requestUrl.searchParams.get('requestForm') === 'get-data'
+        ? 'get-data'
+        : null;
+      const effectiveProbe = requestForm ? 'tiny' : probe;
       const box = {
         south: Number(formatSecurityPointViewportValue(safeSouth)),
         west: Number(formatSecurityPointViewportValue(safeWest)),
@@ -183,13 +258,16 @@ function overpassProxy({ routing = {} } = {}) {
         east: Number(formatSecurityPointViewportValue(safeEast)),
       };
       const query =
-        probe === 'tiny' ? overpassTinyHealthQuery(box) : overpassHealthQuery(box);
+        effectiveProbe === 'tiny'
+          ? overpassTinyHealthQuery(box)
+          : overpassHealthQuery(box);
       const body = encodeOverpassFormBody(query);
       const startedAt = Date.now();
       const responseBody = {
-        probe,
+        probe: effectiveProbe,
+        requestForm,
         reachable: false,
-        method: 'POST',
+        method: requestForm === 'get-data' ? 'GET' : 'POST',
         endpoint: { hostname: null, path: null },
         httpStatus: null,
         latencyMs: null,
@@ -201,7 +279,10 @@ function overpassProxy({ routing = {} } = {}) {
         attempts: [],
       };
       try {
-        const payload = await fetchOverpassPayload(body);
+        const payload =
+          requestForm === 'get-data'
+            ? await fetchOverpassGetDataProbe(body)
+            : await fetchOverpassPayload(body);
         const latencyMs = Date.now() - startedAt;
         const attempts = summarizeOverpassAttempts(payload?.attempts);
         res.writeHead(200, {

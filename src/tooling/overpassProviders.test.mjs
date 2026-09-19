@@ -126,3 +126,66 @@ test('Overpass health reports fallback attempts and sanitized 406 refusals', asy
     /appropriate representation/i,
   );
 });
+
+test('Overpass health supports GET data-form tiny probe against primary endpoint', async (t) => {
+  const plugin = overpassProxy();
+  const request = install((middlewares) =>
+    plugin.configureServer({
+      middlewares,
+    }),
+  );
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.match(String(url), /^https:\/\/overpass-api\.de\/api\/interpreter\?data=/);
+    assert.equal(options.method, 'GET');
+    assert.equal(options.body, undefined);
+    return Response.json(
+      { elements: [{ type: 'node', id: 3 }] },
+      { status: 200 },
+    );
+  });
+  const result = await request(
+    '/api/overpass/health',
+    '/api/overpass/health?requestForm=get-data',
+  );
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.body.probe, 'tiny');
+  assert.equal(result.body.requestForm, 'get-data');
+  assert.equal(result.body.reachable, true);
+  assert.equal(result.body.method, 'GET');
+  assert.equal(result.body.httpStatus, 200);
+  assert.equal(result.body.fallbackAttempted, false);
+  assert.equal(result.body.attempts.length, 1);
+  assert.deepEqual(result.body.finalSuccessfulEndpoint, {
+    hostname: 'overpass-api.de',
+    path: '/api/interpreter',
+  });
+});
+
+test('Overpass health reports 406 for GET data-form tiny probe without fallback', async (t) => {
+  const plugin = overpassProxy();
+  const request = install((middlewares) =>
+    plugin.configureServer({
+      middlewares,
+    }),
+  );
+  const refusal = `<!DOCTYPE HTML><html><head><title>406 Not Acceptable</title></head><body><h1>Not Acceptable</h1><p>An appropriate representation of the requested resource could not be found on this server.</p></body></html>`;
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response(refusal, {
+      status: 406,
+      headers: { 'content-type': 'text/html' },
+    }));
+  const result = await request(
+    '/api/overpass/health',
+    '/api/overpass/health?requestForm=get-data',
+  );
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.body.probe, 'tiny');
+  assert.equal(result.body.requestForm, 'get-data');
+  assert.equal(result.body.reachable, false);
+  assert.equal(result.body.method, 'GET');
+  assert.equal(result.body.httpStatus, 406);
+  assert.equal(result.body.fallbackAttempted, false);
+  assert.equal(result.body.attempts.length, 1);
+  assert.match(String(result.body.providerError), /appropriate representation/i);
+  assert.equal(result.body.finalSuccessfulEndpoint, null);
+});
