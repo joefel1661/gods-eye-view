@@ -273,6 +273,12 @@ function normalizedGoogleType(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function isAcceptedGooglePlaceForCategory(category, place = {}) {
+  if (category !== 'hospitals') return true;
+  const primaryType = normalizedGoogleType(place?.primaryType);
+  return primaryType === 'hospital' || primaryType === 'emergency_room';
+}
+
 function googleTypeLabelForCategory(category, place = {}) {
   const type = normalizedGoogleType(place.primaryType);
   const name = String(place.name || '').trim();
@@ -301,6 +307,7 @@ function placeQueryRadiusM(box, category) {
 function normalizedGoogleRecord(place, requestedCategory) {
   const category = String(requestedCategory || '').trim() || null;
   if (!category) return null;
+  if (!isAcceptedGooglePlaceForCategory(category, place)) return null;
   const latitude = Number(place?.latitude);
   const longitude = Number(place?.longitude);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
@@ -771,7 +778,13 @@ export function createSecurityPointSource({
             });
           }
         }
-        const result = { records, stale, saturated };
+        const result = {
+          records,
+          stale,
+          saturated,
+          failedCategories: [...googleResult.failedCategories],
+          primaryProvider: 'google',
+        };
         boundedPush(cache, key, result);
         return result;
       } catch (error) {
@@ -787,8 +800,13 @@ export function createSecurityPointSource({
           onCategoryProgress,
           [],
         );
-        boundedPush(cache, key, fallback);
-        return fallback;
+        const result = {
+          ...fallback,
+          failedCategories: [...enabledCategories],
+          primaryProvider: 'overpass',
+        };
+        boundedPush(cache, key, result);
+        return result;
       }
     })().finally(() => inflight.delete(key));
     inflight.set(key, pending);

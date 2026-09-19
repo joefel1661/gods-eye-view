@@ -1296,6 +1296,7 @@
   .data-toggle-right:has(
     .data-toggle-btn:is(
       .feed-loading,
+      .feed-partial,
       .feed-degraded,
       .feed-stale,
       .feed-fallback,

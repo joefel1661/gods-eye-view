@@ -2,6 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSecurityPointSource } from './source.js';
 
+function createGoogleViewportSource(placeByType = {}, fallbackResponse = null) {
+  return createSecurityPointSource({
+    fetchImpl: async (url, options) => {
+      const parsed = new URL(String(url), 'http://localhost');
+      if (parsed.pathname === '/api/google/nearby-places') {
+        const type = String(parsed.searchParams.get('includedTypes') || '').trim();
+        return Response.json({ places: placeByType[type] || [] });
+      }
+      if (parsed.pathname === '/api/overpass') {
+        if (typeof fallbackResponse === 'function')
+          return fallbackResponse(parsed, options);
+        if (fallbackResponse) return fallbackResponse;
+      }
+      throw new Error(`Unexpected endpoint: ${parsed.pathname}`);
+    },
+  });
+}
+
 test('fetchViewport uses Google Places as the primary category discovery source', async () => {
   const calls = [];
   const source = createSecurityPointSource({
@@ -65,6 +83,8 @@ test('fetchViewport uses Google Places as the primary category discovery source'
     'overpass must not be required when google succeeds',
   );
   assert.equal(result.stale, false);
+  assert.equal(result.primaryProvider, 'google');
+  assert.deepEqual(result.failedCategories, []);
   assert.equal(result.records.length, 2);
   assert.deepEqual(
     result.records.map((record) => [record.id, record.category, record.provider]),
@@ -401,6 +421,8 @@ test('fetchViewport keeps successful categories when one category fails and repo
   );
 
   assert.equal(result.stale, false);
+  assert.equal(result.primaryProvider, 'google');
+  assert.deepEqual(result.failedCategories, ['hospitals']);
   assert.deepEqual(
     result.records.map((record) => [record.id, record.category]).sort(),
     [
@@ -428,6 +450,115 @@ test('fetchViewport keeps successful categories when one category fails and repo
   assert.equal(
     result.records.find((record) => record.id === 'google:p-1')?.category,
     'police',
+  );
+});
+
+test('fetchViewport accepts hospital-classified Google Places results', async () => {
+  const source = createGoogleViewportSource({
+    hospital: [
+      {
+        id: 'hospital-1',
+        name: 'Seton Medical Center',
+        latitude: 30.3,
+        longitude: -97.3,
+        primaryType: 'hospital',
+        types: ['hospital', 'health'],
+      },
+    ],
+    emergency_room: [],
+  });
+
+  const result = await source.fetchViewport(
+    { south: 30, west: -98, north: 31, east: -97 },
+    { police: false, fireEms: false, hospitals: true, airports: false },
+  );
+
+  assert.deepEqual(
+    result.records.map((record) => [record.id, record.category, record.typeLabel]),
+    [['google:hospital-1', 'hospitals', 'Hospital']],
+  );
+});
+
+test('fetchViewport accepts emergency-room-classified Google Places results', async () => {
+  const source = createGoogleViewportSource({
+    hospital: [],
+    emergency_room: [
+      {
+        id: 'er-1',
+        name: 'Dell Seton ER',
+        latitude: 30.3,
+        longitude: -97.3,
+        primaryType: 'emergency_room',
+        types: ['emergency_room', 'hospital'],
+      },
+    ],
+  });
+
+  const result = await source.fetchViewport(
+    { south: 30, west: -98, north: 31, east: -97 },
+    { police: false, fireEms: false, hospitals: true, airports: false },
+  );
+
+  assert.deepEqual(
+    result.records.map((record) => [record.id, record.category, record.typeLabel]),
+    [['google:er-1', 'hospitals', 'Emergency department']],
+  );
+});
+
+test('fetchViewport rejects individual doctors from hospital discovery', async () => {
+  const source = createGoogleViewportSource({
+    hospital: [
+      {
+        id: 'doctor-1',
+        name: 'Pratima V. Kumar, MD',
+        latitude: 30.3,
+        longitude: -97.3,
+        primaryType: 'doctor',
+        types: ['doctor', 'health', 'point_of_interest'],
+      },
+    ],
+    emergency_room: [],
+  });
+
+  const result = await source.fetchViewport(
+    { south: 30, west: -98, north: 31, east: -97 },
+    { police: false, fireEms: false, hospitals: true, airports: false },
+  );
+
+  assert.equal(result.records.length, 0);
+});
+
+test('fetchViewport rejects clinics and medical offices unless Google classifies them as hospital care', async () => {
+  const source = createGoogleViewportSource({
+    hospital: [
+      {
+        id: 'clinic-1',
+        name: 'Neighborhood Medical Clinic',
+        latitude: 30.31,
+        longitude: -97.31,
+        primaryType: 'medical_office',
+        types: ['medical_office', 'health'],
+      },
+      {
+        id: 'clinic-2',
+        name: 'Regional Emergency Clinic',
+        latitude: 30.32,
+        longitude: -97.32,
+        primaryType: 'hospital',
+        types: ['hospital', 'medical_office', 'health'],
+      },
+    ],
+    emergency_room: [],
+  });
+
+  const result = await source.fetchViewport(
+    { south: 30, west: -98, north: 31, east: -97 },
+    { police: false, fireEms: false, hospitals: true, airports: false },
+  );
+
+  assert.deepEqual(
+    result.records.map((record) => record.id),
+    ['google:clinic-2'],
   );
 });
 
