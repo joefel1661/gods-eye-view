@@ -76,6 +76,7 @@ export class PanelChrome {
       cctv: 'cctv-panel',
       context: 'global-context-panel',
     };
+    this._mobileDockCollapsedState = null;
     this._mobileNavCleanup = null;
     this._syncingMobilePanels = false;
     this._panelPosition = new PanelPositionControls({
@@ -669,7 +670,40 @@ export class PanelChrome {
     return globalThis.matchMedia?.(MOBILE_NAV_QUERY)?.matches === true;
   }
 
+  _setMobileControlsSheetExpanded(expanded) {
+    const panelIds = ['location-bar', 'control-panel'];
+    const dock = document.getElementById('command-dock');
+    if (expanded) {
+      if (!this._mobileDockCollapsedState) {
+        const entries = panelIds
+          .map((id) => {
+            const panel = document.getElementById(id);
+            return panel ? [id, panel.classList.contains('collapsed')] : null;
+          })
+          .filter(Boolean);
+        this._mobileDockCollapsedState = new Map(entries);
+      }
+      for (const panelId of panelIds) {
+        const panel = document.getElementById(panelId);
+        if (!panel) continue;
+        panel.classList.remove('collapsed');
+      }
+      dock?.style.setProperty('bottom', 'var(--mobile-panel-bottom)');
+    } else if (this._mobileDockCollapsedState) {
+      for (const [panelId, wasCollapsed] of this._mobileDockCollapsedState) {
+        const panel = document.getElementById(panelId);
+        if (!panel) continue;
+        panel.classList.toggle('collapsed', wasCollapsed);
+      }
+      this._mobileDockCollapsedState = null;
+      dock?.style.removeProperty('bottom');
+    } else if (dock?.style.getPropertyValue('bottom')) {
+      dock.style.removeProperty('bottom');
+    }
+  }
+
   _setMobilePanelKey(key) {
+    this._setMobileControlsSheetExpanded(key === 'controls');
     if (key) document.body.dataset.mobilePanel = key;
     else delete document.body.dataset.mobilePanel;
     document.body.classList.toggle('mobile-panel-open', Boolean(key));
@@ -734,6 +768,7 @@ export class PanelChrome {
     const buttons = [...(this._mobileNavButtons || [])];
     if (!buttons.length) return;
     if (!this._isMobileViewport()) {
+      this._setMobileControlsSheetExpanded(false);
       this._setMobilePanelKey(null);
       buttons.forEach((button) => {
         button.setAttribute('aria-pressed', 'false');
