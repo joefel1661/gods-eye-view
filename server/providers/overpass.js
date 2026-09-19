@@ -81,9 +81,10 @@ function overpassPrimaryHealthEndpoint() {
 
 async function fetchOverpassGetDataProbe(body) {
   const endpoint = overpassPrimaryHealthEndpoint();
-  const target = new URL(endpoint);
+  const upstreamTarget = new URL(endpoint);
+  const target = new URL(`${upstreamTarget.origin}${upstreamTarget.pathname}`);
   const params = new URLSearchParams(String(body || ''));
-  for (const [key, value] of params) target.searchParams.append(key, value);
+  target.search = params.toString();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), OVERPASS_TIMEOUT_MS);
   const startedAt = Date.now();
