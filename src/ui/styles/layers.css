@@ -1305,3 +1305,97 @@
   .data-count {
   display: none;
 }
+
+
+#security-point-card {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 170;
+  width: min(22rem, calc(100vw - 36px));
+  pointer-events: auto;
+}
+
+#security-point-card .security-point-card-inner {
+  background: rgba(8, 20, 30, 0.94);
+  border: 1px solid rgba(123, 189, 211, 0.3);
+  border-radius: 18px;
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  padding: 12px 14px;
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+}
+
+.security-point-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.security-point-card-header strong,
+.security-point-card-row strong,
+.security-point-card-row a {
+  display: block;
+  font-family: var(--font-mono);
+}
+
+.security-point-card-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  letter-spacing: 1.2px;
+}
+
+.security-point-card-close {
+  border: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.security-point-card-row {
+  display: grid;
+  grid-template-columns: minmax(0, 7.2rem) minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+  color: var(--text-primary);
+}
+
+.security-point-card-row span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.security-point-card-row strong,
+.security-point-card-phone {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.security-point-card-phone:hover,
+.security-point-card-phone:focus-visible {
+  text-decoration: underline;
+}
+
+.security-point-card-footer {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.security-point-card-footer a {
+  color: inherit;
+}

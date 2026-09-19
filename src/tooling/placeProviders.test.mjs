@@ -81,6 +81,21 @@ test('nearby labels rank landmarks, deduplicate names/addresses and bound the pr
   assert.deepEqual(projectNearbyPlaces({}, 0, 0), []);
 });
 
+test('nearby projections retain phone and Maps URI fields when present', () => {
+  const result = projectNearbyPlaces({
+    places: [{
+      displayName: { text: 'Hospital' },
+      location: { latitude: 30, longitude: -97 },
+      formattedAddress: '101 Main',
+      nationalPhoneNumber: '+1 512-555-0100',
+      googleMapsUri: 'https://maps.google.test/place/1',
+      types: ['hospital'],
+    }],
+  }, 30, -97);
+  assert.equal(result[0].phone, '+1 512-555-0100');
+  assert.equal(result[0].googleMapsUri, 'https://maps.google.test/place/1');
+});
+
 test('text search preserves bounds, rejects malformed bounds and tolerates absent locations', () => {
   const viewport = {
     low: { latitude: 1, longitude: 2 },
@@ -125,6 +140,8 @@ for (const preview of [false, true]) {
           {
             displayName: { text: 'Museum' },
             location: { latitude: 30, longitude: -97 },
+            nationalPhoneNumber: '+1 512-555-0101',
+            googleMapsUri: 'https://maps.google.test/place/nearby',
           },
         ],
       });
@@ -137,13 +154,16 @@ for (const preview of [false, true]) {
     );
     assert.equal(calls.length, 0);
     key = 'fixture-server-key';
-    const result = await request(nearby, '?lat=30&lon=-97&radiusM=9000');
+    const result = await request(nearby, '?lat=30&lon=-97&radiusM=9000&includedTypes=police,fire_station&maxResultCount=5');
     assert.equal(result.statusCode, 200);
     assert.equal(result.body.places[0].name, 'Museum');
+    assert.equal(result.body.places[0].phone, '+1 512-555-0101');
     assert.equal(
       JSON.parse(calls[0].options.body).locationRestriction.circle.radius,
       5000,
     );
+    assert.deepEqual(JSON.parse(calls[0].options.body).includedTypes, ['police', 'fire_station']);
+    assert.equal(JSON.parse(calls[0].options.body).maxResultCount, 5);
     assert.equal(result.headers['cache-control'], 'private, max-age=300');
     key = 'rotated-fixture-key';
     assert.equal(

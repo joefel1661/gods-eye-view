@@ -24,6 +24,10 @@ import {
   initTrackedReadout,
 } from '../data/trackedReadout.js';
 import {
+  destroySecurityPointCard,
+  initSecurityPointCard,
+} from './securityPointCard.js';
+import {
   destroyWorldOverlay,
   initWorldOverlay,
 } from '../overlays/worldOverlay.js';
@@ -82,6 +86,8 @@ export class StyleManager extends ApplicationShell {
         setKeyholeFadeTuning,
         destroyTrackedReadout,
         initTrackedReadout,
+        destroySecurityPointCard,
+        initSecurityPointCard,
         destroyWorldOverlay,
         initWorldOverlay,
         destroyDetection,

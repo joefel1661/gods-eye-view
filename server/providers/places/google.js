@@ -96,6 +96,12 @@ export function googlePlacesContextProxy({
         25,
         Math.min(5000, Number(requestUrl.searchParams.get('radiusM')) || 250),
       );
+      const maxResultCount = Math.max(1, Math.min(20, Number(requestUrl.searchParams.get('maxResultCount')) || 20));
+      const includedTypes = String(requestUrl.searchParams.get('includedTypes') || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .slice(0, 10);
 
       try {
         const response = await fetchImpl(
@@ -116,11 +122,15 @@ export function googlePlacesContextProxy({
                 'places.primaryType',
                 'places.primaryTypeDisplayName',
                 'places.types',
+                'places.nationalPhoneNumber',
+                'places.internationalPhoneNumber',
+                'places.googleMapsUri',
               ].join(','),
             },
             body: JSON.stringify({
-              maxResultCount: 20,
+              maxResultCount,
               rankPreference: 'DISTANCE',
+              ...(includedTypes.length ? { includedTypes } : {}),
               locationRestriction: {
                 circle: {
                   center: { latitude, longitude },
