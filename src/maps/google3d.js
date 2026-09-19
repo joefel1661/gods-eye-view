@@ -1,3 +1,5 @@
+import { wrapProviderError } from './providerErrors.js';
+
 const clean = (value) => String(value || '').trim();
 
 /**
@@ -56,6 +58,12 @@ export function createGoogleDirectTileset(Cesium, key) {
   return Cesium.createGooglePhotorealistic3DTileset({
     key,
     onlyUsingWithGoogleGeocoder: true,
+  }).catch((error) => {
+    throw wrapProviderError(
+      error,
+      'Google 3D tiles were denied',
+      'check GOOGLE_MAPS_API_KEY referrer restrictions, Map Tiles API enablement, quota, and the production origin',
+    );
   });
 }
 
@@ -70,6 +78,12 @@ export async function createGoogleIonTileset(
   signal?.throwIfAborted();
   const resource = await Cesium.IonResource.fromAssetId(2275207, {
     accessToken,
+  }).catch((error) => {
+    throw wrapProviderError(
+      error,
+      'Cesium ion denied Google 3D access',
+      'check CESIUM_ION_TOKEN URL restrictions, asset access, and quota for the production origin',
+    );
   });
   signal?.throwIfAborted();
   // Match the installed SDK's Google helper rendering/cache defaults.
@@ -77,5 +91,11 @@ export async function createGoogleIonTileset(
     cacheBytes: 1536 * 1024 * 1024,
     maximumCacheOverflowBytes: 1024 * 1024 * 1024,
     enableCollision: true,
+  }).catch((error) => {
+    throw wrapProviderError(
+      error,
+      'Cesium ion Google 3D tiles failed to load',
+      'check CESIUM_ION_TOKEN asset access, URL restrictions, quota, and provider availability for the production origin',
+    );
   });
 }

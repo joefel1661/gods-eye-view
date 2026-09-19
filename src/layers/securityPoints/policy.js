@@ -4,6 +4,8 @@ export const GOOGLE_NEARBY_URL = '/api/google/nearby-places';
 export const REQUEST_DEBOUNCE_MS = 500;
 export const MAX_VIEWPORT_DEGREES = 1.8;
 export const QUERY_LIMIT = 250;
+export const VIEWPORT_REQUEST_TIMEOUT_MS = 15000;
+export const DETAIL_REQUEST_TIMEOUT_MS = 5000;
 
 export const CATEGORY_ORDER = Object.freeze([
   'police',
@@ -34,7 +36,7 @@ export const CATEGORY_CONFIG = Object.freeze({
     label: 'Hospitals',
     cardLabel: 'Hospitals / Emergency Departments',
     color: '#eab308',
-    googleTypes: ['hospital'],
+    googleTypes: ['hospital', 'emergency_room'],
     markerSize: 9,
   }),
   airports: Object.freeze({

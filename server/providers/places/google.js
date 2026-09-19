@@ -1,5 +1,6 @@
 import {
   googleServerApiKey,
+  googleServerKeyMode,
   keylessGooglePlacesResponse,
 } from './google-key.js';
 import { makeOptInRateLimiter, clientKey } from '../common/rate-limit.js';
@@ -19,6 +20,26 @@ function googleRateLimiter() {
       process.env.GEV_RATELIMIT_GOOGLE_PER_MIN,
     );
   return _googleRateLimiter;
+}
+
+function sanitizeGoogleError(data = {}) {
+  const provider = data?.error || {};
+  const code = Number(provider?.code);
+  return {
+    code: Number.isFinite(code) ? code : null,
+    status: String(provider?.status || '').trim() || null,
+    message: String(provider?.message || '').trim() || null,
+  };
+}
+
+function logGoogleFailure(endpoint, response, data) {
+  console.warn('[GooglePlaces]', {
+    endpoint,
+    method: 'POST',
+    status: response.status,
+    keyMode: googleServerKeyMode(),
+    providerError: sanitizeGoogleError(data),
+  });
 }
 
 /** Validate raw lat/lon presence and WGS84 bounds before consuming request quota. */
@@ -96,8 +117,16 @@ export function googlePlacesContextProxy({
         25,
         Math.min(5000, Number(requestUrl.searchParams.get('radiusM')) || 250),
       );
-      const maxResultCount = Math.max(1, Math.min(20, Number(requestUrl.searchParams.get('maxResultCount')) || 20));
-      const includedTypes = String(requestUrl.searchParams.get('includedTypes') || '')
+      const maxResultCount = Math.max(
+        1,
+        Math.min(
+          20,
+          Number(requestUrl.searchParams.get('maxResultCount')) || 20,
+        ),
+      );
+      const includedTypes = String(
+        requestUrl.searchParams.get('includedTypes') || '',
+      )
         .split(',')
         .map((value) => value.trim())
         .filter(Boolean)
@@ -142,6 +171,8 @@ export function googlePlacesContextProxy({
         );
         const data = await response.json().catch(() => ({}));
         const places = projectNearbyPlaces(data, latitude, longitude);
+        if (!response.ok)
+          logGoogleFailure('/api/google/nearby-places', response, data);
 
         res.statusCode = response.ok ? 200 : response.status;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -261,6 +292,8 @@ export function googlePlacesContextProxy({
         );
         const data = await response.json().catch(() => ({}));
         const places = projectTextSearchPlaces(data, latitude, longitude);
+        if (!response.ok)
+          logGoogleFailure('/api/google/text-search', response, data);
 
         res.statusCode = response.ok ? 200 : response.status;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');

@@ -126,3 +126,27 @@ test('credentialed source factories reject an omitted token instead of consuming
   );
   await assert.rejects(createWorldTerrain(' '), /explicit ion token/);
 });
+
+test('ion imagery and terrain failures surface provider-specific 403 guidance', async () => {
+  const originalImagery = Cesium.IonImageryProvider.fromAssetId;
+  const originalResource = Cesium.IonResource.fromAssetId;
+  try {
+    Cesium.IonImageryProvider.fromAssetId = async () => {
+      throw new Error('Request has failed. Status Code: 403');
+    };
+    Cesium.IonResource.fromAssetId = async () => {
+      throw new Error('Request has failed. Status Code: 403');
+    };
+    await assert.rejects(
+      createIonImagery(Cesium.IonWorldImageryStyle.AERIAL, 'token'),
+      /Cesium ion imagery was denied \(HTTP 403\)/,
+    );
+    await assert.rejects(
+      createWorldTerrain('token'),
+      /Cesium ion terrain metadata was denied \(HTTP 403\)/,
+    );
+  } finally {
+    Cesium.IonImageryProvider.fromAssetId = originalImagery;
+    Cesium.IonResource.fromAssetId = originalResource;
+  }
+});
