@@ -76,6 +76,7 @@ export class PanelChrome {
       cctv: 'cctv-panel',
       context: 'global-context-panel',
     };
+    this._mobileDockCollapsedState = null;
     this._mobileNavCleanup = null;
     this._syncingMobilePanels = false;
     this._panelPosition = new PanelPositionControls({
@@ -669,7 +670,34 @@ export class PanelChrome {
     return globalThis.matchMedia?.(MOBILE_NAV_QUERY)?.matches === true;
   }
 
+  _setMobileControlsSheetExpanded(expanded) {
+    const panelIds = ['location-bar', 'control-panel'];
+    if (expanded) {
+      if (!this._mobileDockCollapsedState) {
+        this._mobileDockCollapsedState = new Map(
+          panelIds.map((id) => [
+            id,
+            document.getElementById(id)?.classList.contains('collapsed') ?? true,
+          ]),
+        );
+      }
+      for (const panelId of panelIds) {
+        const panel = document.getElementById(panelId);
+        if (!panel) continue;
+        panel.classList.remove('collapsed');
+      }
+    } else if (this._mobileDockCollapsedState) {
+      for (const [panelId, wasCollapsed] of this._mobileDockCollapsedState) {
+        const panel = document.getElementById(panelId);
+        if (!panel) continue;
+        panel.classList.toggle('collapsed', wasCollapsed);
+      }
+      this._mobileDockCollapsedState = null;
+    }
+  }
+
   _setMobilePanelKey(key) {
+    this._setMobileControlsSheetExpanded(key === 'controls');
     if (key) document.body.dataset.mobilePanel = key;
     else delete document.body.dataset.mobilePanel;
     document.body.classList.toggle('mobile-panel-open', Boolean(key));
@@ -734,6 +762,7 @@ export class PanelChrome {
     const buttons = [...(this._mobileNavButtons || [])];
     if (!buttons.length) return;
     if (!this._isMobileViewport()) {
+      this._setMobileControlsSheetExpanded(false);
       this._setMobilePanelKey(null);
       buttons.forEach((button) => {
         button.setAttribute('aria-pressed', 'false');

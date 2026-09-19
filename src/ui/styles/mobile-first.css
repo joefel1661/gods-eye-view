@@ -5,11 +5,15 @@
     --mobile-nav-height: 76px;
     --mobile-nav-gap: 10px;
     --mobile-panel-side-gap: 12px;
+    --mobile-panel-width: calc(100vw - (var(--mobile-panel-side-gap) * 2));
+    --mobile-panel-max-width: 30rem;
+    --mobile-panel-viewport-gap: 12px;
     --mobile-panel-bottom: calc(
       var(--mobile-safe-bottom) + var(--mobile-nav-height) + var(--mobile-nav-gap)
     );
     --mobile-panel-max-height: calc(
-      100dvh - var(--mobile-safe-top) - var(--mobile-panel-bottom) - 56px
+      100dvh - var(--mobile-safe-top) - var(--mobile-panel-bottom) -
+        var(--mobile-panel-viewport-gap)
     );
   }
 
@@ -154,18 +158,22 @@
   #global-context-panel {
     position: fixed !important;
     top: auto !important;
-    right: var(--mobile-panel-side-gap);
+    right: auto;
     bottom: var(--mobile-panel-bottom);
-    left: var(--mobile-panel-side-gap);
+    left: 50%;
     z-index: 155;
-    width: auto !important;
-    max-width: none;
+    width: var(--mobile-panel-width) !important;
+    max-width: min(
+      var(--mobile-panel-max-width),
+      var(--mobile-panel-width)
+    ) !important;
     max-height: var(--mobile-panel-max-height);
     margin: 0;
+    box-sizing: border-box;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transform: translateY(calc(100% + 32px));
+    transform: translate(-50%, calc(100% + 32px));
     transition:
       opacity 180ms ease,
       visibility 0s linear 180ms,
@@ -181,7 +189,7 @@
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-    transform: translateY(0);
+    transform: translate(-50%, 0);
     transition-delay: 0s;
   }
 
@@ -194,16 +202,34 @@
     flex: 0 0 auto;
   }
 
+  #left-panel-stack > #data-panel,
+  #left-panel-stack > #scene-panel,
+  #right-context-rail > #cctv-panel,
+  #right-context-rail > #global-context-panel {
+    position: fixed !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: var(--mobile-panel-bottom) !important;
+    left: 50% !important;
+    width: var(--mobile-panel-width) !important;
+    max-width: min(
+      var(--mobile-panel-max-width),
+      var(--mobile-panel-width)
+    ) !important;
+  }
+
   #data-panel .data-panel-inner,
   #scene-panel .scene-panel-inner,
   #cctv-panel .cctv-panel-inner,
   #global-context-panel .global-context-panel-inner {
     width: 100%;
+    min-width: 0;
     height: auto;
     max-height: var(--mobile-panel-max-height);
+    box-sizing: border-box;
     border-radius: 28px 28px 18px 18px;
     padding: 14px 14px 16px;
-    overflow: hidden;
+    overflow-x: hidden;
   }
 
   #left-panel-stack > #data-panel:not(.collapsed) .data-panel-inner,
@@ -237,6 +263,9 @@
   #cctv-panel .cctv-panel-inner,
   #global-context-panel .global-context-panel-inner {
     min-height: 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
     overflow-y: auto;
   }
 
@@ -294,12 +323,12 @@
   #command-dock {
     position: fixed;
     top: auto;
-    right: var(--mobile-panel-side-gap);
+    right: auto;
     bottom: 8px;
-    left: var(--mobile-panel-side-gap);
+    left: 50%;
     z-index: 155;
-    width: auto;
-    max-width: none;
+    width: var(--mobile-panel-width);
+    max-width: min(var(--mobile-panel-max-width), var(--mobile-panel-width));
     min-height: 0;
     padding: 0;
     background: none;
@@ -307,8 +336,14 @@
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    transform: none;
+    box-sizing: border-box;
+    transform: translateX(-50%);
     pointer-events: none;
+  }
+
+  #command-dock:has(#location-bar:not(.collapsed)),
+  #command-dock:has(#control-panel:not(.collapsed)) {
+    bottom: var(--mobile-panel-bottom);
   }
 
   #mobile-command-sheet-header {
@@ -360,6 +395,7 @@
     flex-direction: column;
     gap: 12px;
     padding: 0 0 14px;
+    overflow-x: hidden;
     overflow-y: auto;
     background: rgba(8, 20, 30, 0.96);
     border: 1px solid rgba(123, 189, 211, 0.28);
@@ -421,7 +457,9 @@
   body[data-mobile-panel='controls'] #command-dock > #control-panel {
     display: block;
     flex: 0 0 auto;
-    width: auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     border: 0;
   }
 
@@ -430,7 +468,8 @@
     right: auto;
     bottom: auto;
     left: auto;
-    width: auto;
+    width: calc(100% - 28px);
+    max-width: calc(100% - 28px);
     min-width: 0;
     height: auto;
     min-height: 0;
@@ -438,6 +477,8 @@
     padding: 12px 14px;
     gap: 10px;
     border-radius: 18px;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
   #command-dock > #gev-voice-control:not([data-status='idle']) {
@@ -519,7 +560,25 @@
 
   body[data-mobile-panel='controls'] #command-dock #location-bar .dock-popover-content,
   body[data-mobile-panel='controls'] #command-dock #control-panel .dock-popover-content {
-    width: auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  body[data-mobile-panel='controls']
+    #command-dock
+    #location-bar
+    .dock-popover-content {
+    max-height: min(9rem, 16vh);
+  }
+
+  body[data-mobile-panel='controls']
+    #command-dock
+    #control-panel
+    .dock-popover-content {
+    max-height: min(16rem, 31vh);
   }
 
   body[data-mobile-panel='controls'] #command-dock .dock-popover-content::after {
@@ -538,6 +597,7 @@
   body[data-mobile-panel='controls'] #command-dock .poi-row-container {
     flex-wrap: wrap;
     gap: 8px;
+    min-width: 0;
     overflow: visible;
     max-height: none;
   }
@@ -549,9 +609,74 @@
     border-right: 0;
   }
 
+  body[data-mobile-panel='controls'] #command-dock .location-pills {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
   body[data-mobile-panel='controls'] #command-dock #location-search,
   body[data-mobile-panel='controls'] #command-dock #location-search.expanded {
     width: 100%;
+  }
+
+  :is(
+      #data-panel,
+      #scene-panel,
+      #cctv-panel,
+      #global-context-panel,
+      #command-dock
+    )
+    :is(
+      .panel-header,
+      .panel-title,
+      .panel-divider,
+      .button-grid,
+      .location-city-row,
+      .cctv-controls,
+      .scene-controls,
+      .global-context-actions,
+      .global-context-modes,
+      .radio-directory-row,
+      .radio-transport,
+      .radio-volume-row,
+      .data-toggle-top,
+      .data-toggle-right,
+      .data-toggle-controls,
+      .map-stack-chip-row
+    ) {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  #cctv-panel .cctv-controls,
+  #global-context-panel .data-toggle-top,
+  #global-context-panel .data-toggle-right,
+  #global-context-panel .military-awareness-target {
+    flex-wrap: wrap;
+  }
+
+  :is(#data-panel, #global-context-panel) .data-toggle-right {
+    justify-content: flex-end;
+  }
+
+  :is(#data-panel, #global-context-panel)
+    :is(.data-count, .data-toggle-btn, .data-toggle-chip),
+  :is(#scene-panel, #cctv-panel, #global-context-panel, #command-dock)
+    :is(.scene-btn, .panel-layer-toggle, .context-mode-button, .map-stack-chip),
+  :is(#command-dock, #location-bar) :is(.style-btn, .location-pill, .poi-pill),
+  #cctv-panel .cctv-controls > *,
+  #scene-panel .scene-controls > *,
+  #global-context-panel .radio-directory-row > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  :is(#scene-panel, #cctv-panel, #global-context-panel, #command-dock)
+    :is(.scene-btn, .panel-layer-toggle, .context-mode-button, .map-stack-chip),
+  :is(#command-dock, #location-bar) :is(.style-btn, .location-pill, .poi-pill) {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   body[data-mobile-panel='controls'] #command-dock .style-btn,
