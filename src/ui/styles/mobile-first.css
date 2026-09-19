@@ -24,6 +24,49 @@
     );
   }
 
+  #intel-hud {
+    --hud-mobile-telemetry-color: #ffd166;
+    --hud-mobile-telemetry-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.92),
+      0 0 10px rgba(0, 0, 0, 0.6);
+    --hud-mobile-telemetry-backing: linear-gradient(
+      180deg,
+      rgba(6, 8, 10, 0.56),
+      rgba(6, 8, 10, 0.32)
+    );
+  }
+
+  #intel-hud .hud-classification,
+  #intel-hud .hud-system,
+  #intel-hud .hud-mode,
+  #intel-hud .hud-summary-label,
+  #intel-hud .hud-summary,
+  #intel-hud .hud-rec,
+  #intel-hud #hud-timestamp,
+  #intel-hud .hud-orbital,
+  #intel-hud #hud-mgrs,
+  #intel-hud #hud-latlon,
+  #intel-hud #hud-gsd,
+  #intel-hud #hud-alt,
+  #intel-hud .hud-ais-vessel,
+  #intel-hud #hud-coll,
+  #intel-hud #hud-ona,
+  #intel-hud .hud-left-edge > div,
+  #intel-hud .hud-right-edge > div,
+  #intel-hud .hud-top-bar > *,
+  #intel-hud .hud-bottom-bar > * {
+    color: var(--hud-mobile-telemetry-color);
+    text-shadow: var(--hud-mobile-telemetry-shadow);
+  }
+
+  #intel-hud .hud-content,
+  #intel-hud .hud-edge {
+    padding: 4px 6px;
+    border-radius: 4px;
+    background: var(--hud-mobile-telemetry-backing);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+  }
+
   html,
   body,
   #cesiumContainer {
