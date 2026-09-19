@@ -3594,7 +3594,9 @@ export class StyleManager {
       const parsed = JSON.parse(
         localStorage.getItem(HUD_MOBILE_WIDGET_STORAGE_KEY) || 'null',
       );
-      if (!parsed || typeof parsed !== 'object') return null;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return { status: false, coordinates: false };
+      }
       return {
         status: !!parsed.status,
         coordinates: !!parsed.coordinates,
@@ -3602,7 +3604,7 @@ export class StyleManager {
     } catch {
       /* best effort */
     }
-    return null;
+    return { status: false, coordinates: false };
   }
 
   _persistHudMobileWidgetPreference(state) {

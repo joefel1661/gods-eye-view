@@ -1043,8 +1043,9 @@ export class IntelHUD {
    * @param {{status?: boolean, coordinates?: boolean}} state
    */
   setWidgetCollapseState(state = {}) {
-    this._setWidgetCollapsed('status', !!state.status, { emit: false });
-    this._setWidgetCollapsed('coordinates', !!state.coordinates, {
+    const normalized = state && typeof state === 'object' ? state : {};
+    this._setWidgetCollapsed('status', !!normalized.status, { emit: false });
+    this._setWidgetCollapsed('coordinates', !!normalized.coordinates, {
       emit: false,
     });
     this._syncWidgetPresentation();
