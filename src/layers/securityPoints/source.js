@@ -273,19 +273,6 @@ function normalizedGoogleType(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-function googleTypesForPlace(place = {}) {
-  const types = new Set();
-  const primaryType = normalizedGoogleType(place?.primaryType);
-  if (primaryType) types.add(primaryType);
-  if (Array.isArray(place?.types)) {
-    for (const type of place.types) {
-      const normalized = normalizedGoogleType(type);
-      if (normalized) types.add(normalized);
-    }
-  }
-  return types;
-}
-
 function isAcceptedGooglePlaceForCategory(category, place = {}) {
   if (category !== 'hospitals') return true;
   const primaryType = normalizedGoogleType(place?.primaryType);
