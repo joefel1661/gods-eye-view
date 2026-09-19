@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as Cesium from 'cesium';
 import {
   countLabelForState,
+  SECURITY_POINT_MARKER_HEIGHT_M,
+  securityPointMarkerGraphics,
+  securityPointMarkerPosition,
   securityPointsStatusMessage,
   statusForFailedSecurityPointsLoad,
   statusForSuccessfulSecurityPointsLoad,
@@ -103,4 +107,33 @@ test('statusForFailedSecurityPointsLoad reports load failed when Google fails wi
     statusForFailedSecurityPointsLoad({ hasCachedRecords: false }),
     'unavailable',
   );
+});
+
+test('security point markers stay bound to geographic coordinates with ground-relative rendering', () => {
+  const record = {
+    category: 'police',
+    latitude: 30.2672,
+    longitude: -97.7431,
+  };
+  const expectedPosition = Cesium.Cartesian3.fromDegrees(
+    record.longitude,
+    record.latitude,
+    SECURITY_POINT_MARKER_HEIGHT_M,
+  );
+  const position = securityPointMarkerPosition(record);
+  assert.ok(
+    Cesium.Cartesian3.equalsEpsilon(
+      position,
+      expectedPosition,
+      Cesium.Math.EPSILON12,
+    ),
+  );
+
+  const point = securityPointMarkerGraphics(record, { selected: false });
+  assert.equal(
+    point.heightReference,
+    Cesium.HeightReference.RELATIVE_TO_GROUND,
+  );
+  assert.equal(point.disableDepthTestDistance, 0);
+  assert.equal(point.pixelSize, 9);
 });

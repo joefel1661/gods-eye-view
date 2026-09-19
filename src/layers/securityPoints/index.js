@@ -156,7 +156,9 @@ export function statusForSuccessfulSecurityPointsLoad({
   return 'ready';
 }
 
-export function statusForFailedSecurityPointsLoad({ hasCachedRecords = false } = {}) {
+export function statusForFailedSecurityPointsLoad({
+  hasCachedRecords = false,
+} = {}) {
   return hasCachedRecords ? 'stale' : 'unavailable';
 }
 
@@ -170,7 +172,8 @@ export function securityPointsStatusMessage({
   if (status === 'fallback')
     messages.push('Google Places unavailable — showing OpenStreetMap fallback');
   if (status === 'stale') messages.push('Showing cached Security Points');
-  if (saturated) messages.push('Coverage limited — zoom in for fewer facilities');
+  if (saturated)
+    messages.push('Coverage limited — zoom in for fewer facilities');
   return messages.join(' · ') || null;
 }
 
