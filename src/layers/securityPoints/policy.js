@@ -1,9 +1,11 @@
 export const LAYER_ID = 'security-points';
 export const OVERPASS_URL = '/api/overpass';
 export const GOOGLE_NEARBY_URL = '/api/google/nearby-places';
+export const GOOGLE_PLACE_DETAILS_URL = '/api/google/place-details';
 export const REQUEST_DEBOUNCE_MS = 500;
 export const MAX_VIEWPORT_DEGREES = 1.8;
 export const QUERY_LIMIT = 250;
+export const GOOGLE_QUERY_LIMIT = 20;
 export const VIEWPORT_REQUEST_TIMEOUT_MS = 30000;
 export const DETAIL_REQUEST_TIMEOUT_MS = 5000;
 
@@ -28,7 +30,7 @@ export const CATEGORY_CONFIG = Object.freeze({
     label: 'Fire/EMS',
     cardLabel: 'Fire / EMS',
     color: '#ef4444',
-    googleTypes: ['fire_station'],
+    googleTypes: ['fire_station', 'ambulance_service'],
     markerSize: 9,
   }),
   hospitals: Object.freeze({

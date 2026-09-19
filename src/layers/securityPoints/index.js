@@ -262,9 +262,12 @@ export function createSecurityPointsLayer({ services, source }) {
         layerId: LAYER_ID,
         dataSource: state.dataSource,
         layerName: 'Security Points',
-        source: record.google
-          ? 'OpenStreetMap + Google Maps Places'
-          : 'OpenStreetMap',
+        source:
+          record.provider === 'OpenStreetMap'
+            ? record.google
+              ? 'OpenStreetMap + Google Maps Places'
+              : 'OpenStreetMap'
+            : record.provider || 'Google Maps Places',
         label: record.name,
         latitude: record.latitude,
         longitude: record.longitude,
@@ -446,7 +449,7 @@ export function createSecurityPointsLayer({ services, source }) {
     id: LAYER_ID,
     name: 'Security Points',
     icon: '🛡',
-    source: 'OpenStreetMap + optional Google Maps Places',
+    source: 'Google Maps Places (+ optional Overpass fallback)',
     updateInterval: 0,
     statsRefreshInterval: 1000,
     init(viewer) {
