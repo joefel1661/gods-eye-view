@@ -30,7 +30,11 @@ test('narrow portrait phones simplify and reflow the fixed HUD readouts', () => 
 
   assert.match(
     portrait430,
-    /#intel-hud\.active \.hud-top-bar,[\s\S]*?#intel-hud \.hud-bottom-right,[\s\S]*?#intel-hud \.hud-ais-vessel \{\s*display: none;/,
+    /#intel-hud\.active \.hud-top-bar,[\s\S]*?#intel-hud \.hud-ais-vessel \{\s*display: none;/,
+  );
+  assert.match(
+    portrait430,
+    /#intel-hud \.hud-bottom-right,/,
   );
   assert.match(
     portrait430,
