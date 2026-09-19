@@ -70,4 +70,12 @@ test('narrow portrait phones keep the floating mic and first-run launcher out of
     portrait390,
     /#command-dock > #gev-voice-control:not\(\[data-status='idle'\]\) \{[\s\S]*?width: min\(13\.5rem, calc\(100vw - 24px\)\);/,
   );
+  assert.match(
+    portrait390,
+    /#first-run-launcher \{[\s\S]*?padding: 0\.8rem;/,
+  );
+  assert.match(
+    portrait390,
+    /#first-run-description \{[\s\S]*?font-size: 0\.68rem;[\s\S]*?line-height: 1\.4;/,
+  );
 });
