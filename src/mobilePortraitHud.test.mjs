@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readStylesheet } from './testSupport/readStylesheet.mjs';
+import fs from 'node:fs';
 
-const css = readStylesheet(new URL('../style.css', import.meta.url));
+const css = fs.readFileSync(
+  new URL('./ui/styles/mobile-first.css', import.meta.url),
+  'utf8',
+);
 const PORTRAIT_430_QUERY = '@media (max-width: 430px) and (orientation: portrait)';
 const PORTRAIT_390_QUERY = '@media (max-width: 390px) and (orientation: portrait)';
 
