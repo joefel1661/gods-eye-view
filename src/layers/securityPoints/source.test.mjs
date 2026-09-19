@@ -127,7 +127,10 @@ test('enrichRecord narrows nearby places by category and returns phone metadata'
     fetchImpl: async (url) => {
       const parsed = new URL(String(url), 'http://localhost');
       assert.equal(parsed.pathname, '/api/google/nearby-places');
-      assert.equal(parsed.searchParams.get('includedTypes'), 'hospital');
+      assert.equal(
+        parsed.searchParams.get('includedTypes'),
+        'hospital,emergency_room',
+      );
       return Response.json({
         places: [
           {
