@@ -471,7 +471,6 @@
     left: auto;
     width: calc(100% - 28px);
     max-width: calc(100% - 28px);
-    min-width: 0;
     min-width: calc(100% - 28px);
     height: auto;
     min-height: 0;
@@ -533,7 +532,6 @@
     left: auto;
     width: calc(100% - 28px);
     max-width: calc(100% - 28px);
-    min-width: 0;
     min-width: calc(100% - 28px);
     margin: 0 14px;
     box-sizing: border-box;
@@ -620,8 +618,9 @@
     flex-wrap: wrap;
     gap: 8px;
     min-width: 0;
-    max-height: none;
-    overflow: visible;
+    max-height: min(48vh, 20rem);
+    overflow-x: hidden;
+    overflow-y: auto;
     overscroll-behavior: contain;
   }
 
@@ -724,7 +723,8 @@
     transform: translateY(0.55rem) scale(0.985);
     transition:
       opacity 180ms ease,
-      visibility 180ms ease;
+      visibility 180ms ease,
+      transform 180ms ease;
   }
 
   body[data-mobile-panel='controls']
@@ -974,27 +974,6 @@
     max-width: 100%;
     white-space: normal;
     overflow-wrap: anywhere;
-  }
-
-  body[data-mobile-panel='controls']
-    #command-dock
-    > #gev-voice-control[data-status='error']
-    .gev-voice-error-tray {
-    left: 0;
-    right: 0;
-    width: auto;
-    max-width: 100%;
-    transform: none;
-  }
-
-  body[data-mobile-panel='controls']
-    #command-dock
-    > #gev-voice-control[data-status='error']:not(.error-dismissed)
-    .gev-voice-error-tray {
-    visibility: visible;
-    opacity: 1;
-    pointer-events: auto;
-    transform: none;
   }
 
   #command-dock > #gev-voice-control:not([data-status='idle']) .gev-voice-readout {
