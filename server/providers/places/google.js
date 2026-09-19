@@ -9,6 +9,13 @@ import {
   projectTextSearchPlaces,
 } from '../../../src/data/placeProviderPayloads.js';
 
+const GOOGLE_PLACES_UPSTREAM_TIMEOUT_MS = 10_000;
+const GOOGLE_PLACES_HEALTH_DEFAULTS = Object.freeze({
+  latitude: 30.2672,
+  longitude: -97.7431,
+  radiusM: 50,
+});
+
 // Construct lazily after the standalone environment has loaded.
 // undefined = not built yet; null = unlimited; fn = active limiter
 let _googleRateLimiter;
@@ -42,6 +49,126 @@ function logGoogleFailure(endpoint, response, data) {
   });
 }
 
+function googleEndpointDetail(endpoint) {
+  const target = new URL(endpoint);
+  return {
+    hostname: target.hostname,
+    path: target.pathname,
+  };
+}
+
+function isGoogleTimeoutError(error, controller) {
+  return Boolean(
+    error?.name === 'TimeoutError' ||
+    (error?.name === 'AbortError' && controller?.signal?.aborted),
+  );
+}
+
+function googleProxyErrorMessage(status, providerError) {
+  if (providerError?.message) return providerError.message;
+  return Number.isFinite(status) && status > 0
+    ? `Google Places returned HTTP ${status}`
+    : 'Google Places request failed';
+}
+
+async function executeGooglePlacesRequest({
+  route,
+  endpoint,
+  apiKey,
+  fieldMask,
+  body,
+  fetchImpl,
+}) {
+  const endpointDetail = googleEndpointDetail(endpoint);
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  let timeoutTriggered = false;
+  const timeoutId = setTimeout(() => {
+    timeoutTriggered = true;
+    controller.abort(
+      new DOMException('Google Places upstream timeout', 'TimeoutError'),
+    );
+  }, GOOGLE_PLACES_UPSTREAM_TIMEOUT_MS);
+  console.info('[GooglePlaces] request begins', {
+    route,
+    endpoint: endpointDetail,
+    method: 'POST',
+    keyMode: googleServerKeyMode(),
+    serverKeyConfigured: Boolean(
+      String(process.env.GOOGLE_MAPS_SERVER_API_KEY || '').trim(),
+    ),
+    timeoutMs: GOOGLE_PLACES_UPSTREAM_TIMEOUT_MS,
+  });
+  try {
+    const response = await fetchImpl(endpoint, {
+      method: 'POST',
+      redirect: 'error',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': fieldMask,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    const providerError = response.ok ? null : sanitizeGoogleError(data);
+    const elapsedMs = Date.now() - startedAt;
+    const logPayload = {
+      route,
+      endpoint: endpointDetail,
+      method: 'POST',
+      status: response.status,
+      providerError,
+      elapsedMs,
+      timeoutTriggered,
+    };
+    if (response.ok)
+      console.info('[GooglePlaces] request completed', logPayload);
+    else {
+      console.warn('[GooglePlaces] request completed', logPayload);
+      logGoogleFailure(route, response, data);
+    }
+    return {
+      response,
+      data,
+      elapsedMs,
+      timeoutTriggered,
+      providerError,
+      endpointDetail,
+    };
+  } catch (error) {
+    const elapsedMs = Date.now() - startedAt;
+    const timedOut =
+      timeoutTriggered || isGoogleTimeoutError(error, controller);
+    console.warn('[GooglePlaces] request failed', {
+      route,
+      endpoint: endpointDetail,
+      method: 'POST',
+      status: null,
+      providerError: null,
+      elapsedMs,
+      timeoutTriggered: timedOut,
+      error: timedOut
+        ? 'Google Places upstream timeout'
+        : String(error?.message || '').trim() || null,
+    });
+    const wrapped = new Error(
+      timedOut
+        ? 'Google Places upstream timeout'
+        : 'Google Places request failed',
+    );
+    wrapped.cause = error;
+    wrapped.statusCode = timedOut ? 504 : 502;
+    wrapped.timeoutTriggered = timedOut;
+    wrapped.elapsedMs = elapsedMs;
+    wrapped.endpointDetail = endpointDetail;
+    throw wrapped;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /** Validate raw lat/lon presence and WGS84 bounds before consuming request quota. */
 export function validatePlacesCoordinates(searchParams) {
   const rawLat = searchParams.get('lat');
@@ -70,6 +197,107 @@ export function googlePlacesContextProxy({
   endpoints = {},
 } = {}) {
   function install(middlewares) {
+    middlewares.use('/api/google/health', async (req, res) => {
+      if (req.method !== 'GET') {
+        res.statusCode = 405;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Method not allowed' }));
+        return;
+      }
+
+      const apiKey = resolveApiKey();
+      const requestUrl = new URL(req.url || '', 'http://localhost');
+      const coordinates = validatePlacesCoordinates(requestUrl.searchParams);
+      if (!coordinates.ok && requestUrl.searchParams.has('lat')) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: coordinates.error }));
+        return;
+      }
+      const latitude = coordinates.ok
+        ? coordinates.latitude
+        : GOOGLE_PLACES_HEALTH_DEFAULTS.latitude;
+      const longitude = coordinates.ok
+        ? coordinates.longitude
+        : GOOGLE_PLACES_HEALTH_DEFAULTS.longitude;
+      const radiusM = Math.max(
+        1,
+        Math.min(
+          5000,
+          Number(requestUrl.searchParams.get('radiusM')) ||
+            GOOGLE_PLACES_HEALTH_DEFAULTS.radiusM,
+        ),
+      );
+      const serverKeyConfigured = Boolean(
+        String(process.env.GOOGLE_MAPS_SERVER_API_KEY || '').trim(),
+      );
+      const endpoint =
+        endpoints.nearby ||
+        'https://places.googleapis.com/v1/places:searchNearby';
+      const responseBody = {
+        serverKeyConfigured,
+        keyMode: googleServerKeyMode(),
+        reachable: false,
+        httpStatus: null,
+        latencyMs: null,
+        timeoutTriggered: false,
+        endpoint: googleEndpointDetail(endpoint),
+        method: 'POST',
+        providerError: null,
+      };
+      if (!String(apiKey || '').trim()) {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        res.end(JSON.stringify(responseBody));
+        return;
+      }
+
+      try {
+        const probe = await executeGooglePlacesRequest({
+          route: '/api/google/health',
+          endpoint,
+          apiKey,
+          fieldMask: 'places.id',
+          body: {
+            maxResultCount: 1,
+            rankPreference: 'DISTANCE',
+            locationRestriction: {
+              circle: {
+                center: { latitude, longitude },
+                radius: radiusM,
+              },
+            },
+          },
+          fetchImpl,
+        });
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        res.end(
+          JSON.stringify({
+            ...responseBody,
+            reachable: true,
+            httpStatus: probe.response.status,
+            latencyMs: probe.elapsedMs,
+            timeoutTriggered: probe.timeoutTriggered,
+            providerError: probe.providerError,
+          }),
+        );
+      } catch (error) {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        res.end(
+          JSON.stringify({
+            ...responseBody,
+            latencyMs: error?.elapsedMs ?? null,
+            timeoutTriggered: error?.timeoutTriggered === true,
+          }),
+        );
+      }
+    });
+
     middlewares.use('/api/google/nearby-places', async (req, res) => {
       if (req.method !== 'GET') {
         res.statusCode = 405;
@@ -133,30 +361,27 @@ export function googlePlacesContextProxy({
         .slice(0, 10);
 
       try {
-        const response = await fetchImpl(
-          endpoints.nearby ||
-            'https://places.googleapis.com/v1/places:searchNearby',
-          {
-            method: 'POST',
-            redirect: 'error',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Goog-Api-Key': apiKey,
-              'X-Goog-FieldMask': [
-                'places.id',
-                'places.displayName',
-                'places.formattedAddress',
-                'places.shortFormattedAddress',
-                'places.location',
-                'places.primaryType',
-                'places.primaryTypeDisplayName',
-                'places.types',
-                'places.nationalPhoneNumber',
-                'places.internationalPhoneNumber',
-                'places.googleMapsUri',
-              ].join(','),
-            },
-            body: JSON.stringify({
+        const { response, data, providerError } =
+          await executeGooglePlacesRequest({
+            route: '/api/google/nearby-places',
+            endpoint:
+              endpoints.nearby ||
+              'https://places.googleapis.com/v1/places:searchNearby',
+            apiKey,
+            fieldMask: [
+              'places.id',
+              'places.displayName',
+              'places.formattedAddress',
+              'places.shortFormattedAddress',
+              'places.location',
+              'places.primaryType',
+              'places.primaryTypeDisplayName',
+              'places.types',
+              'places.nationalPhoneNumber',
+              'places.internationalPhoneNumber',
+              'places.googleMapsUri',
+            ].join(','),
+            body: {
               maxResultCount,
               rankPreference: 'DISTANCE',
               ...(includedTypes.length ? { includedTypes } : {}),
@@ -166,14 +391,10 @@ export function googlePlacesContextProxy({
                   radius: radiusM,
                 },
               },
-            }),
-          },
-        );
-        const data = await response.json().catch(() => ({}));
+            },
+            fetchImpl,
+          });
         const places = projectNearbyPlaces(data, latitude, longitude);
-        if (!response.ok)
-          logGoogleFailure('/api/google/nearby-places', response, data);
-
         res.statusCode = response.ok ? 200 : response.status;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('Cache-Control', 'private, max-age=300');
@@ -182,16 +403,18 @@ export function googlePlacesContextProxy({
             places,
             error: response.ok
               ? null
-              : data.error?.message || 'Google Places request failed',
+              : googleProxyErrorMessage(response.status, providerError),
+            providerError,
           }),
         );
       } catch (error) {
-        res.statusCode = 502;
+        res.statusCode = error?.statusCode || 502;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.end(
           JSON.stringify({
             error: error?.message || 'Google Places request failed',
             places: [],
+            providerError: null,
           }),
         );
       }
@@ -259,26 +482,23 @@ export function googlePlacesContextProxy({
       );
 
       try {
-        const response = await fetchImpl(
-          endpoints.textSearch ||
-            'https://places.googleapis.com/v1/places:searchText',
-          {
-            method: 'POST',
-            redirect: 'error',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Goog-Api-Key': apiKey,
-              'X-Goog-FieldMask': [
-                'places.id',
-                'places.displayName',
-                'places.formattedAddress',
-                'places.location',
-                'places.viewport',
-                'places.primaryType',
-                'places.types',
-              ].join(','),
-            },
-            body: JSON.stringify({
+        const { response, data, providerError } =
+          await executeGooglePlacesRequest({
+            route: '/api/google/text-search',
+            endpoint:
+              endpoints.textSearch ||
+              'https://places.googleapis.com/v1/places:searchText',
+            apiKey,
+            fieldMask: [
+              'places.id',
+              'places.displayName',
+              'places.formattedAddress',
+              'places.location',
+              'places.viewport',
+              'places.primaryType',
+              'places.types',
+            ].join(','),
+            body: {
               textQuery,
               locationBias: {
                 circle: {
@@ -287,14 +507,10 @@ export function googlePlacesContextProxy({
                 },
               },
               maxResultCount: 5,
-            }),
-          },
-        );
-        const data = await response.json().catch(() => ({}));
+            },
+            fetchImpl,
+          });
         const places = projectTextSearchPlaces(data, latitude, longitude);
-        if (!response.ok)
-          logGoogleFailure('/api/google/text-search', response, data);
-
         res.statusCode = response.ok ? 200 : response.status;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('Cache-Control', 'private, max-age=300');
@@ -303,16 +519,18 @@ export function googlePlacesContextProxy({
             places,
             error: response.ok
               ? null
-              : data.error?.message || 'Google Places request failed',
+              : googleProxyErrorMessage(response.status, providerError),
+            providerError,
           }),
         );
       } catch (error) {
-        res.statusCode = 502;
+        res.statusCode = error?.statusCode || 502;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.end(
           JSON.stringify({
             error: error?.message || 'Google Places request failed',
             places: [],
+            providerError: null,
           }),
         );
       }
