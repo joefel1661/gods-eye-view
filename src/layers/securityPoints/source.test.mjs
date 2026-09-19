@@ -49,9 +49,15 @@ test('fetchViewport uses Google Places as the primary category discovery source'
     { police: true, fireEms: true, hospitals: false, airports: false },
   );
 
-  assert.equal(
-    calls.filter((call) => call.pathname === '/api/google/nearby-places').length,
-    2,
+  const nearbyCalls = calls.filter(
+    (call) => call.pathname === '/api/google/nearby-places',
+  );
+  assert.equal(nearbyCalls.length, 3);
+  assert.deepEqual(
+    nearbyCalls
+      .map((call) => call.searchParams.get('includedTypes'))
+      .sort(),
+    ['ambulance_service', 'fire_station', 'police'],
   );
   assert.equal(
     calls.some((call) => call.pathname === '/api/overpass'),
@@ -194,6 +200,364 @@ test('fetchViewport maps sheriff, EMS, emergency department, airport, and helipo
       ['hospitals', 'Emergency department'],
       ['airports', 'Heliport'],
     ],
+  );
+});
+
+test('fetchViewport runs per-type Google searches for every enabled category mix', async () => {
+  const requestedTypeSets = [];
+  const source = createSecurityPointSource({
+    fetchImpl: async (url) => {
+      const parsed = new URL(String(url), 'http://localhost');
+      if (parsed.pathname !== '/api/google/nearby-places')
+        throw new Error(`Unexpected endpoint: ${parsed.pathname}`);
+      const type = String(parsed.searchParams.get('includedTypes') || '').trim();
+      requestedTypeSets.push(type);
+      const placeByType = {
+        police: {
+          id: 'p-1',
+          name: 'Police HQ',
+          latitude: 30.1,
+          longitude: -97.1,
+          primaryType: 'police',
+          types: ['police'],
+        },
+        fire_station: {
+          id: 'f-1',
+          name: 'Fire Station',
+          latitude: 30.2,
+          longitude: -97.2,
+          primaryType: 'fire_station',
+          types: ['fire_station'],
+        },
+        hospital: {
+          id: 'h-1',
+          name: 'Hospital',
+          latitude: 30.3,
+          longitude: -97.3,
+          primaryType: 'hospital',
+          types: ['hospital'],
+        },
+        airport: {
+          id: 'a-1',
+          name: 'Airport',
+          latitude: 30.4,
+          longitude: -97.4,
+          primaryType: 'airport',
+          types: ['airport'],
+        },
+      };
+      return Response.json({ places: placeByType[type] ? [placeByType[type]] : [] });
+    },
+  });
+  const box = { south: 30, west: -98, north: 31, east: -97 };
+  const scenarios = [
+    {
+      name: 'police only',
+      params: { police: true, fireEms: false, hospitals: false, airports: false },
+      expectedTypes: ['police'],
+      expectedCategories: ['police'],
+    },
+    {
+      name: 'fire only',
+      params: { police: false, fireEms: true, hospitals: false, airports: false },
+      expectedTypes: ['ambulance_service', 'fire_station'],
+      expectedCategories: ['fireEms'],
+    },
+    {
+      name: 'hospital only',
+      params: { police: false, fireEms: false, hospitals: true, airports: false },
+      expectedTypes: ['emergency_room', 'hospital'],
+      expectedCategories: ['hospitals'],
+    },
+    {
+      name: 'airport only',
+      params: { police: false, fireEms: false, hospitals: false, airports: true },
+      expectedTypes: ['airport', 'heliport'],
+      expectedCategories: ['airports'],
+    },
+    {
+      name: 'police + fire + hospitals',
+      params: { police: true, fireEms: true, hospitals: true, airports: false },
+      expectedTypes: [
+        'ambulance_service',
+        'emergency_room',
+        'fire_station',
+        'hospital',
+        'police',
+      ],
+      expectedCategories: ['police', 'fireEms', 'hospitals'],
+    },
+    {
+      name: 'all categories',
+      params: { police: true, fireEms: true, hospitals: true, airports: true },
+      expectedTypes: [
+        'airport',
+        'ambulance_service',
+        'emergency_room',
+        'fire_station',
+        'heliport',
+        'hospital',
+        'police',
+      ],
+      expectedCategories: ['police', 'fireEms', 'hospitals', 'airports'],
+    },
+  ];
+  for (const scenario of scenarios) {
+    requestedTypeSets.length = 0;
+    const result = await source.fetchViewport(box, scenario.params);
+    assert.deepEqual([...requestedTypeSets].sort(), [...scenario.expectedTypes].sort());
+    assert.deepEqual(
+      [...new Set(result.records.map((record) => record.category))].sort(),
+      [...scenario.expectedCategories].sort(),
+      scenario.name,
+    );
+  }
+});
+
+test('fetchViewport keeps successful categories when one category fails and reports progressive updates', async () => {
+  const progress = [];
+  const source = createSecurityPointSource({
+    fetchImpl: async (url) => {
+      const parsed = new URL(String(url), 'http://localhost');
+      if (parsed.pathname === '/api/google/nearby-places') {
+        const type = String(parsed.searchParams.get('includedTypes') || '');
+        if (type === 'police')
+          return Response.json({
+            places: [
+              {
+                id: 'p-1',
+                name: 'Police HQ',
+                latitude: 30.1,
+                longitude: -97.1,
+                primaryType: 'government_office',
+                types: ['government_office', 'point_of_interest'],
+              },
+            ],
+          });
+        if (type === 'fire_station')
+          return Response.json({
+            places: [
+              {
+                id: 'f-1',
+                name: 'Fire Station',
+                latitude: 30.2,
+                longitude: -97.2,
+                primaryType: 'fire_station',
+                types: ['fire_station'],
+              },
+            ],
+          });
+        if (type === 'hospital')
+          return Response.json(
+            {
+              error: 'downstream outage',
+              providerError: { status: 'UNAVAILABLE', message: 'service unavailable' },
+              places: [],
+            },
+            { status: 503 },
+          );
+        if (type === 'emergency_room')
+          return Response.json(
+            {
+              error: 'downstream outage',
+              providerError: { status: 'UNAVAILABLE', message: 'service unavailable' },
+              places: [],
+            },
+            { status: 503 },
+          );
+        if (type === 'ambulance_service')
+          return Response.json(
+            {
+              error: 'bad type',
+              providerError: {
+                status: 'INVALID_ARGUMENT',
+                message: 'Unsupported includedTypes value: ambulance_service',
+              },
+              places: [],
+            },
+            { status: 400 },
+          );
+        return Response.json({ places: [] });
+      }
+      if (parsed.pathname === '/api/overpass')
+        return Response.json({ error: 'fallback down' }, { status: 503 });
+      throw new Error(`Unexpected endpoint: ${parsed.pathname}`);
+    },
+  });
+
+  const result = await source.fetchViewport(
+    { south: 30, west: -98, north: 31, east: -97 },
+    { police: true, fireEms: true, hospitals: true, airports: false },
+    {
+      onCategoryProgress: (event) => {
+        progress.push({
+          provider: event.provider,
+          category: event.category,
+          status: event.status,
+          recordCount: event.records.length,
+        });
+      },
+    },
+  );
+
+  assert.equal(result.stale, false);
+  assert.deepEqual(
+    result.records.map((record) => [record.id, record.category]).sort(),
+    [
+      ['google:f-1', 'fireEms'],
+      ['google:p-1', 'police'],
+    ],
+  );
+  assert.ok(
+    progress.some(
+      (entry) =>
+        entry.provider === 'google' &&
+        entry.category === 'police' &&
+        entry.status === 'fulfilled' &&
+        entry.recordCount >= 1,
+    ),
+  );
+  assert.ok(
+    progress.some(
+      (entry) =>
+        entry.provider === 'google' &&
+        entry.category === 'hospitals' &&
+        entry.status === 'rejected',
+    ),
+  );
+  assert.equal(
+    result.records.find((record) => record.id === 'google:p-1')?.category,
+    'police',
+  );
+});
+
+test('fetchViewport keeps sibling searches alive when one type in the category fails', async () => {
+  const requestedTypes = [];
+  const source = createSecurityPointSource({
+    fetchImpl: async (url) => {
+      const parsed = new URL(String(url), 'http://localhost');
+      const type = String(parsed.searchParams.get('includedTypes') || '');
+      requestedTypes.push(type);
+      if (type === 'fire_station') {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return Response.json({
+          places: [
+            {
+              id: 'fire-1',
+              name: 'Station 1',
+              latitude: 30.1,
+              longitude: -97.1,
+              primaryType: 'fire_station',
+              types: ['fire_station'],
+            },
+          ],
+        });
+      }
+      if (type === 'ambulance_service')
+        return Response.json(
+          {
+            error: 'bad type',
+            providerError: {
+              status: 'INVALID_ARGUMENT',
+              message: 'Unsupported includedTypes value: ambulance_service',
+            },
+            places: [],
+          },
+          { status: 400 },
+        );
+      return Response.json({ places: [] });
+    },
+  });
+
+  const result = await source.fetchViewport(
+    { south: 30, west: -98, north: 31, east: -97 },
+    { police: false, fireEms: true, hospitals: false, airports: false },
+  );
+
+  assert.deepEqual([...requestedTypes].sort(), ['ambulance_service', 'fire_station']);
+  assert.deepEqual(
+    result.records.map((record) => [record.id, record.category]),
+    [['google:fire-1', 'fireEms']],
+  );
+});
+
+test('aborting an older viewport generation does not cancel newer generation category searches', async () => {
+  const calls = [];
+  function delayedResponse(signal, ms, payload) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => resolve(Response.json(payload)), ms);
+      signal?.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer);
+          const aborted = new Error('aborted');
+          aborted.name = 'AbortError';
+          reject(aborted);
+        },
+        { once: true },
+      );
+    });
+  }
+  const source = createSecurityPointSource({
+    fetchImpl: async (url, options) => {
+      const parsed = new URL(String(url), 'http://localhost');
+      const type = String(parsed.searchParams.get('includedTypes') || '');
+      const lat = Number(parsed.searchParams.get('lat'));
+      calls.push({ lat, type });
+      if (lat > 31)
+        return delayedResponse(options?.signal, 60, {
+          places: [
+            {
+              id: `old-${type || 'none'}`,
+              name: 'Old Gen',
+              latitude: lat,
+              longitude: -97,
+              primaryType: type || 'police',
+              types: type ? [type] : [],
+            },
+          ],
+        });
+      return delayedResponse(options?.signal, 10, {
+        places: [
+          {
+            id: `new-${type || 'none'}`,
+            name: 'New Gen',
+            latitude: lat,
+            longitude: -97,
+            primaryType: type || 'police',
+            types: type ? [type] : [],
+          },
+        ],
+      });
+    },
+  });
+
+  const oldController = new AbortController();
+  const oldFetch = source
+    .fetchViewport(
+      { south: 31.8, west: -98, north: 32.2, east: -97 },
+      { police: true, fireEms: true, hospitals: false, airports: false },
+      { signal: oldController.signal },
+    )
+    .then(() => null, (error) => error);
+
+  const newFetch = source.fetchViewport(
+    { south: 30, west: -98, north: 30.4, east: -97.6 },
+    { police: true, fireEms: true, hospitals: false, airports: false },
+  );
+
+  oldController.abort();
+  const [oldResult, newResult] = await Promise.all([oldFetch, newFetch]);
+
+  assert.ok(oldResult instanceof Error);
+  assert.ok(newResult.records.length >= 1);
+  assert.ok(
+    calls.some((entry) => entry.lat < 31 && entry.type === 'police'),
+    'new generation police search should still run',
+  );
+  assert.ok(
+    calls.some((entry) => entry.lat < 31 && entry.type === 'fire_station'),
+    'new generation fire search should still run',
   );
 });
 

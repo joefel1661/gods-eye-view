@@ -377,8 +377,29 @@ export function createSecurityPointsLayer({ services, source }) {
     state.loading = true;
     setStatus('loading');
     try {
+      const applyProgressivePayload = (payload) => {
+        if (
+          controller.signal.aborted ||
+          state.abort !== controller ||
+          !state.enabled ||
+          !payload ||
+          !Array.isArray(payload.records)
+        )
+          return;
+        state.records = payload.records;
+        state.recordById = new Map(
+          payload.records.map((record) => [record.id, record]),
+        );
+        state.lastUpdate = Date.now();
+        state.stale = payload.stale === true;
+        state.saturated = payload.saturated === true;
+        if (state.selectedId && !state.recordById.has(state.selectedId))
+          clearSelection();
+        renderRecords();
+      };
       const payload = await source.fetchViewport(box, state.params, {
         signal: controller.signal,
+        onCategoryProgress: applyProgressivePayload,
       });
       if (
         controller.signal.aborted ||
@@ -417,6 +438,16 @@ export function createSecurityPointsLayer({ services, source }) {
         status: 'unavailable',
         message: error?.message || 'Security Points unavailable',
       });
+      if (state.records.length > 0) {
+        state.lastLoadedKey = requestKey;
+        state.lastUpdate = Date.now();
+        state.stale = false;
+        setStatus(
+          'ready',
+          state.saturated ? 'Coverage limited — zoom in for fewer facilities' : null,
+        );
+        return;
+      }
       setStatus('unavailable', error?.message || 'Security Points unavailable');
     } finally {
       if (state.abort === controller) {
