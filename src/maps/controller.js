@@ -207,12 +207,26 @@ export class MapSourceController {
       const result = await this._cached(
         this._terrainProviders,
         terrain.id,
-        () => terrain.create({ signal: this._abort.signal }),
+        async () => {
+          try {
+            return await terrain.create({ signal: this._abort.signal });
+          } catch (error) {
+            if (!terrain.optional || typeof terrain.fallback !== 'function')
+              throw error;
+            return await terrain.fallback(error, {
+              signal: this._abort.signal,
+            });
+          }
+        },
       );
       if (gen !== this._switchGen) return;
       if (result.terrain) this.viewer.scene.setTerrain(result.terrain);
       else this.viewer.terrainProvider = result.provider;
-      this._terrainMode = terrain.id;
+      this._terrainMode = result.terrainId || terrain.id;
+      if (result.warning) {
+        this._lastError = result.warning;
+        this._onError?.(result.warning, stack);
+      }
     }
     return resolution;
   }

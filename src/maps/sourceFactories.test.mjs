@@ -2,10 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as Cesium from 'cesium';
 import { createIonImagery } from './imagery.js';
-import { createWorldTerrain, createKeylessTerrain } from './terrain.js';
+import {
+  createWorldTerrain,
+  createKeylessTerrain,
+  createFallbackEllipsoidTerrain,
+} from './terrain.js';
 import { createDefaultMapSources } from './defaultSources.js';
 
-test('Esri uses Re:Earth without keys and preserves ion terrain when configured', async () => {
+test('default sources keep road flat and reserve relief terrain for terrain mode', async () => {
   const originalTerrain = Cesium.CesiumTerrainProvider.fromUrl;
   const originalResource = Cesium.IonResource.fromAssetId;
   const calls = [];
@@ -17,13 +21,17 @@ test('Esri uses Re:Earth without keys and preserves ion terrain when configured'
     Cesium.IonResource.fromAssetId = async () =>
       assert.fail('keyless mode must not acquire ion terrain');
     const keyless = createDefaultMapSources();
-    const esri = keyless.sources.find(
-      ({ descriptor }) => descriptor.id === 'esri-imagery',
+    const road = keyless.sources.find(
+      ({ descriptor }) => descriptor.id === 'road',
     );
-    assert.equal(esri.available, true);
-    assert.equal(esri.terrain.id, 'keyless');
-    assert.equal(esri.terrain.create, createKeylessTerrain);
-    await esri.terrain.create();
+    const terrain = keyless.sources.find(
+      ({ descriptor }) => descriptor.id === 'terrain',
+    );
+    assert.equal(road.available, true);
+    assert.equal(road.terrain.id, 'ellipsoid');
+    assert.equal(terrain.terrain.id, 'keyless');
+    assert.equal(terrain.terrain.create, createKeylessTerrain);
+    await terrain.terrain.create();
     assert.deepEqual(calls, [
       'https://terrain.reearth.land/cesium-mesh/ellipsoid',
     ]);
@@ -46,7 +54,7 @@ test('Esri uses Re:Earth without keys and preserves ion terrain when configured'
         true,
       );
       assert.equal(
-        keyed.sources.find(({ descriptor }) => descriptor.id === 'esri-imagery')
+        keyed.sources.find(({ descriptor }) => descriptor.id === 'terrain')
           .terrain.id,
         credentials.cesiumToken ? 'world' : 'keyless',
       );
@@ -149,4 +157,16 @@ test('ion imagery and terrain failures surface provider-specific 403 guidance', 
     Cesium.IonImageryProvider.fromAssetId = originalImagery;
     Cesium.IonResource.fromAssetId = originalResource;
   }
+});
+
+test('terrain source exposes optional flat fallback contract', async () => {
+  const registry = createDefaultMapSources({ cesiumToken: 'token' });
+  const terrain = registry.sources.find(
+    ({ descriptor }) => descriptor.id === 'terrain',
+  ).terrain;
+  assert.equal(terrain.optional, true);
+  assert.equal(terrain.fallback, createFallbackEllipsoidTerrain);
+  const fallback = await terrain.fallback({ statusCode: 403 });
+  assert.equal(fallback.terrainId, 'ellipsoid');
+  assert.match(fallback.warning, /using flat globe/);
 });
