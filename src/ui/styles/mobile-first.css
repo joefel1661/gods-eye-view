@@ -895,6 +895,21 @@
     margin-top: 10px;
   }
 
+  body[data-mobile-panel='controls'] #command-dock .my-location-header,
+  body[data-mobile-panel='controls'] #command-dock .my-location-section {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .my-location-header {
+    flex-wrap: wrap;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .my-location-recenter {
+    width: 100%;
+    min-height: 40px;
+  }
+
   #cesium-credits {
     bottom: var(--mobile-attribution-zone-bottom);
     left: 12px;

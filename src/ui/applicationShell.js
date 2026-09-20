@@ -5,10 +5,12 @@ import { NavigationController } from './navigationController.js';
 import { ShareRestoration } from './shareRestoration.js';
 import { createFrameRateMonitor } from './frameRateMonitor.js';
 import { createStateChannel } from '../app/stateChannel.js';
+import { readMyLocationState, subscribeMyLocationState } from '../myLocationState.js';
 import { setSplitFlapText } from '../splitFlap.js';
 import { UiLifetime } from './uiLifetime.js';
 import { RecordingControls } from './recordingControls.js';
 import { readShellElements } from './shellElements.js';
+import { MyLocationController } from './myLocationController.js';
 import { CockpitViewController, CockpitDisplayPortal } from './cockpit.js';
 import { ContextControls } from './context.js';
 import { CctvControls } from './cctv.js';
@@ -591,6 +593,13 @@ export class StyleManager {
     );
     initTrackedReadout(viewer);
     initSecurityPointCard();
+    this._myLocationController = new MyLocationController({
+      viewer,
+      render: { governorRequestRender },
+    });
+    this._myLocationUnsubscribe = subscribeMyLocationState(({ state }) => {
+      this._locationControls?.renderMyLocation(state);
+    });
     setDetectionStyle(this.activeStyle);
     this._applyDetectionDensityFromUi();
 
@@ -3040,6 +3049,10 @@ export class StyleManager {
         resetButtons: [this._resetGlobeBtn, this._cockpitResetGlobeBtn],
         statusCity: this._locationMiniCity,
         statusPoi: this._locationMiniPoi,
+        myLocationOn: this._myLocationOn,
+        myLocationOff: this._myLocationOff,
+        myLocationRecenter: this._myLocationRecenter,
+        myLocationStatus: this._myLocationStatus,
       },
       cities: CITY_POIS,
       getExpandedCity: () => this._expandedCityId,
@@ -3047,7 +3060,13 @@ export class StyleManager {
       onPoi: (id, index) => this._onPoiClick(id, index),
       onSearch: (query) => this._locationLookup.run(query),
       onReset: () => this.resetToGlobeView(),
+      onMyLocationMode: (mode) =>
+        mode === 'on'
+          ? this._myLocationController?.enable()
+          : this._myLocationController?.disable(),
+      onMyLocationRecenter: () => this._myLocationController?.recenter(),
     });
+    this._locationControls.renderMyLocation(readMyLocationState());
   }
 
   /**
@@ -3781,6 +3800,10 @@ export class StyleManager {
     this._mapSourceControls?.destroy();
     this._cameraOrientationControls?.destroy();
     this._clearLayersControl?.destroy();
+    this._myLocationUnsubscribe?.();
+    this._myLocationUnsubscribe = null;
+    this._myLocationController?.destroy();
+    this._myLocationController = null;
     this._locationControls?.destroy();
     this._cctvControls?.destroy();
     this._radioControls?.destroy();
