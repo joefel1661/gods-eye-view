@@ -48,3 +48,18 @@ export async function createKeylessTerrain() {
     return { provider: new Cesium.EllipsoidTerrainProvider() };
   }
 }
+
+export function createEllipsoidTerrain() {
+  return { provider: new Cesium.EllipsoidTerrainProvider() };
+}
+
+export async function createFallbackEllipsoidTerrain(error) {
+  const status = Number(error?.statusCode);
+  const detail =
+    Number.isFinite(status) && status > 0 ? `HTTP ${status}` : 'unavailable';
+  return {
+    ...createEllipsoidTerrain(),
+    terrainId: 'ellipsoid',
+    warning: `Optional terrain ${detail}; using flat globe`,
+  };
+}
