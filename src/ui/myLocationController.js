@@ -109,7 +109,11 @@ export class MyLocationController {
     this._boundUnload = () => this.disable();
     this.eventTarget?.addEventListener?.('pagehide', this._boundUnload);
     this.eventTarget?.addEventListener?.('beforeunload', this._boundUnload);
-    resetMyLocationState();
+    const initialState = readMyLocationState();
+    if (initialState?.status === 'ready' && initialState.position) {
+      this.hasInitialFix = true;
+      this._updateEntity(initialState.position);
+    }
   }
 
   _requestRender(reason = 'my-location') {
@@ -230,10 +234,10 @@ export class MyLocationController {
 
   _handleError(error) {
     const nextState = errorState(error);
+    this._clearEntities();
     if (nextState.enabled === false) {
       this._clearWatch();
       this.hasInitialFix = false;
-      this._clearEntities();
     }
     this._publish(nextState, { type: 'error', code: nextState.errorCode });
   }

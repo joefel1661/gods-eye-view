@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { MyLocationController } from './myLocationController.js';
-import { readMyLocationState } from '../myLocationState.js';
+import {
+  readMyLocationState,
+  resetMyLocationState,
+} from '../myLocationState.js';
 
 function createHarness() {
+  resetMyLocationState();
   let nextWatchId = 1;
   const geo = {
     calls: [],
@@ -116,4 +120,35 @@ test('permission denial reports a retryable message without leaving the control 
   assert.equal(readMyLocationState().enabled, false);
   assert.equal(readMyLocationState().status, 'denied');
   assert.match(readMyLocationState().message, /allow it in your browser/i);
+});
+
+test('controller recreation rehydrates the existing browser-side location marker state', () => {
+  const h = createHarness();
+  h.controller.enable();
+  h.geo.calls[0].success({
+    coords: { latitude: 30.2672, longitude: -97.7431, accuracy: 30 },
+    timestamp: 101,
+  });
+  h.controller.dataSource.entities.removeAll();
+  const rebuilt = new MyLocationController({
+    viewer: h.viewer,
+    geolocation: h.geo,
+    eventTarget: h.eventTarget,
+    render: { governorRequestRender() {} },
+  });
+  assert.equal(readMyLocationState().status, 'ready');
+  assert.equal(rebuilt.dataSource.entities.values.length, 1);
+});
+
+test('transient watch errors clear stale entities until a fresh fix arrives', () => {
+  const h = createHarness();
+  h.controller.enable();
+  h.geo.calls[0].success({
+    coords: { latitude: 30.2672, longitude: -97.7431, accuracy: 30 },
+    timestamp: 101,
+  });
+  assert.equal(h.controller.dataSource.entities.values.length, 1);
+  h.geo.calls[0].error({ code: 3 });
+  assert.equal(readMyLocationState().status, 'timeout');
+  assert.equal(h.controller.dataSource.entities.values.length, 0);
 });

@@ -162,9 +162,12 @@ export class LocationControls {
       this.elements.myLocationRecenter.disabled = !ready;
     }
     if (!this.elements.myLocationStatus) return;
+    const accuracyM = Number(state.position?.accuracy);
     const label =
       state.status === 'ready'
-        ? `Accuracy radius ${Math.round(state.position.accuracy)} m`
+        ? Number.isFinite(accuracyM)
+          ? `Accuracy radius ${Math.round(accuracyM)} m`
+          : 'Location active.'
         : state.status === 'requesting'
           ? 'Awaiting location permission…'
           : state.message || 'Location sharing is off.';
