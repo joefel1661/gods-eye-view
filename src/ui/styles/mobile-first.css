@@ -238,9 +238,11 @@
   .mobile-nav-btn {
     min-width: 0;
     min-height: 50px;
-    display: grid;
-    place-items: center;
-    gap: 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
     padding: 6px 4px 5px;
     color: rgba(214, 241, 247, 0.74);
     background: transparent;
@@ -251,8 +253,26 @@
     text-align: center;
   }
 
-  .mobile-nav-btn .material-symbols-outlined {
+  .mobile-nav-btn .mobile-nav-icon.material-symbols-outlined {
+    display: block;
+    font-family: 'Material Symbols Outlined';
     font-size: 19px;
+    line-height: 1;
+    letter-spacing: normal;
+    font-variation-settings:
+      'FILL' 1,
+      'wght' 500,
+      'GRAD' 0,
+      'opsz' 24;
+  }
+
+  .mobile-nav-btn .mobile-nav-label {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.1;
   }
 
   .mobile-nav-btn[aria-pressed='true'] {
@@ -890,6 +910,45 @@
     overflow-wrap: anywhere;
   }
 
+  #scene-panel :is(.markup-home-actions, .markup-tool-grid, .markup-editor-actions) {
+    display: grid;
+    gap: 8px;
+  }
+
+  #scene-panel .markup-home-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #scene-panel .markup-tool-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #scene-panel .markup-editor-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #scene-panel :is(.markup-home-actions, .markup-tool-grid, .markup-editor-actions) .scene-btn {
+    width: 100%;
+    min-height: 42px;
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+
+  #scene-panel .markup-marker-form textarea {
+    min-height: 76px;
+    white-space: normal;
+  }
+
+  #scene-panel .scene-panel-inner {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  #scene-panel :is(.markup-tool-hint, .markup-status) {
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
   body[data-mobile-panel='controls'] #command-dock .style-btn,
   body[data-mobile-panel='controls'] #command-dock .location-pill,
   body[data-mobile-panel='controls'] #command-dock .poi-pill {
@@ -1020,6 +1079,14 @@
   .mobile-nav-btn {
     min-height: 48px;
     font-size: 9px;
+  }
+
+  #scene-panel .markup-tool-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #scene-panel .markup-editor-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   body[data-mobile-panel='controls'] #command-dock .style-btn {

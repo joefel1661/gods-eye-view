@@ -35,7 +35,7 @@ const TOOL_HINTS = Object.freeze({
   none: 'Select a tool to start editing.',
   marker: 'Tap the map to place a marker.',
   line: 'Tap points to draw a line. Double-click or Enter to finish.',
-  polygon: 'Tap points to draw an area. Double-click or Enter to finish.',
+  polygon: 'Tap points to draw an area. 3 points minimum.',
   circle: 'Tap center, then tap again to set radius.',
   delete: 'Tap a markup object to delete it.',
 });
@@ -216,38 +216,6 @@ function valueFromEntityProperty(entity, key) {
   return value;
 }
 
-function promptMarkerDetails(seed = {}) {
-  const title = window.prompt('Marker title', seed.title || '');
-  if (title === null) return null;
-  const categoryInput = window.prompt(
-    `Category\n(${DEFAULT_CATEGORIES.join(', ')})`,
-    seed.category || 'Other',
-  );
-  if (categoryInput === null) return null;
-  let category = normalizeCategory(categoryInput);
-  if (category.toLowerCase() === 'other') {
-    const custom = window.prompt(
-      'Custom category (optional)',
-      seed.categoryCustom || '',
-    );
-    if (custom === null) return null;
-    if (sanitizeText(custom)) category = sanitizeText(custom);
-  }
-  const description = window.prompt(
-    'Short description (optional)',
-    seed.description || '',
-  );
-  if (description === null) return null;
-  const notes = window.prompt('Detailed notes (optional)', seed.notes || '');
-  if (notes === null) return null;
-  return {
-    title: sanitizeText(title),
-    category,
-    description: sanitizeText(description),
-    notes: sanitizeText(notes),
-  };
-}
-
 function toCesiumPositions(points = []) {
   return points.map((point) =>
     Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.height || 0),
@@ -275,6 +243,19 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const markerCloseBtn = document.getElementById('markup-marker-close-btn');
   const markerMinBtn = document.getElementById('markup-marker-minimize-btn');
   const markerCardBodyNode = document.getElementById('markup-marker-card-body');
+  const markerForm = document.getElementById('markup-marker-form');
+  const markerTitleInput = document.getElementById('markup-marker-title');
+  const markerCategorySelect = document.getElementById('markup-marker-category');
+  const markerCustomWrap = document.getElementById('markup-marker-custom-wrap');
+  const markerCustomInput = document.getElementById(
+    'markup-marker-custom-category',
+  );
+  const markerDescriptionInput = document.getElementById(
+    'markup-marker-description',
+  );
+  const markerNotesInput = document.getElementById('markup-marker-notes');
+  const markerCancelBtn = document.getElementById('markup-marker-cancel-btn');
+  const markerSubmitBtn = document.getElementById('markup-marker-submit-btn');
 
   if (!viewer || !panel || !savedList || !newBtn) return null;
 
@@ -300,6 +281,11 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   let editKeyRemover = null;
   let selectedMarkerObjectId = null;
   let selectedMarkerMarkupId = null;
+  let pendingMarkerPoint = null;
+  let pendingMarkerEditTarget = null;
+  let pathPreviewEntity = null;
+  let polygonPreviewEntity = null;
+  let drawingVertexEntities = [];
   const undoStacks = new Map();
   const listeners = [];
 
@@ -353,6 +339,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
 
   const renderMap = () => {
     dataSource.entities.removeAll();
+    pathPreviewEntity = null;
+    polygonPreviewEntity = null;
+    drawingVertexEntities = [];
     for (const markup of markups) {
       if (markup.visible === false) continue;
       for (const object of markup.objects || []) {
@@ -446,6 +435,13 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         }
       }
     }
+    if (
+      editing &&
+      (activeTool === 'line' || activeTool === 'polygon') &&
+      drawPoints.length
+    ) {
+      updateDrawPreview();
+    }
     requestRender();
   };
 
@@ -485,6 +481,154 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     );
   };
 
+  const selectedMarkerCategoryOption = () =>
+    sanitizeText(markerCategorySelect?.value || 'Other') || 'Other';
+
+  const syncMarkerCustomCategoryVisibility = () => {
+    const isOther =
+      selectedMarkerCategoryOption().toLowerCase() === 'other' ||
+      !DEFAULT_CATEGORIES.some(
+        (entry) =>
+          entry.toLowerCase() === selectedMarkerCategoryOption().toLowerCase(),
+      );
+    if (markerCustomWrap) markerCustomWrap.hidden = !isOther;
+  };
+
+  const hideMarkerForm = () => {
+    pendingMarkerPoint = null;
+    pendingMarkerEditTarget = null;
+    if (markerForm) markerForm.hidden = true;
+    if (markerCategorySelect) markerCategorySelect.value = 'Other';
+    if (markerCustomInput) markerCustomInput.value = '';
+    if (markerTitleInput) markerTitleInput.value = '';
+    if (markerDescriptionInput) markerDescriptionInput.value = '';
+    if (markerNotesInput) markerNotesInput.value = '';
+    if (markerSubmitBtn) markerSubmitBtn.textContent = 'ADD MARKER';
+    syncMarkerCustomCategoryVisibility();
+  };
+
+  const markerDetailsFromForm = () => {
+    const selectedCategory = selectedMarkerCategoryOption();
+    let category = normalizeCategory(selectedCategory);
+    if (selectedCategory.toLowerCase() === 'other') {
+      const customCategory = sanitizeText(markerCustomInput?.value);
+      if (customCategory) category = customCategory;
+    }
+    return {
+      title: sanitizeText(markerTitleInput?.value),
+      category,
+      description: sanitizeText(markerDescriptionInput?.value),
+      notes: sanitizeText(markerNotesInput?.value),
+    };
+  };
+
+  const showMarkerForm = ({
+    point = null,
+    seed = null,
+    submitLabel,
+    editTarget = null,
+  } = {}) => {
+    if (!markerForm) return;
+    pendingMarkerPoint = point || null;
+    pendingMarkerEditTarget = editTarget || null;
+    markerForm.hidden = false;
+    if (markerTitleInput) markerTitleInput.value = seed?.title || '';
+    const seedCategory = sanitizeText(seed?.category);
+    const knownCategory = DEFAULT_CATEGORIES.find(
+      (entry) => entry.toLowerCase() === seedCategory.toLowerCase(),
+    );
+    if (markerCategorySelect) markerCategorySelect.value = knownCategory || 'Other';
+    if (markerCustomInput)
+      markerCustomInput.value = knownCategory ? '' : seedCategory || '';
+    if (markerDescriptionInput)
+      markerDescriptionInput.value = seed?.description || '';
+    if (markerNotesInput) markerNotesInput.value = seed?.notes || '';
+    if (markerSubmitBtn) markerSubmitBtn.textContent = submitLabel || 'ADD MARKER';
+    syncMarkerCustomCategoryVisibility();
+    markerTitleInput?.focus();
+  };
+
+  const clearDrawingPreview = () => {
+    if (pathPreviewEntity) {
+      dataSource.entities.remove(pathPreviewEntity);
+      pathPreviewEntity = null;
+    }
+    if (polygonPreviewEntity) {
+      dataSource.entities.remove(polygonPreviewEntity);
+      polygonPreviewEntity = null;
+    }
+    if (drawingVertexEntities.length) {
+      for (const entity of drawingVertexEntities) dataSource.entities.remove(entity);
+      drawingVertexEntities = [];
+    }
+  };
+
+  const updateDrawPreview = () => {
+    if (activeTool !== 'line' && activeTool !== 'polygon') {
+      clearDrawingPreview();
+      return;
+    }
+    if (!drawPoints.length) {
+      clearDrawingPreview();
+      return;
+    }
+    if (!pathPreviewEntity) {
+      pathPreviewEntity = dataSource.entities.add({
+        polyline: {
+          positions: new Cesium.CallbackProperty(
+            () => toCesiumPositions(drawPoints),
+            false,
+          ),
+          width: 4,
+          clampToGround: true,
+          material: Cesium.Color.CYAN.withAlpha(0.9),
+        },
+      });
+    }
+    if (drawingVertexEntities.length) {
+      for (const entity of drawingVertexEntities) dataSource.entities.remove(entity);
+      drawingVertexEntities = [];
+    }
+    for (const point of drawPoints) {
+      drawingVertexEntities.push(
+        dataSource.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(
+            point.lon,
+            point.lat,
+            point.height || 0,
+          ),
+          point: {
+            pixelSize: 9,
+            color: Cesium.Color.fromCssColorString('#00d4ff').withAlpha(0.95),
+            outlineColor: Cesium.Color.BLACK.withAlpha(0.75),
+            outlineWidth: 2,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+        }),
+      );
+    }
+    if (activeTool === 'polygon' && drawPoints.length >= 3) {
+      if (!polygonPreviewEntity) {
+        polygonPreviewEntity = dataSource.entities.add({
+          polygon: {
+            hierarchy: new Cesium.CallbackProperty(
+              () => new Cesium.PolygonHierarchy(toCesiumPositions(drawPoints)),
+              false,
+            ),
+            material: Cesium.Color.CYAN.withAlpha(0.26),
+            outline: true,
+            outlineColor: Cesium.Color.CYAN.withAlpha(0.92),
+            perPositionHeight: false,
+          },
+        });
+      }
+    } else if (polygonPreviewEntity) {
+      dataSource.entities.remove(polygonPreviewEntity);
+      polygonPreviewEntity = null;
+    }
+    requestRender();
+  };
+
   const findMarkupObject = (markupId, objectId) => {
     const markup = markups.find((entry) => entry.id === markupId);
     const object = markup?.objects?.find((entry) => entry.id === objectId);
@@ -512,6 +656,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     activeTool = tool || null;
     drawPoints = [];
     circleCenter = null;
+    clearDrawingPreview();
+    if (activeTool !== 'marker') hideMarkerForm();
     for (const button of toolButtons) {
       const on = button.dataset.markupTool === activeTool;
       button.classList.toggle('active', on);
@@ -524,6 +670,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const leaveEditMode = () => {
     editing = false;
     selectTool(null);
+    hideMarkerForm();
+    clearDrawingPreview();
     if (editor) editor.hidden = true;
     if (home) home.hidden = false;
     panel.classList.remove('markup-editing');
@@ -536,7 +684,11 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     panel.classList.toggle('markup-editing', editing);
     if (editor) editor.hidden = !editing;
     if (home) home.hidden = editing;
-    if (!editing) selectTool(null);
+    if (!editing) {
+      selectTool(null);
+      hideMarkerForm();
+      clearDrawingPreview();
+    }
     markerEditBtn.hidden = !editing;
   };
 
@@ -646,34 +798,25 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         if (object) await addObjectToCurrent(object, 'Area saved to markup.');
       }
       drawPoints = [];
+      clearDrawingPreview();
+      hint.textContent = TOOL_HINTS[activeTool] || TOOL_HINTS.none;
     };
 
     editHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     editHandler.setInputAction(async (event) => {
+      if (markerForm && !markerForm.hidden) return;
       const world = worldAt(event.position);
       if (!world) return;
       const coordinate = coordFromWorld(world);
       if (!coordinate) return;
       if (activeTool === 'marker') {
-        const details = promptMarkerDetails();
-        if (!details) {
-          updateStatus('Marker creation cancelled.');
-          return;
-        }
-        const object = ensureMarkupObject({
-          id: uuid(),
-          type: 'marker',
-          category: details.category,
-          title: details.title,
-          description: details.description,
-          notes: details.notes,
-          geometry: { position: coordinate },
-        });
-        if (object) await addObjectToCurrent(object, 'Marker saved to markup.');
+        showMarkerForm({ point: coordinate, submitLabel: 'ADD MARKER' });
+        updateStatus('Enter marker details, then add or cancel.');
         return;
       }
       if (activeTool === 'line' || activeTool === 'polygon') {
         drawPoints.push(coordinate);
+        updateDrawPreview();
         hint.textContent = `${TOOL_HINTS[activeTool]} (${drawPoints.length} point${drawPoints.length === 1 ? '' : 's'})`;
         return;
       }
@@ -718,6 +861,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         event.preventDefault();
         drawPoints = [];
         circleCenter = null;
+        clearDrawingPreview();
+        if (activeTool === 'marker') hideMarkerForm();
         hint.textContent = TOOL_HINTS[activeTool] || TOOL_HINTS.none;
       }
       if (
@@ -882,7 +1027,55 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     updateStatus(`Saved ${markup.name}`);
   };
 
+  const submitMarkerForm = async () => {
+    if (!editing) return;
+    const details = markerDetailsFromForm();
+    if (!pendingMarkerPoint && !pendingMarkerEditTarget) return;
+    if (pendingMarkerEditTarget) {
+      const { markupId, objectId } = pendingMarkerEditTarget;
+      const { markup, object } = findMarkupObject(markupId, objectId);
+      if (!markup || !object || object.type !== 'marker') return;
+      object.title = details.title;
+      object.category = details.category;
+      object.description = details.description;
+      object.notes = details.notes;
+      object.updatedAt = nowIso();
+      await saveMarkup(markup);
+      renderMap();
+      setMarkerCard(object, markupId);
+      hideMarkerForm();
+      updateStatus('Marker updated.');
+      return;
+    }
+    if (activeTool !== 'marker') return;
+    const object = ensureMarkupObject({
+      id: uuid(),
+      type: 'marker',
+      category: details.category,
+      title: details.title,
+      description: details.description,
+      notes: details.notes,
+      geometry: { position: pendingMarkerPoint },
+    });
+    if (!object) return;
+    await addObjectToCurrent(object, 'Marker saved to markup.');
+    hideMarkerForm();
+  };
+
   const undo = async () => {
+    if (
+      editing &&
+      (activeTool === 'line' || activeTool === 'polygon') &&
+      drawPoints.length
+    ) {
+      drawPoints.pop();
+      updateDrawPreview();
+      hint.textContent = drawPoints.length
+        ? `${TOOL_HINTS[activeTool]} (${drawPoints.length} point${drawPoints.length === 1 ? '' : 's'})`
+        : TOOL_HINTS[activeTool];
+      updateStatus('Removed last point.');
+      return;
+    }
     const markup = currentMarkup();
     if (!markup) return;
     const stack = currentUndoStack();
@@ -1032,6 +1225,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   renderSavedMarkups();
   syncLayersApi();
   refreshLayerPanel();
+  hideMarkerForm();
   if (storageEnabled) updateStatus('Ready');
 
   const selectedEntityRemover = viewer.selectedEntityChanged.addEventListener(
@@ -1056,6 +1250,18 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   });
   listen(undoBtn, 'click', () => {
     void undo();
+  });
+  listen(markerCategorySelect, 'change', () => {
+    syncMarkerCustomCategoryVisibility();
+  });
+  listen(markerCancelBtn, 'click', () => {
+    const wasEditing = Boolean(pendingMarkerEditTarget);
+    hideMarkerForm();
+    updateStatus(wasEditing ? 'Marker edit cancelled.' : 'Marker creation cancelled.');
+  });
+  listen(markerForm, 'submit', (event) => {
+    event.preventDefault();
+    void submitMarkerForm();
   });
   listen(importBtn, 'click', () => importFile?.click());
   listen(importFile, 'change', () => {
@@ -1093,24 +1299,20 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       !selectedMarkerObjectId
     )
       return;
-    const { markup, object } = findMarkupObject(
+    const { object } = findMarkupObject(
       selectedMarkerMarkupId,
       selectedMarkerObjectId,
     );
-    if (!markup || !object || object.type !== 'marker') return;
-    const details = promptMarkerDetails(object);
-    if (!details) return;
-    object.title = details.title;
-    object.category = details.category;
-    object.description = details.description;
-    object.notes = details.notes;
-    object.updatedAt = nowIso();
-    void (async () => {
-      await saveMarkup(markup);
-      renderMap();
-      setMarkerCard(object, selectedMarkerMarkupId);
-      updateStatus('Marker updated.');
-    })();
+    if (!object || object.type !== 'marker') return;
+    showMarkerForm({
+      seed: object,
+      submitLabel: 'SAVE MARKER',
+      editTarget: {
+        markupId: selectedMarkerMarkupId,
+        objectId: selectedMarkerObjectId,
+      },
+    });
+    updateStatus('Update marker details and save.');
   });
 
   window.__gevMarkups = {
@@ -1159,6 +1361,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         savedDoubleClick = null;
       }
       setMarkerCard(null);
+      hideMarkerForm();
+      clearDrawingPreview();
       viewer.dataSources.remove(dataSource, true);
       if (window.__gevMarkupsLayerApi) delete window.__gevMarkupsLayerApi;
       if (window.__gevMarkups) delete window.__gevMarkups;

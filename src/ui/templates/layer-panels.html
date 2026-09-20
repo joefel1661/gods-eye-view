@@ -183,12 +183,11 @@
         <div id="markup-editing-chip" class="markup-editing-chip">
           EDIT MODE ACTIVE
         </div>
-        <div class="markup-editor-actions">
-          <button id="markup-save-btn" class="scene-btn">SAVE</button>
-          <button id="markup-exit-btn" class="scene-btn">EXIT</button>
-          <button id="markup-undo-btn" class="scene-btn">UNDO</button>
-        </div>
-        <div class="markup-toolbar" role="group" aria-label="Markup tools">
+        <div
+          class="markup-toolbar markup-tool-grid"
+          role="group"
+          aria-label="Markup tools"
+        >
           <button
             id="markup-tool-marker"
             class="scene-btn markup-tool-btn"
@@ -225,6 +224,76 @@
             DELETE
           </button>
         </div>
+        <div class="markup-editor-actions">
+          <button id="markup-undo-btn" class="scene-btn">UNDO</button>
+          <button id="markup-save-btn" class="scene-btn">SAVE</button>
+          <button id="markup-exit-btn" class="scene-btn">EXIT</button>
+        </div>
+        <form id="markup-marker-form" class="markup-marker-form" hidden>
+          <div class="markup-marker-form-title">MARKER DETAILS</div>
+          <label class="markup-marker-field" for="markup-marker-title">
+            <span>Title</span>
+            <input id="markup-marker-title" type="text" autocomplete="off" />
+          </label>
+          <label class="markup-marker-field" for="markup-marker-category">
+            <span>Category</span>
+            <select id="markup-marker-category">
+              <option>Principal</option>
+              <option>Residence</option>
+              <option>Hotel</option>
+              <option>Entrance</option>
+              <option>Exit</option>
+              <option>Vehicle</option>
+              <option>Vehicle Staging</option>
+              <option>Agent Post</option>
+              <option>Rally Point</option>
+              <option>Medical</option>
+              <option>Police</option>
+              <option>Fire</option>
+              <option>Airport</option>
+              <option>Hazard</option>
+              <option>Concern</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <label
+            id="markup-marker-custom-wrap"
+            class="markup-marker-field"
+            for="markup-marker-custom-category"
+            hidden
+          >
+            <span>Custom Category</span>
+            <input
+              id="markup-marker-custom-category"
+              type="text"
+              autocomplete="off"
+            />
+          </label>
+          <label class="markup-marker-field" for="markup-marker-description">
+            <span>Short Description</span>
+            <input
+              id="markup-marker-description"
+              type="text"
+              autocomplete="off"
+            />
+          </label>
+          <label class="markup-marker-field" for="markup-marker-notes">
+            <span>Detailed Notes</span>
+            <textarea id="markup-marker-notes" rows="3"></textarea>
+          </label>
+          <div class="markup-marker-form-actions">
+            <button
+              id="markup-marker-cancel-btn"
+              class="scene-btn"
+              type="button"
+            >
+              CANCEL
+            </button>
+            <button id="markup-marker-submit-btn" class="scene-btn" type="submit">
+              ADD MARKER
+            </button>
+          </div>
+        </form>
         <div id="markup-tool-hint" class="markup-tool-hint">
           Select a tool to start editing.
         </div>
