@@ -1031,6 +1031,10 @@
     transform: translateX(-50%);
   }
 
+  #scene-panel.markup-mobile-mode .markup-object-sheet {
+    overflow: hidden;
+  }
+
   #scene-panel.markup-mobile-mode .markup-context-card {
     position: fixed;
     right: auto;

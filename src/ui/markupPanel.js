@@ -388,6 +388,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const objectMoreBtn = document.getElementById('markup-object-more-btn');
   const objectMoreFields = document.getElementById('markup-object-more-fields');
   const objectNotesInput = document.getElementById('markup-object-notes');
+  const objectDeleteSecondaryBtn = document.getElementById(
+    'markup-object-delete-secondary-btn',
+  );
   const objectCancelBtn = document.getElementById('markup-object-cancel-btn');
   const objectSubmitBtn = document.getElementById('markup-object-submit-btn');
   const objectCard = document.getElementById('markup-object-card');
@@ -450,6 +453,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   let statusResetTimer = null;
   let activeSheet = null;
   let confirmAction = null;
+  let confirmResumeSheet = null;
   let selectedObjectRef = null;
   let pendingObjectContext = null;
   let metadataMode = 'create';
@@ -565,7 +569,15 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     objectCustomWrap.hidden = !objectDetailsExpanded || !isOther;
   }
 
-  function closeSheet(name) {
+  function returnToMarkupMap({ clearSelection = true } = {}) {
+    hideObjectCard();
+    clearPendingObjectDraft();
+    closeAllSheets();
+    if (clearSelection) viewer.selectedEntity = null;
+    syncStatusCopy();
+  }
+
+  function closeSheet(name, { restoreConfirmSheet = true } = {}) {
     const sheet = readSheet(name);
     if (sheet) sheet.hidden = true;
     if (activeSheet === name) activeSheet = null;
@@ -581,7 +593,18 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       if (objectMoreFields) objectMoreFields.hidden = true;
       syncObjectCustomField();
     }
-    if (name === 'confirm') confirmAction = null;
+    if (name === 'confirm') {
+      confirmAction = null;
+      const resumeSheet = confirmResumeSheet;
+      confirmResumeSheet = null;
+      if (
+        restoreConfirmSheet &&
+        resumeSheet &&
+        !readSheet(resumeSheet)?.hidden
+      ) {
+        activeSheet = resumeSheet;
+      }
+    }
   }
 
   function closeAllSheets({ keep = null } = {}) {
@@ -1234,6 +1257,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   function enterMarkupMode({ markupId = null, openCreateIfEmpty = true } = {}) {
     currentMarkupId = markupId || activeMarkupFallback();
     setEditingState(true);
+    returnToMarkupMap();
     renderSavedMarkups();
     renderMap();
     if (!currentMarkupId && openCreateIfEmpty) {
@@ -1347,11 +1371,16 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       markupId,
       objectId,
     };
-    objectDetailsExpanded = Boolean(seed?.notes);
     objectSheetTitle.textContent =
-      mode === 'edit' ? config.title.replace('NEW ', 'EDIT ') : config.title;
+      mode === 'edit'
+        ? `EDIT ${DRAWING_LABELS[kind] || 'OBJECT'}`
+        : config.title;
     objectSubmitBtn.textContent =
-      mode === 'edit' ? config.submit.replace('ADD ', 'SAVE ') : config.submit;
+      mode === 'edit' ? 'SAVE CHANGES' : config.submit;
+    if (objectDeleteSecondaryBtn) {
+      objectDeleteSecondaryBtn.hidden = mode !== 'edit';
+      objectDeleteSecondaryBtn.textContent = `DELETE ${DRAWING_LABELS[kind] || 'OBJECT'}`;
+    }
     objectNameLabel.textContent =
       kind === 'polygon' || kind === 'line' || kind === 'circle'
         ? 'Name *'
@@ -1372,6 +1401,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     ) {
       objectCategorySelect.value = 'Other';
     }
+    objectDetailsExpanded =
+      Boolean(seed?.notes) || objectCategorySelect.value === 'Other';
     objectCustomInput.value =
       objectCategorySelect.value === 'Other' ? seed?.category || '' : '';
     objectDescriptionInput.value = seed?.description || '';
@@ -1397,6 +1428,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     message,
     confirmLabel = 'DELETE',
     confirmClassName = 'scene-btn scene-btn-danger',
+    preserveSheet = null,
     onConfirm,
   }) {
     confirmTitle.textContent = title;
@@ -1404,7 +1436,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     confirmSubmitBtn.textContent = confirmLabel;
     confirmSubmitBtn.className = confirmClassName;
     confirmAction = onConfirm;
-    openSheet('confirm');
+    confirmResumeSheet = preserveSheet;
+    if (preserveSheet) {
+      closeAllSheets({ keep: preserveSheet });
+      confirmSheet.hidden = false;
+      activeSheet = 'confirm';
+    } else {
+      openSheet('confirm');
+    }
   }
 
   function syncSelectedEntityCard() {
@@ -1934,8 +1973,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         entry.notes = object.notes;
         entry.visible = object.visible;
       });
-      closeSheet('object');
-      setObjectCard(context.markupId, context.objectId);
+      returnToMarkupMap();
       return;
     }
     await addObjectToMarkup(
@@ -1944,8 +1982,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       `✓ Saved`,
     );
     clearTransientGeometry();
-    closeSheet('object');
-    syncStatusCopy();
+    returnToMarkupMap();
   }
 
   async function handleMarkupAction(action, markupId) {
@@ -2118,7 +2155,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     event.preventDefault();
     void submitMarkupMetadata();
   });
-  listen(objectCategorySelect, 'change', () => syncObjectCustomField());
+  listen(objectCategorySelect, 'change', () => {
+    if (sanitizeText(objectCategorySelect.value).toLowerCase() === 'other') {
+      objectDetailsExpanded = true;
+      objectMoreFields.hidden = false;
+      objectMoreBtn.textContent = 'LESS DETAILS';
+    }
+    syncObjectCustomField();
+  });
   listen(objectMoreBtn, 'click', () => {
     objectDetailsExpanded = !objectDetailsExpanded;
     objectMoreFields.hidden = !objectDetailsExpanded;
@@ -2129,9 +2173,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   });
   listen(objectCancelBtn, 'click', () => {
     if (pendingObjectContext?.mode === 'create') clearTransientGeometry();
-    closeSheet('object');
-    clearPendingObjectDraft();
-    syncStatusCopy();
+    returnToMarkupMap();
   });
   listen(objectSheet, 'submit', (event) => {
     event.preventDefault();
@@ -2140,7 +2182,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   listen(confirmCancelBtn, 'click', () => closeSheet('confirm'));
   listen(confirmSubmitBtn, 'click', () => {
     const action = confirmAction;
-    closeSheet('confirm');
+    closeSheet('confirm', { restoreConfirmSheet: false });
     void action?.();
   });
   listen(objectEditBtn, 'click', () => {
@@ -2155,6 +2197,21 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       kind: object.type,
       markupId: markup.id,
       objectId: object.id,
+    });
+  });
+  listen(objectDeleteSecondaryBtn, 'click', () => {
+    if (pendingObjectContext?.mode !== 'edit') return;
+    const { markupId, objectId } = pendingObjectContext;
+    const { object } = findMarkupObject(markupId, objectId);
+    if (!object) return;
+    showConfirm({
+      title: `Delete "${object.title || object.category || 'markup object'}"?`,
+      message: 'This object will be removed from the markup.',
+      preserveSheet: 'object',
+      onConfirm: async () => {
+        await removeObjectFromMarkup(markupId, objectId);
+        returnToMarkupMap();
+      },
     });
   });
   listen(objectHideBtn, 'click', () => {
