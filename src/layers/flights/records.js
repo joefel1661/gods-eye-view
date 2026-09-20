@@ -239,6 +239,8 @@ export class FlightRecords {
       typeCode: prevMeta?.typeCode ?? null,
       typeName: prevMeta?.typeName ?? null,
       registration: prevMeta?.registration ?? null,
+      operator:
+        stickyText(observation.operator, prevMeta?.operator) || null,
       airline: prevMeta?.airline ?? null,
       route: prevMeta?.route ?? null,
       // The RAW poll fix lat/lon (this tick's OpenSky state-vector

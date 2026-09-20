@@ -329,13 +329,25 @@ test('real civil track path creates no native label and publishes every cached h
         onGround: false,
         wasAirborne: true,
         turnRateDps: 0,
+        observedReceiptMs: Date.now(),
         rawLat: 30.1945,
         rawLon: -97.6699,
         airline: 'TEST AIR',
         typeName: 'A320',
+        registration: 'N12345',
         route: {
-          origin: { code: 'AUS', lat: 30.1975, lon: -97.6664 },
-          destination: { code: 'LAX', lat: 33.9416, lon: -118.4085 },
+          origin: {
+            code: 'AUS',
+            name: 'Austin',
+            lat: 30.1975,
+            lon: -97.6664,
+          },
+          destination: {
+            code: 'LAX',
+            name: 'Los Angeles',
+            lat: 33.9416,
+            lon: -118.4085,
+          },
         },
       },
     });
@@ -345,11 +357,19 @@ test('real civil track path creates no native label and publishes every cached h
     assert.ok(entity instanceof Cesium.Entity, 'trackById must create the real Cesium entity');
     assert.equal(entity.label, undefined);
     assert.ok(entities.values.every((candidate) => candidate.label === undefined));
-    assert.deepEqual(entity.gevLabelModel, {
-      title: 'N12345 · FL350 · 486 kts',
-      details: ['TEST AIR · A320', 'AUS → LAX'],
-      accent: '#39d0ff',
-    });
+    assert.equal(entity.gevLabelModel.title, 'N12345');
+    assert.equal(entity.gevLabelModel.accent, '#39d0ff');
+    assert.equal(entity.gevLabelModel.selected, true);
+    assert.equal(entity.gevLabelModel.details[0], 'TEST AIR · A320 · Tail N12345');
+    assert.equal(entity.gevLabelModel.details[1], 'From Austin (AUS)');
+    assert.equal(entity.gevLabelModel.details[2], 'To Los Angeles (LAX)');
+    assert.equal(
+      entity.gevLabelModel.details[3],
+      'Alt FL350 · GS 486 kts · HDG 095°',
+    );
+    assert.equal(entity.gevLabelModel.details[4], 'Status Airborne · Level');
+    assert.match(entity.gevLabelModel.details[5], /^Contact \d+s ago$/);
+    assert.equal(entity.gevLabelModel.details[6], 'OpenSky Network · Upd --');
     viewer.scene.preUpdate.raiseEvent();
     const initialAppliedFrames = appliedFrames;
     const initialCancelledFlights = cancelledFlights;
@@ -470,6 +490,43 @@ test('real civil track path creates no native label and publishes every cached h
     globalThis.fetch = realFetch;
     globalThis.window = realWindow;
   }
+});
+
+test('tracked flight card omits missing fields cleanly and keeps placeholders subtle', () => {
+  const icao24 = 'sparse1';
+  const viewer = { camera: { positionCartographic: null }, scene: {} };
+  _setTrackedFlightRefreshStateForTest({
+    icao24,
+    entity: { gevLabelModel: { title: 'OLD', details: [] } },
+    billboard: {
+      position: Cesium.Cartesian3.fromDegrees(-97.7, 30.2, 500),
+      color: Cesium.Color.WHITE,
+      show: false,
+    },
+    billboardCollection: { show: true, remove() {} },
+    viewer,
+    meta: {
+      callsign: '   ',
+      altitude: 500,
+      velocity: null,
+      true_track: null,
+      verticalRate: null,
+      onGround: false,
+      wasAirborne: true,
+      klass: 'airliner',
+      rawLat: 30.2,
+      rawLon: -97.7,
+      observedReceiptMs: Date.now(),
+    },
+  });
+
+  assert.equal(flightsLayer.trackById(icao24), true);
+  const model = viewer.trackedEntity.gevLabelModel;
+  assert.equal(model.title, 'SPARSE1');
+  assert.equal(model.selected, true);
+  assert.equal(model.details[0], 'Alt 1,640 ft · GS -- · HDG --');
+  assert.match(model.details.at(-1), /\bUpd /);
+  assert.doesNotMatch(model.details.join(' · '), /\b(?:null|undefined)\b/);
 });
 
 // ---------------------------------------------------------------------------
