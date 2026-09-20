@@ -858,6 +858,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }
   }
 
+  function isMobileMarkupPresentationActive() {
+    return (
+      isMobileLayout &&
+      body?.dataset?.mobilePanel === 'markup' &&
+      !panel.classList.contains('collapsed')
+    );
+  }
+
   function syncStatusCopy() {
     const drawingLabel = activeTool ? DRAWING_LABELS[activeTool] : 'MARKUP';
     if (hint) {
@@ -878,7 +886,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       else hint.textContent = 'Tap points to draw a route.';
     }
     if (!drawingStatus) return;
-    if (!editing || !isMobileLayout) {
+    if (!editing || !isMobileMarkupPresentationActive()) {
       drawingStatus.hidden = true;
       return;
     }
@@ -930,7 +938,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   }
 
   function syncMobilePresentation() {
-    const mobileMode = Boolean(isMobileLayout && editing);
+    const mobileMode = Boolean(editing && isMobileMarkupPresentationActive());
     panel.classList.toggle('markup-mobile-mode', mobileMode);
     if (mobileOverlay) mobileOverlay.hidden = !mobileMode;
     if (compactToggleBtn) compactToggleBtn.hidden = true;
@@ -1581,6 +1589,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }
     restoreCameraControls();
     if (!editing || !activeTool) return;
+    if (isMobileLayout && !isMobileMarkupPresentationActive()) return;
     lease = claimPointer(MARKUP_POINTER_OWNER);
     if (!lease) {
       updateStatus(`${pointerOwner()} is using the pointer — close it first.`);
@@ -1631,11 +1640,16 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       if (activeTool === 'delete') {
         const found = pickMarkupObject(event.position);
         if (!found) return;
+        if (found.markupId !== currentMarkupId) {
+          updateStatus(
+            'Delete mode only removes objects from the active markup.',
+          );
+          return;
+        }
         showConfirm({
           title: `Delete "${found.object.title || found.object.category || 'markup object'}"?`,
           message: 'This object will be removed from the active markup.',
           onConfirm: async () => {
-            currentMarkupId = found.markupId;
             await removeObjectFromMarkup(found.markupId, found.objectId);
             viewer.selectedEntity = null;
           },
@@ -2014,16 +2028,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
 
   function syncPanelState() {
     isMobileLayout = Boolean(layoutMedia?.matches);
-    const mobileMarkupOpen =
-      isMobileLayout &&
-      body?.dataset?.mobilePanel === 'markup' &&
-      !panel.classList.contains('collapsed');
+    const mobileMarkupOpen = isMobileMarkupPresentationActive();
     if (mobileMarkupOpen && !editing) {
       enterMarkupMode();
-    } else if (!mobileMarkupOpen && isMobileLayout && editing) {
-      leaveMarkupMode({ collapseMobilePanel: false });
     } else {
       syncMobilePresentation();
+      bindEditingHandler();
     }
   }
 

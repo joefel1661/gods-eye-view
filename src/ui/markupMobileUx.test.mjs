@@ -68,3 +68,15 @@ test('markup styles include active route-mode and mobile card surfaces', () => {
   assert.match(scenesCss, /\.markup-context-card \{/);
   assert.match(scenesCss, /\.markup-bottom-sheet \{/);
 });
+
+test('markup source preserves hidden-object rendering gates and visibility card flow', () => {
+  assert.match(markupPanel, /if \(object\.visible === false\) continue;/);
+  assert.match(
+    markupPanel,
+    /if \(updated\?\.visible === false\) \{\s*viewer\.selectedEntity = null;\s*\} else \{\s*setObjectCard\(markupId, objectId\);/s,
+  );
+  assert.match(
+    markupPanel,
+    /if \(found\.markupId !== currentMarkupId\) \{\s*updateStatus\(\s*'Delete mode only removes objects from the active markup\.',\s*\);/s,
+  );
+});
