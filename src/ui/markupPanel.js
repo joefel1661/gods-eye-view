@@ -1532,12 +1532,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         }
         syncPreviewEntities();
         syncStatusCopy();
+        updateStatus('Removed last drawing step.');
         return;
       }
       if (!drawPoints.length) return;
       drawPoints.pop();
       syncPreviewEntities();
       syncStatusCopy();
+      updateStatus('Removed last drawing step.');
       return;
     }
     if (activeTool === 'polygon') {
@@ -1545,6 +1547,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       drawPoints.pop();
       syncPreviewEntities();
       syncStatusCopy();
+      updateStatus('Removed last drawing step.');
       return;
     }
     if (activeTool === 'circle' && circleCenter) {
@@ -1552,6 +1555,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       circleRadiusMeters = 0;
       syncPreviewEntities();
       syncStatusCopy();
+      updateStatus('Removed last drawing step.');
     }
   }
 
@@ -2012,12 +2016,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       );
       if (index >= 0) markup.objects.splice(index, 1);
     } else if (action.type === 'remove') {
-      markup.objects.push(action.object);
+      const restored = ensureMarkupObject(action.object);
+      if (restored) markup.objects.push(restored);
     } else if (action.type === 'update') {
       const index = markup.objects.findIndex(
         (entry) => entry.id === action.objectId,
       );
-      if (index >= 0) markup.objects[index] = action.before;
+      const restored = ensureMarkupObject(action.before);
+      if (index >= 0 && restored) markup.objects[index] = restored;
     }
     await saveMarkup(markup);
     renderMap();
