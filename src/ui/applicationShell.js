@@ -5,7 +5,10 @@ import { NavigationController } from './navigationController.js';
 import { ShareRestoration } from './shareRestoration.js';
 import { createFrameRateMonitor } from './frameRateMonitor.js';
 import { createStateChannel } from '../app/stateChannel.js';
-import { readMyLocationState, subscribeMyLocationState } from '../myLocationState.js';
+import {
+  readMyLocationState,
+  subscribeMyLocationState,
+} from '../myLocationState.js';
 import { setSplitFlapText } from '../splitFlap.js';
 import { UiLifetime } from './uiLifetime.js';
 import { RecordingControls } from './recordingControls.js';
@@ -2235,7 +2238,8 @@ export class StyleManager {
     this.shareLinkManager?.claimRestoreLane?.('visual');
     this.hud.setMode(normalized);
     this._updateHudButtonState();
-    if (normalized !== 'auto') this._persistHudOverlayTextPreference(normalized);
+    if (normalized !== 'auto')
+      this._persistHudOverlayTextPreference(normalized);
     this._syncShareState();
     return {
       ok: true,
@@ -3777,8 +3781,12 @@ export class StyleManager {
    * @returns {Promise<void>} Resolves after focused-session state restoration.
    */
   async dispose() {
-    const { destroyTrackedReadout, destroySecurityPointCard, destroyWorldOverlay, destroyDetection } =
-      this.services;
+    const {
+      destroyTrackedReadout,
+      destroySecurityPointCard,
+      destroyWorldOverlay,
+      destroyDetection,
+    } = this.services;
     if (this._disposed) return;
     this._shareRestoration.destroy();
     this._feedback._globalStatusNotice = null;

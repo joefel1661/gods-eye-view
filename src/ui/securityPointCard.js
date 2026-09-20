@@ -6,13 +6,17 @@ let _selected = null;
 let _cleanup = [];
 
 function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>'"]/g, (char) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    "'": '&#39;',
-    '"': '&quot;',
-  })[char]);
+  return String(value ?? '').replace(
+    /[&<>'"]/g,
+    (char) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;',
+      })[char],
+  );
 }
 
 function ensureCard() {
@@ -66,9 +70,11 @@ function renderCard(detail) {
       ${distance}
       ${provider}
     </div>`;
-  card.querySelector('.security-point-card-close')?.addEventListener('click', () => {
-    window.dispatchEvent(new CustomEvent('gev:security-point-dismiss'));
-  });
+  card
+    .querySelector('.security-point-card-close')
+    ?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('gev:security-point-dismiss'));
+    });
   if (globalThis.matchMedia?.(MOBILE_LAYOUT_MEDIA_QUERY)?.matches) {
     card.setAttribute('data-mobile', 'true');
   } else {

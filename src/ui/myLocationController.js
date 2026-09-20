@@ -30,7 +30,9 @@ function normalizePosition(position) {
       : null,
     heading: Number.isFinite(coords.heading) ? Number(coords.heading) : null,
     speed: Number.isFinite(coords.speed) ? Number(coords.speed) : null,
-    timestamp: Number.isFinite(position.timestamp) ? position.timestamp : Date.now(),
+    timestamp: Number.isFinite(position.timestamp)
+      ? position.timestamp
+      : Date.now(),
   };
 }
 
@@ -66,21 +68,24 @@ function errorState(error) {
       return {
         enabled: true,
         status: 'unavailable',
-        message: 'Current location unavailable. Check location services and try again.',
+        message:
+          'Current location unavailable. Check location services and try again.',
         errorCode: 'position-unavailable',
       };
     case 3:
       return {
         enabled: true,
         status: 'timeout',
-        message: 'Location fix timed out. Move to a clearer signal area and try again.',
+        message:
+          'Location fix timed out. Move to a clearer signal area and try again.',
         errorCode: 'timeout',
       };
     default:
       return {
         enabled: true,
         status: 'error',
-        message: 'Location updates failed. Toggle My Location off and on to retry.',
+        message:
+          'Location updates failed. Toggle My Location off and on to retry.',
         errorCode: 'watch-error',
       };
   }
@@ -152,7 +157,8 @@ export class MyLocationController {
         heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
         material: Cesium.Color.fromCssColorString('#00d4ff').withAlpha(0.14),
         outline: true,
-        outlineColor: Cesium.Color.fromCssColorString('#00d4ff').withAlpha(0.34),
+        outlineColor:
+          Cesium.Color.fromCssColorString('#00d4ff').withAlpha(0.34),
         outlineWidth: 1,
       },
     });
@@ -175,7 +181,11 @@ export class MyLocationController {
         offset: new Cesium.HeadingPitchRange(
           heading,
           Cesium.Math.toRadians(RECENTER_PITCH_DEG),
-          Cesium.Math.clamp(accuracyM * 8, MIN_RECENTER_RANGE_M, MAX_RECENTER_RANGE_M),
+          Cesium.Math.clamp(
+            accuracyM * 8,
+            MIN_RECENTER_RANGE_M,
+            MAX_RECENTER_RANGE_M,
+          ),
         ),
         duration,
         easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
