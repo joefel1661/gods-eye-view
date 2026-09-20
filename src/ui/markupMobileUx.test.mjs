@@ -150,4 +150,12 @@ test('markup source preserves hidden-object rendering gates and mobile return-to
     markupPanel,
     /function syncSelectedEntityCard\(\) \{[\s\S]*?selectedObjectRef = \{ markupId, objectId \};[\s\S]*?openObjectSheet\(\{[\s\S]*?mode: 'edit'/s,
   );
+  assert.match(
+    markupPanel,
+    /await addObjectToMarkup\([\s\S]*?activeTool = null;[\s\S]*?clearTransientGeometry\(\);[\s\S]*?syncToolButtons\(\);[\s\S]*?bindEditingHandler\(\);[\s\S]*?returnToMarkupMap\(\);/s,
+  );
+  assert.match(
+    markupPanel,
+    /listen\(objectCancelBtn, 'click', \(\) => \{[\s\S]*?pendingObjectContext\?\.mode === 'create'[\s\S]*?activeTool = null;[\s\S]*?clearTransientGeometry\(\);[\s\S]*?bindEditingHandler\(\);[\s\S]*?returnToMarkupMap\(\);/s,
+  );
 });

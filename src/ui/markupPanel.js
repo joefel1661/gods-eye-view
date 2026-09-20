@@ -1869,8 +1869,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         event.preventDefault();
         if (activeSheet) {
           if (activeSheet === 'object') {
-            if (pendingObjectContext?.mode === 'create')
+            if (pendingObjectContext?.mode === 'create') {
+              activeTool = null;
               clearTransientGeometry();
+              syncToolButtons();
+              bindEditingHandler();
+            }
             returnToMarkupMap();
             return;
           }
@@ -2082,7 +2086,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       object,
       `✓ Saved`,
     );
+    activeTool = null;
     clearTransientGeometry();
+    syncToolButtons();
+    bindEditingHandler();
     returnToMarkupMap();
   }
 
@@ -2278,7 +2285,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     syncObjectSheetPresentation();
   });
   listen(objectCancelBtn, 'click', () => {
-    if (pendingObjectContext?.mode === 'create') clearTransientGeometry();
+    if (pendingObjectContext?.mode === 'create') {
+      activeTool = null;
+      clearTransientGeometry();
+      syncToolButtons();
+      bindEditingHandler();
+    }
     returnToMarkupMap();
   });
   listen(objectSheet, 'submit', (event) => {
