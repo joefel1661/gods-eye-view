@@ -52,7 +52,10 @@ export async function createApplicationTools({
   // lifetime rather than to whoever last pressed the button.
   const drawTool = initDrawTool({ viewer, annotations });
   defer(() => drawTool?.destroy());
-  const markupPanel = await initMarkupPanel({ viewer });
+  const markupPanel = await initMarkupPanel({
+    viewer,
+    showToast: (text) => styleManager?._showToast?.(text),
+  });
   defer(() => markupPanel?.destroy?.());
   if (startChrome)
     defer(startChrome({ loadingScreen, styleManager, dataManager, signal }));

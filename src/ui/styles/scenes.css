@@ -205,6 +205,25 @@
   color: var(--text-primary);
 }
 
+.markup-row-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.markup-row-badge {
+  align-self: flex-start;
+  border: 1px solid rgba(0, 212, 255, 0.45);
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 7px;
+  letter-spacing: 0.9px;
+  color: #bff4ff;
+  background: rgba(0, 212, 255, 0.12);
+}
+
 .markup-row-actions {
   display: flex;
   gap: 6px;
@@ -268,6 +287,278 @@
   font-size: 9px;
   letter-spacing: 0.8px;
   color: var(--text-secondary);
+}
+
+.markup-route-mode-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.markup-route-mode-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(0, 212, 255, 0.2);
+}
+
+.markup-mobile-overlay,
+.markup-bottom-sheet,
+.markup-context-card {
+  display: none;
+}
+
+.markup-mobile-overlay:not([hidden]) {
+  display: flex;
+}
+
+.markup-bottom-sheet:not([hidden]),
+.markup-context-card:not([hidden]) {
+  display: block;
+}
+
+.markup-mobile-overlay-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.markup-active-control,
+.markup-mobile-done-btn,
+.markup-mobile-tool {
+  border: 1px solid rgba(123, 189, 211, 0.34);
+  background: rgba(7, 18, 27, 0.9);
+  color: var(--text-primary);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.markup-active-control,
+.markup-mobile-done-btn {
+  min-height: 42px;
+  border-radius: 14px;
+}
+
+.markup-active-control {
+  min-width: 0;
+  max-width: min(15rem, calc(100vw - 108px));
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.95px;
+}
+
+.markup-active-control > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markup-active-caret {
+  color: var(--accent);
+}
+
+.markup-mobile-done-btn {
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.markup-mobile-floating {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.markup-mobile-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.markup-mobile-tool {
+  width: 46px;
+  min-width: 46px;
+  height: 46px;
+  min-height: 46px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.markup-mobile-tool .material-symbols-outlined {
+  font-size: 22px;
+}
+
+.markup-drawing-status {
+  width: min(17rem, calc(100vw - 88px));
+  border: 1px solid rgba(123, 189, 211, 0.28);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(6, 14, 22, 0.92);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.36),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.markup-drawing-status-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.markup-drawing-status-title,
+.markup-sheet-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.1px;
+  color: var(--text-primary);
+}
+
+.markup-drawing-status-detail,
+.markup-sheet-subtitle {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+
+.markup-drawing-status-actions,
+.markup-sheet-actions,
+.markup-sheet-footer,
+.markup-context-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.markup-drawing-status-actions {
+  margin-top: 10px;
+}
+
+.markup-route-mode-row-mobile {
+  margin-top: 10px;
+}
+
+.markup-bottom-sheet {
+  width: min(30rem, calc(100vw - 24px));
+  max-width: 100%;
+  border: 1px solid rgba(123, 189, 211, 0.28);
+  border-radius: 22px 22px 18px 18px;
+  padding: 10px 12px 12px;
+  background: rgba(8, 20, 30, 0.96);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.58),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 0 22px rgba(0, 212, 255, 0.06);
+}
+
+.markup-sheet-handle {
+  width: 42px;
+  height: 4px;
+  margin: 0 auto 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.markup-sheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.markup-sheet-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.markup-sheet-field > span {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+}
+
+.markup-sheet-field :is(input, select, textarea) {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(10, 17, 24, 0.92);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 8px 9px;
+}
+
+.markup-sheet-field textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.markup-sheet-more-btn {
+  margin-top: 10px;
+}
+
+.markup-manager-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.markup-manager-row {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.markup-context-card {
+  width: min(24rem, calc(100vw - 24px));
+  border: 1px solid rgba(123, 189, 211, 0.28);
+  border-radius: 18px;
+  padding: 10px 12px;
+  background: rgba(8, 20, 30, 0.94);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.markup-context-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.markup-context-card-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text-primary);
+}
+
+.markup-context-card-subtitle {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+}
+
+.markup-context-card-actions {
+  margin-top: 10px;
 }
 
 .markup-marker-form {

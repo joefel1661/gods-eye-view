@@ -177,226 +177,408 @@
         </button>
       </div>
       <div id="markup-panel-content" class="markup-panel-content">
-      <div id="markup-home" class="markup-home">
-        <div class="markup-home-actions">
-          <button id="markup-new-btn" class="scene-btn">+ NEW MARKUP</button>
-          <button id="markup-import-btn" class="scene-btn">IMPORT JSON</button>
-        </div>
-        <form
-          id="markup-new-inline"
-          class="markup-new-inline"
-          aria-labelledby="markup-new-inline-title"
-          hidden
-        >
-          <div id="markup-new-inline-title" class="markup-new-inline-title">
-            NEW MARKUP
+        <div id="markup-home" class="markup-home">
+          <div class="markup-home-actions">
+            <button id="markup-new-btn" class="scene-btn">+ NEW MARKUP</button>
+            <button id="markup-import-btn" class="scene-btn">IMPORT JSON</button>
           </div>
-          <label class="markup-new-inline-field" for="markup-new-name">
-            <span>Name</span>
-            <input id="markup-new-name" type="text" autocomplete="off" />
-          </label>
-          <label class="markup-new-inline-field" for="markup-new-description">
-            <span>Description (optional)</span>
-            <input id="markup-new-description" type="text" autocomplete="off" />
-          </label>
-          <div class="markup-new-inline-actions">
-            <button id="markup-new-create-btn" class="scene-btn" type="submit">
-              CREATE
+          <form
+            id="markup-new-inline"
+            class="markup-new-inline"
+            aria-labelledby="markup-new-inline-title"
+            hidden
+          >
+            <div id="markup-new-inline-title" class="markup-new-inline-title">
+              NEW MARKUP
+            </div>
+            <label class="markup-new-inline-field" for="markup-new-name">
+              <span>Name *</span>
+              <input id="markup-new-name" type="text" autocomplete="off" />
+            </label>
+            <label class="markup-new-inline-field" for="markup-new-description">
+              <span>Description (optional)</span>
+              <input id="markup-new-description" type="text" autocomplete="off" />
+            </label>
+            <div class="markup-new-inline-actions">
+              <button id="markup-new-cancel-btn" class="scene-btn" type="button">
+                CANCEL
+              </button>
+              <button id="markup-new-create-btn" class="scene-btn" type="submit">
+                CREATE
+              </button>
+            </div>
+          </form>
+          <div id="markup-empty-state" class="markup-empty-state">
+            Markup lets you annotate and save operational maps for later reuse.
+          </div>
+          <div
+            id="markup-saved-list"
+            class="markup-saved-list"
+            aria-live="polite"
+          ></div>
+        </div>
+        <div id="markup-editor" class="markup-editor" hidden>
+          <div id="markup-editing-chip" class="markup-editing-chip">
+            MARKUP MODE ACTIVE
+          </div>
+          <div
+            class="markup-toolbar markup-tool-grid"
+            role="group"
+            aria-label="Markup tools"
+          >
+            <button class="scene-btn markup-tool-btn" data-markup-tool="marker">
+              MARKER
+            </button>
+            <button class="scene-btn markup-tool-btn" data-markup-tool="line">
+              ROUTE
+            </button>
+            <button class="scene-btn markup-tool-btn" data-markup-tool="polygon">
+              AREA
+            </button>
+            <button class="scene-btn markup-tool-btn" data-markup-tool="circle">
+              RADIUS
             </button>
             <button
-              id="markup-new-cancel-btn"
-              class="scene-btn"
-              type="button"
+              class="scene-btn markup-tool-btn scene-btn-danger"
+              data-markup-tool="delete"
             >
-              CANCEL
+              DELETE
             </button>
           </div>
-        </form>
-        <div id="markup-empty-state" class="markup-empty-state">
-          Markup lets you annotate and save operational maps for later reuse.
+          <div
+            id="markup-route-mode-row"
+            class="markup-route-mode-row"
+            role="group"
+            aria-label="Route drawing mode"
+            hidden
+          >
+            <button class="scene-btn markup-route-mode-btn" data-route-mode="free">
+              FREE DRAW
+            </button>
+            <button class="scene-btn markup-route-mode-btn" data-route-mode="points">
+              POINTS
+            </button>
+          </div>
+          <div class="markup-editor-actions">
+            <button id="markup-undo-btn" class="scene-btn">UNDO</button>
+            <button id="markup-save-btn" class="scene-btn">DETAILS</button>
+            <button id="markup-exit-btn" class="scene-btn">DONE</button>
+          </div>
+          <div id="markup-tool-hint" class="markup-tool-hint">
+            Select a tool to start editing.
+          </div>
+          <div id="markup-status" class="markup-status">Ready</div>
         </div>
-        <div
-          id="markup-saved-list"
-          class="markup-saved-list"
-          aria-live="polite"
-        ></div>
       </div>
-      <div id="markup-editor" class="markup-editor" hidden>
-        <div id="markup-editing-chip" class="markup-editing-chip">
-          EDIT MODE ACTIVE
+      <div id="markup-mobile-overlay" class="markup-mobile-overlay" hidden>
+        <div class="markup-mobile-overlay-top">
+          <button
+            id="markup-active-control"
+            class="markup-active-control"
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+          >
+            <span id="markup-active-name">SELECT MARKUP</span>
+            <span class="markup-active-caret" aria-hidden="true">⌄</span>
+          </button>
+          <button id="markup-mobile-done-btn" class="markup-mobile-done-btn" type="button" aria-label="Exit markup mode">
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+          </button>
+        </div>
+        <div class="markup-mobile-floating">
+          <div
+            class="markup-mobile-toolbar"
+            role="group"
+            aria-label="Mobile markup tools"
+          >
+            <button
+              class="markup-mobile-tool markup-tool-btn"
+              data-markup-tool="marker"
+              type="button"
+              aria-label="Marker"
+              title="Marker"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">my_location</span>
+            </button>
+            <button
+              class="markup-mobile-tool markup-tool-btn"
+              data-markup-tool="line"
+              type="button"
+              aria-label="Route"
+              title="Route"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">navigation</span>
+            </button>
+            <button
+              class="markup-mobile-tool markup-tool-btn"
+              data-markup-tool="polygon"
+              type="button"
+              aria-label="Area"
+              title="Area"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">open_in_full</span>
+            </button>
+            <button
+              class="markup-mobile-tool markup-tool-btn"
+              data-markup-tool="circle"
+              type="button"
+              aria-label="Radius"
+              title="Radius"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">radar</span>
+            </button>
+            <button
+              class="markup-mobile-tool markup-tool-btn scene-btn-danger"
+              data-markup-tool="delete"
+              type="button"
+              aria-label="Delete"
+              title="Delete"
+            >
+              ×
+            </button>
+            <button
+              id="markup-mobile-undo-btn"
+              class="markup-mobile-tool"
+              type="button"
+              aria-label="Undo"
+              title="Undo"
+            >
+              ↶
+            </button>
+          </div>
+          <div id="markup-drawing-status" class="markup-drawing-status" hidden>
+            <div class="markup-drawing-status-copy">
+              <div id="markup-drawing-status-title" class="markup-drawing-status-title">
+                MARKUP
+              </div>
+              <div
+                id="markup-drawing-status-detail"
+                class="markup-drawing-status-detail"
+              ></div>
+            </div>
+            <div
+              id="markup-mobile-route-mode-row"
+              class="markup-route-mode-row markup-route-mode-row-mobile"
+              role="group"
+              aria-label="Mobile route drawing mode"
+              hidden
+            >
+              <button
+                class="scene-btn markup-route-mode-btn"
+                data-route-mode="free"
+                type="button"
+              >
+                FREE DRAW
+              </button>
+              <button
+                class="scene-btn markup-route-mode-btn"
+                data-route-mode="points"
+                type="button"
+              >
+                POINTS
+              </button>
+            </div>
+            <div class="markup-drawing-status-actions">
+              <button
+                id="markup-status-undo-btn"
+                class="scene-btn"
+                type="button"
+                hidden
+              >
+                UNDO
+              </button>
+              <button
+                id="markup-status-redraw-btn"
+                class="scene-btn"
+                type="button"
+                hidden
+              >
+                REDRAW
+              </button>
+              <button
+                id="markup-status-finish-btn"
+                class="scene-btn"
+                type="button"
+                hidden
+              >
+                FINISH
+              </button>
+              <button
+                id="markup-status-cancel-btn"
+                class="scene-btn scene-btn-danger"
+                type="button"
+                hidden
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <section id="markup-manager-sheet" class="markup-bottom-sheet" hidden>
+        <div class="markup-sheet-handle" aria-hidden="true"></div>
+        <div class="markup-sheet-header">
+          <div>
+            <div class="markup-sheet-title">MARKUPS</div>
+            <div class="markup-sheet-subtitle">
+              Switch, create, rename, export, or manage visibility.
+            </div>
+          </div>
+          <button
+            id="markup-manager-close-btn"
+            class="scene-btn"
+            type="button"
+          >
+            CLOSE
+          </button>
+        </div>
+        <div class="markup-sheet-actions">
+          <button id="markup-manager-new-btn" class="scene-btn" type="button">
+            NEW
+          </button>
+          <button id="markup-manager-import-btn" class="scene-btn" type="button">
+            IMPORT JSON
+          </button>
         </div>
         <div
-          class="markup-toolbar markup-tool-grid"
-          role="group"
-          aria-label="Markup tools"
+          id="markup-manager-empty-state"
+          class="markup-empty-state"
+          hidden
         >
+          Create a markup to start drawing directly on the map.
+        </div>
+        <div id="markup-manager-list" class="markup-manager-list"></div>
+      </section>
+      <form id="markup-metadata-sheet" class="markup-bottom-sheet" hidden>
+        <div class="markup-sheet-handle" aria-hidden="true"></div>
+        <div id="markup-metadata-sheet-title" class="markup-sheet-title">
+          NEW MARKUP
+        </div>
+        <label class="markup-sheet-field" for="markup-metadata-name">
+          <span>Name *</span>
+          <input id="markup-metadata-name" type="text" autocomplete="off" />
+        </label>
+        <label class="markup-sheet-field" for="markup-metadata-description">
+          <span>Description (optional)</span>
+          <input
+            id="markup-metadata-description"
+            type="text"
+            autocomplete="off"
+          />
+        </label>
+        <div class="markup-sheet-footer">
           <button
-            id="markup-tool-marker"
-            class="scene-btn markup-tool-btn"
-            data-markup-tool="marker"
+            id="markup-metadata-cancel-btn"
+            class="scene-btn"
+            type="button"
           >
-            MARKER
+            CANCEL
+          </button>
+          <button id="markup-metadata-submit-btn" class="scene-btn" type="submit">
+            CREATE
+          </button>
+        </div>
+      </form>
+      <form id="markup-object-sheet" class="markup-bottom-sheet" hidden>
+        <div class="markup-sheet-handle" aria-hidden="true"></div>
+        <div id="markup-object-sheet-title" class="markup-sheet-title">
+          NEW MARKER
+        </div>
+        <label class="markup-sheet-field" for="markup-object-name">
+          <span id="markup-object-name-label">Title *</span>
+          <input id="markup-object-name" type="text" autocomplete="off" />
+        </label>
+        <label class="markup-sheet-field" for="markup-object-category">
+          <span id="markup-object-category-label">Category</span>
+          <select id="markup-object-category"></select>
+        </label>
+        <label
+          id="markup-object-custom-wrap"
+          class="markup-sheet-field"
+          for="markup-object-custom-category"
+          hidden
+        >
+          <span>Custom Category</span>
+          <input
+            id="markup-object-custom-category"
+            type="text"
+            autocomplete="off"
+          />
+        </label>
+        <label class="markup-sheet-field" for="markup-object-description">
+          <span id="markup-object-description-label">Description</span>
+          <input id="markup-object-description" type="text" autocomplete="off" />
+        </label>
+        <button
+          id="markup-object-more-btn"
+          class="scene-btn markup-sheet-more-btn"
+          type="button"
+        >
+          MORE DETAILS
+        </button>
+        <div id="markup-object-more-fields" hidden>
+          <label class="markup-sheet-field" for="markup-object-notes">
+            <span>Detailed Notes</span>
+            <textarea id="markup-object-notes" rows="3"></textarea>
+          </label>
+        </div>
+        <div class="markup-sheet-footer">
+          <button id="markup-object-cancel-btn" class="scene-btn" type="button">
+            CANCEL
+          </button>
+          <button id="markup-object-submit-btn" class="scene-btn" type="submit">
+            ADD
+          </button>
+        </div>
+      </form>
+      <section id="markup-object-card" class="markup-context-card" hidden>
+        <div class="markup-context-card-copy">
+          <div id="markup-object-card-title" class="markup-context-card-title"></div>
+          <div
+            id="markup-object-card-subtitle"
+            class="markup-context-card-subtitle"
+          ></div>
+        </div>
+        <div class="markup-context-card-actions">
+          <button id="markup-object-edit-btn" class="scene-btn" type="button">
+            EDIT
+          </button>
+          <button id="markup-object-hide-btn" class="scene-btn" type="button">
+            HIDE
           </button>
           <button
-            id="markup-tool-line"
-            class="scene-btn markup-tool-btn"
-            data-markup-tool="line"
-          >
-            LINE
-          </button>
-          <button
-            id="markup-tool-polygon"
-            class="scene-btn markup-tool-btn"
-            data-markup-tool="polygon"
-          >
-            AREA
-          </button>
-          <button
-            id="markup-tool-circle"
-            class="scene-btn markup-tool-btn"
-            data-markup-tool="circle"
-          >
-            RADIUS
-          </button>
-          <button
-            id="markup-tool-delete"
-            class="scene-btn markup-tool-btn scene-btn-danger"
-            data-markup-tool="delete"
+            id="markup-object-delete-btn"
+            class="scene-btn scene-btn-danger"
+            type="button"
           >
             DELETE
           </button>
         </div>
-        <div class="markup-editor-actions">
-          <button id="markup-undo-btn" class="scene-btn">UNDO</button>
-          <button id="markup-save-btn" class="scene-btn">SAVE</button>
-          <button id="markup-exit-btn" class="scene-btn">EXIT</button>
-        </div>
-        <form id="markup-marker-form" class="markup-marker-form" hidden>
-          <div class="markup-marker-form-title">MARKER DETAILS</div>
-          <label class="markup-marker-field" for="markup-marker-title">
-            <span>Title</span>
-            <input id="markup-marker-title" type="text" autocomplete="off" />
-          </label>
-          <label class="markup-marker-field" for="markup-marker-category">
-            <span>Category</span>
-            <select id="markup-marker-category">
-              <option>Principal</option>
-              <option>Residence</option>
-              <option>Hotel</option>
-              <option>Entrance</option>
-              <option>Exit</option>
-              <option>Vehicle</option>
-              <option>Vehicle Staging</option>
-              <option>Agent Post</option>
-              <option>Rally Point</option>
-              <option>Medical</option>
-              <option>Police</option>
-              <option>Fire</option>
-              <option>Airport</option>
-              <option>Hazard</option>
-              <option>Concern</option>
-              <option>Other</option>
-            </select>
-          </label>
-          <label
-            id="markup-marker-custom-wrap"
-            class="markup-marker-field"
-            for="markup-marker-custom-category"
-            hidden
+      </section>
+      <section id="markup-confirm-sheet" class="markup-bottom-sheet" hidden>
+        <div class="markup-sheet-handle" aria-hidden="true"></div>
+        <div id="markup-confirm-title" class="markup-sheet-title"></div>
+        <div id="markup-confirm-message" class="markup-sheet-subtitle"></div>
+        <div class="markup-sheet-footer">
+          <button id="markup-confirm-cancel-btn" class="scene-btn" type="button">
+            CANCEL
+          </button>
+          <button
+            id="markup-confirm-submit-btn"
+            class="scene-btn scene-btn-danger"
+            type="button"
           >
-            <span>Custom Category</span>
-            <input
-              id="markup-marker-custom-category"
-              type="text"
-              autocomplete="off"
-            />
-          </label>
-          <label class="markup-marker-field" for="markup-marker-description">
-            <span>Short Description</span>
-            <input
-              id="markup-marker-description"
-              type="text"
-              autocomplete="off"
-            />
-          </label>
-          <label class="markup-marker-field" for="markup-marker-notes">
-            <span>Detailed Notes</span>
-            <textarea id="markup-marker-notes" rows="3"></textarea>
-          </label>
-          <div class="markup-marker-form-actions">
-            <button
-              id="markup-marker-cancel-btn"
-              class="scene-btn"
-              type="button"
-            >
-              CANCEL
-            </button>
-            <button id="markup-marker-submit-btn" class="scene-btn" type="submit">
-              ADD MARKER
-            </button>
-          </div>
-        </form>
-        <div id="markup-tool-hint" class="markup-tool-hint">
-          Select a tool to start editing.
+            DELETE
+          </button>
         </div>
-      </div>
-      <div id="markup-marker-card" class="markup-marker-card" hidden>
-        <div class="markup-marker-card-header">
-          <strong id="markup-marker-card-title"></strong>
-          <div class="markup-marker-card-actions">
-            <button id="markup-marker-edit-btn" class="scene-btn" type="button">
-              EDIT
-            </button>
-            <button
-              id="markup-marker-minimize-btn"
-              class="scene-btn"
-              type="button"
-            >
-              MIN
-            </button>
-            <button
-              id="markup-marker-close-btn"
-              class="scene-btn"
-              type="button"
-            >
-              CLOSE
-            </button>
-          </div>
-        </div>
-        <div id="markup-marker-card-body" class="markup-marker-card-body"></div>
-      </div>
+      </section>
       <input
         type="file"
         id="markup-import-file"
         accept="application/json,.json"
         hidden
       />
-      <div id="markup-status" class="markup-status">Ready</div>
-      </div>
-      <div id="markup-compact-bar" class="markup-compact-bar" hidden>
-        <div class="markup-compact-summary">
-          <div id="markup-compact-title" class="markup-compact-title"></div>
-          <div id="markup-compact-detail" class="markup-compact-detail"></div>
-        </div>
-        <div class="markup-compact-actions">
-          <button id="markup-compact-undo-btn" class="scene-btn" type="button">
-            UNDO
-          </button>
-          <button id="markup-compact-finish-btn" class="scene-btn" type="button">
-            FINISH
-          </button>
-          <button id="markup-compact-expand-btn" class="scene-btn" type="button">
-            EXPAND
-          </button>
-          <button
-            id="markup-compact-cancel-btn"
-            class="scene-btn scene-btn-danger"
-            type="button"
-          >
-            CANCEL
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 </div>
