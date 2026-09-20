@@ -262,6 +262,54 @@ export class LayerPanel {
 
       this._toggleContainer.appendChild(row);
     }
+    this._renderMarkupRows();
+  }
+
+  _renderMarkupRows() {
+    if (!this._toggleContainer) return;
+    this._toggleContainer
+      .querySelector('[data-markup-layer-section]')
+      ?.remove();
+    const api = window.__gevMarkupsLayerApi;
+    const entries = api?.list?.();
+    if (!Array.isArray(entries) || !entries.length) return;
+    const section = document.createElement('div');
+    section.dataset.markupLayerSection = 'true';
+    const heading = document.createElement('h3');
+    heading.className = 'data-layer-group-heading';
+    heading.textContent = 'MARKUPS';
+    section.appendChild(heading);
+    for (const entry of entries) {
+      const row = document.createElement('div');
+      row.className = 'data-toggle-row data-toggle-row-markup';
+      const top = document.createElement('div');
+      top.className = 'data-toggle-top';
+      const left = document.createElement('div');
+      left.className = 'data-toggle-left';
+      const icon = document.createElement('span');
+      icon.className = 'data-icon';
+      icon.textContent = '✎';
+      const name = document.createElement('span');
+      name.className = 'data-name';
+      name.textContent = String(entry.name || 'Unnamed markup');
+      left.append(icon, name);
+      const right = document.createElement('div');
+      right.className = 'data-toggle-right';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `data-toggle-btn${entry.visible ? ' active' : ''}`;
+      button.textContent = entry.visible ? 'ON' : 'OFF';
+      button.setAttribute('aria-pressed', String(Boolean(entry.visible)));
+      button.addEventListener('click', async () => {
+        await api.setVisible?.(entry.id, !entry.visible);
+        this._refreshTogglePanel();
+      });
+      right.appendChild(button);
+      top.append(left, right);
+      row.appendChild(top);
+      section.appendChild(row);
+    }
+    this._toggleContainer.appendChild(section);
   }
 
   /** Qualify a loaded count when it does not mean items currently on screen. */
@@ -451,6 +499,7 @@ export class LayerPanel {
         row.querySelector('.data-row-list'),
       );
     }
+    this._renderMarkupRows();
   }
 
   _buildMetaText(layer) {

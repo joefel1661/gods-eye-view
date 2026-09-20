@@ -22,6 +22,10 @@ export function createApplicationData({
   });
   const presentation = new LayerPresentation(dataManager);
   defer(() => presentation.destroy());
+  window.__gevLayerPanelRefresh = () => presentation.refresh();
+  defer(() => {
+    if (window.__gevLayerPanelRefresh) delete window.__gevLayerPanelRefresh;
+  });
   onData?.(dataManager);
   if (!catalog?.layers || !catalog?.metadata)
     throw new TypeError('An application layer catalog is required');

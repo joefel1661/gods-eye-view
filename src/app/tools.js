@@ -1,6 +1,7 @@
 import { SceneDirector } from '../scenes/director.js';
 import { initAnnotations } from '../annotations/index.js';
 import { initDrawTool } from '../annotations/drawTool.js';
+import { initMarkupPanel } from '../ui/markupPanel.js';
 import { initGevVoiceCommands } from '../voice/gevRealtime.js';
 import { installScopeMask, destroyScopeMask } from '../scopeMask.js';
 import {
@@ -12,7 +13,7 @@ import {
 } from '../renderGovernor.js';
 
 /** Attach scene tools, rendering listeners and the application debug handle. */
-export function createApplicationTools({
+export async function createApplicationTools({
   scene,
   controls,
   data,
@@ -51,6 +52,8 @@ export function createApplicationTools({
   // lifetime rather than to whoever last pressed the button.
   const drawTool = initDrawTool({ viewer, annotations });
   defer(() => drawTool?.destroy());
+  const markupPanel = await initMarkupPanel({ viewer });
+  defer(() => markupPanel?.destroy?.());
   if (startChrome)
     defer(startChrome({ loadingScreen, styleManager, dataManager, signal }));
   // Idle render governor: flips the scene into requestRenderMode whenever
