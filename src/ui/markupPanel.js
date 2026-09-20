@@ -1367,7 +1367,6 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       markupId,
       objectId,
     };
-    objectDetailsExpanded = Boolean(seed?.notes);
     objectSheetTitle.textContent =
       mode === 'edit'
         ? `EDIT ${DRAWING_LABELS[kind] || 'OBJECT'}`
@@ -1398,6 +1397,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     ) {
       objectCategorySelect.value = 'Other';
     }
+    objectDetailsExpanded =
+      Boolean(seed?.notes) || objectCategorySelect.value === 'Other';
     objectCustomInput.value =
       objectCategorySelect.value === 'Other' ? seed?.category || '' : '';
     objectDescriptionInput.value = seed?.description || '';
@@ -2150,7 +2151,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     event.preventDefault();
     void submitMarkupMetadata();
   });
-  listen(objectCategorySelect, 'change', () => syncObjectCustomField());
+  listen(objectCategorySelect, 'change', () => {
+    if (sanitizeText(objectCategorySelect.value).toLowerCase() === 'other') {
+      objectDetailsExpanded = true;
+      objectMoreFields.hidden = false;
+      objectMoreBtn.textContent = 'LESS DETAILS';
+    }
+    syncObjectCustomField();
+  });
   listen(objectMoreBtn, 'click', () => {
     objectDetailsExpanded = !objectDetailsExpanded;
     objectMoreFields.hidden = !objectDetailsExpanded;

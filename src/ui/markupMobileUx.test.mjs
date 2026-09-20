@@ -101,10 +101,18 @@ test('markup source preserves hidden-object rendering gates and mobile return-to
   );
   assert.match(
     markupPanel,
+    /objectDetailsExpanded =\s*Boolean\(seed\?\.notes\) \|\| objectCategorySelect\.value === 'Other';/,
+  );
+  assert.match(
+    markupPanel,
     /function enterMarkupMode[\s\S]*?setEditingState\(true\);[\s\S]*?returnToMarkupMap\(\);/s,
   );
   assert.match(
     markupPanel,
     /listen\(objectDeleteSecondaryBtn, 'click',[\s\S]*?preserveSheet: 'object'/s,
+  );
+  assert.match(
+    markupPanel,
+    /listen\(objectCategorySelect, 'change', \(\) => \{[\s\S]*?objectDetailsExpanded = true;[\s\S]*?objectMoreFields\.hidden = false;[\s\S]*?objectMoreBtn\.textContent = 'LESS DETAILS';/s,
   );
 });
