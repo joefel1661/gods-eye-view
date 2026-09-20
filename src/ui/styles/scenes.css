@@ -263,6 +263,57 @@
   color: var(--text-secondary);
 }
 
+.markup-marker-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(6, 13, 20, 0.78);
+}
+
+.markup-marker-form-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-primary);
+}
+
+.markup-marker-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.markup-marker-field > span {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+}
+
+.markup-marker-field :is(input, select, textarea) {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 7px;
+  background: rgba(10, 17, 24, 0.9);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 7px 8px;
+}
+
+.markup-marker-field textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.markup-marker-form-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .markup-marker-card {
   margin-top: 8px;
   border: 1px solid rgba(255, 255, 255, 0.16);
