@@ -129,7 +129,8 @@ test('controller recreation rehydrates the existing browser-side location marker
     coords: { latitude: 30.2672, longitude: -97.7431, accuracy: 30 },
     timestamp: 101,
   });
-  h.controller.dataSource.entities.removeAll();
+  h.controller.destroy();
+  assert.equal(readMyLocationState().status, 'ready');
   const rebuilt = new MyLocationController({
     viewer: h.viewer,
     geolocation: h.geo,
@@ -137,6 +138,7 @@ test('controller recreation rehydrates the existing browser-side location marker
     render: { governorRequestRender() {} },
   });
   assert.equal(readMyLocationState().status, 'ready');
+  assert.equal(h.geo.calls.length, 2);
   assert.equal(rebuilt.dataSource.entities.values.length, 1);
 });
 

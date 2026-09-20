@@ -114,6 +114,7 @@ export class MyLocationController {
       this.hasInitialFix = true;
       this._updateEntity(initialState.position);
     }
+    if (initialState?.enabled) this._resumeWatch();
   }
 
   _requestRender(reason = 'my-location') {
@@ -134,6 +135,21 @@ export class MyLocationController {
   _publish(nextState, change) {
     publishMyLocationState(nextState, change);
     this._requestRender('my-location-state');
+  }
+
+  _resumeWatch() {
+    if (
+      this.watchId !== null ||
+      !this.geolocation ||
+      typeof this.geolocation.watchPosition !== 'function'
+    )
+      return false;
+    this.watchId = this.geolocation.watchPosition(
+      (position) => this._handleSuccess(position),
+      (error) => this._handleError(error),
+      GEOLOCATION_OPTIONS,
+    );
+    return true;
   }
 
   _updateEntity(position) {
@@ -272,12 +288,7 @@ export class MyLocationController {
       { type: 'enable' },
     );
     try {
-      this.watchId = this.geolocation.watchPosition(
-        (position) => this._handleSuccess(position),
-        (error) => this._handleError(error),
-        GEOLOCATION_OPTIONS,
-      );
-      return true;
+      return this._resumeWatch();
     } catch (error) {
       this._handleError(error);
       return false;
@@ -299,7 +310,9 @@ export class MyLocationController {
   }
 
   destroy() {
-    this.disable();
+    this._clearWatch();
+    this.hasInitialFix = false;
+    this._clearEntities();
     this.eventTarget?.removeEventListener?.('pagehide', this._boundUnload);
     this.eventTarget?.removeEventListener?.('beforeunload', this._boundUnload);
     if (this.viewer && this.dataSource)

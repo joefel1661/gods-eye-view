@@ -172,7 +172,10 @@ export class LocationControls {
           ? 'Awaiting location permission…'
           : state.message || 'Location sharing is off.';
     this.elements.myLocationStatus.textContent = label;
-    this.elements.myLocationStatus.dataset.state = state.status || 'off';
+    this.elements.myLocationStatus.setAttribute(
+      'data-state',
+      state.status || 'off',
+    );
   }
   createOrbitIndicator() {
     if (this.destroyed) return null;
