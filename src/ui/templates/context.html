@@ -43,14 +43,10 @@
             <span class="material-symbols-outlined" aria-hidden="true">radar</span>
             <span>CONTACTS</span>
           </button>
-          <button id="global-context-missions-btn" class="context-mode-button" type="button" role="tab" tabindex="0" aria-selected="false" aria-controls="context-missions-view">
-            <span class="material-symbols-outlined" aria-hidden="true">rocket_launch</span>
-            <span>SPACE MISSIONS</span>
-          </button>
         </div>
         <div id="context-mode-standby" class="context-mode-standby">
           <strong>SELECT CONTEXT</strong>
-          <span>CONTACTS — nearest planes · vessels · sites<br>SPACE MISSIONS — launches &amp; orbital assets</span>
+          <span>CONTACTS — nearest planes · vessels · sites</span>
         </div>
         <section id="context-flights-view" class="context-mode-view" role="tabpanel" aria-labelledby="global-context-flights-btn" hidden>
           <div class="global-context-actions" aria-label="Contact Context actions">
@@ -67,23 +63,6 @@
               <span>SELECT CONTACTS TO LOAD OBSERVED / MAPPED PROXIMITY</span>
             </div>
           </aside>
-        </section>
-        <section id="context-missions-view" class="context-mode-view" role="tabpanel" aria-labelledby="global-context-missions-btn" hidden>
-          <div id="space-mission-panel-host">
-            <div id="space-mission-roster" class="space-mission-roster" aria-label="Available Space Missions">
-              <div class="space-mission-roster-header">
-                <div>
-                  <strong>AVAILABLE MISSIONS</strong>
-                  <span>SELECT A MISSION TO INSPECT</span>
-                </div>
-                <output data-mission-roster-count>—</output>
-              </div>
-              <div class="space-mission-roster-list" data-mission-roster-list>
-                <div class="space-mission-roster-empty">LOADING 30-DAY MISSION INDEX</div>
-              </div>
-              <p class="space-mission-roster-focus-continuation" tabindex="-1" data-mission-roster-focus-continuation>TAB PREVIEWS · ENTER / SPACE SELECTS</p>
-            </div>
-          </div>
         </section>
         <section id="radio-panel" class="panel-collapsible collapsed" data-panel-id="radio-panel" aria-label="Internet radio companion">
           <div class="radio-panel-inner">

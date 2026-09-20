@@ -233,13 +233,6 @@ const OPTION_GROUPS = Object.freeze({
     trackingIdOption('selectedFlightsTrackingId', 't', null),
     trackingIdOption('selectedMilitaryTrackingId', 'u', null),
   ]),
-  satellites: Object.freeze([
-    enumOption('catalog', 'c', 'core', ['core', 'dense'], {
-      core: 'c',
-      dense: 'd',
-    }),
-    integerOption('selectedSatTrackingId', 't', null),
-  ]),
   cctv: Object.freeze([
     enumOption('coverageMode', 'c', 'on', ['off', 'on', 'viewshed'], {
       off: '0',
@@ -279,7 +272,6 @@ const OPTION_GROUPS = Object.freeze({
 const TRACKING_OPTION_KEY_BY_LAYER = Object.freeze({
   flights: 'selectedFlightsTrackingId',
   military: 'selectedMilitaryTrackingId',
-  satellites: 'selectedSatTrackingId',
 });
 
 export const SHARE_TRACKING_RESTORE_POLICIES = Object.freeze({
@@ -294,12 +286,6 @@ export const SHARE_TRACKING_RESTORE_POLICIES = Object.freeze({
     optionKey: 'selectedMilitaryTrackingId',
     expiryWindowMs: 45_000,
     label: 'military flight',
-  }),
-  satellites: Object.freeze({
-    optionOwner: 'satellites',
-    optionKey: 'selectedSatTrackingId',
-    expiryWindowMs: 300_000,
-    label: 'satellite',
   }),
 });
 
@@ -328,7 +314,6 @@ export const LAYER_STATE_REGISTRY = Object.freeze([
     token: 'z',
     disposition: 'enabled-only',
   }),
-  Object.freeze({ id: 'bikeshare', token: 'b', disposition: 'enabled-only' }),
   Object.freeze({
     id: 'cctv',
     token: 'c',
@@ -373,26 +358,10 @@ export const LAYER_STATE_REGISTRY = Object.freeze([
     optionOwner: 'radio',
   }),
   Object.freeze({
-    id: 'rocket-launches',
-    token: 'x',
-    disposition: 'enabled-only',
-  }),
-  Object.freeze({
-    id: 'satellites',
-    token: 's',
-    disposition: 'enabled+options',
-    optionOwner: 'satellites',
-  }),
-  Object.freeze({
     id: 'security-points',
     token: 'y',
     disposition: 'enabled+options',
     optionOwner: 'security-points',
-  }),
-  Object.freeze({
-    id: 'telegeography-submarine-cables',
-    token: 'u',
-    disposition: 'enabled-only',
   }),
   Object.freeze({ id: 'traffic', token: 't', disposition: 'enabled-only' }),
   Object.freeze({ id: 'transit', token: 'j', disposition: 'enabled-only' }),
@@ -512,20 +481,16 @@ export function normalizeLayerState(candidate) {
   if (!enabled.has('flights')) options.flights.selectedFlightsTrackingId = null;
   if (!enabled.has('military'))
     options.flights.selectedMilitaryTrackingId = null;
-  if (!enabled.has('satellites'))
-    options.satellites.selectedSatTrackingId = null;
   // The codec has no cross-family recency field, so multiple tracking IDs are
   // ambiguous rather than an ordered handoff. Fail closed instead of letting
   // asynchronous feed arrival decide which tracker and camera owner wins.
   const trackingSelectionCount = [
     options.flights.selectedFlightsTrackingId,
     options.flights.selectedMilitaryTrackingId,
-    options.satellites.selectedSatTrackingId,
   ].filter((value) => value !== null).length;
   if (trackingSelectionCount > 1) {
     options.flights.selectedFlightsTrackingId = null;
     options.flights.selectedMilitaryTrackingId = null;
-    options.satellites.selectedSatTrackingId = null;
   }
   return {
     version: LAYER_STATE_VERSION,
