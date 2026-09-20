@@ -230,7 +230,7 @@ test('flights poll refreshes tracked callsign/FL/kts and marks a missed poll STA
     await flightsLayer.update(viewer);
     assert.match(
       [entity.gevLabelModel.title, ...entity.gevLabelModel.details].join(' · '),
-      /STALE/,
+      /Stale/,
     );
   } finally {
     globalThis.fetch = realFetch;
@@ -329,13 +329,25 @@ test('real civil track path creates no native label and publishes every cached h
         onGround: false,
         wasAirborne: true,
         turnRateDps: 0,
+        observedReceiptMs: Date.now(),
         rawLat: 30.1945,
         rawLon: -97.6699,
         airline: 'TEST AIR',
         typeName: 'A320',
+        registration: 'N12345',
         route: {
-          origin: { code: 'AUS', lat: 30.1975, lon: -97.6664 },
-          destination: { code: 'LAX', lat: 33.9416, lon: -118.4085 },
+          origin: {
+            code: 'AUS',
+            name: 'Austin',
+            lat: 30.1975,
+            lon: -97.6664,
+          },
+          destination: {
+            code: 'LAX',
+            name: 'Los Angeles',
+            lat: 33.9416,
+            lon: -118.4085,
+          },
         },
       },
     });
@@ -345,11 +357,22 @@ test('real civil track path creates no native label and publishes every cached h
     assert.ok(entity instanceof Cesium.Entity, 'trackById must create the real Cesium entity');
     assert.equal(entity.label, undefined);
     assert.ok(entities.values.every((candidate) => candidate.label === undefined));
-    assert.deepEqual(entity.gevLabelModel, {
-      title: 'N12345 · FL350 · 486 kts',
-      details: ['TEST AIR · A320', 'AUS → LAX'],
-      accent: '#39d0ff',
-    });
+    assert.equal(entity.gevLabelModel.title, 'N12345');
+    assert.equal(entity.gevLabelModel.accent, '#39d0ff');
+    assert.equal(entity.gevLabelModel.selected, true);
+    assert.equal(entity.gevLabelModel.details[0], 'TEST AIR · A320 · Tail N12345');
+    assert.equal(entity.gevLabelModel.details[1], 'From Austin (AUS)');
+    assert.equal(entity.gevLabelModel.details[2], 'To Los Angeles (LAX)');
+    assert.equal(
+      entity.gevLabelModel.details[3],
+      'Alt FL350 · GS 486 kts · HDG 095°',
+    );
+    assert.equal(entity.gevLabelModel.details[4], 'Status Airborne · Level');
+    assert.match(entity.gevLabelModel.details[5], /^Contact \d+s ago$/);
+    assert.match(
+      entity.gevLabelModel.details[6],
+      /^OpenSky Network · Upd (?:--|\d{2}:\d{2}:\d{2}Z)$/,
+    );
     viewer.scene.preUpdate.raiseEvent();
     const initialAppliedFrames = appliedFrames;
     const initialCancelledFlights = cancelledFlights;
@@ -470,6 +493,83 @@ test('real civil track path creates no native label and publishes every cached h
     globalThis.fetch = realFetch;
     globalThis.window = realWindow;
   }
+});
+
+test('tracked flight card omits missing fields cleanly and keeps placeholders subtle', async () => {
+  const icao24 = 'abc123';
+  const viewer = { camera: { positionCartographic: null }, scene: {} };
+  const entity = { gevLabelModel: { title: 'OLD', details: [] } };
+  _setTrackedFlightRefreshStateForTest({
+    icao24,
+    entity,
+    billboard: {
+      position: Cesium.Cartesian3.fromDegrees(-97.7, 30.2, 500),
+      color: Cesium.Color.WHITE,
+      show: false,
+    },
+    billboardCollection: { show: true, remove() {} },
+    viewer,
+    meta: {
+      callsign: '   ',
+      altitude: 500,
+      velocity: null,
+      true_track: null,
+      verticalRate: null,
+      onGround: false,
+      wasAirborne: true,
+      klass: 'airliner',
+      rawLat: 30.2,
+      rawLon: -97.7,
+      observedReceiptMs: Date.now(),
+    },
+  });
+
+  const realFetch = globalThis.fetch;
+  const nowSec = Math.floor(Date.now() / 1000);
+  globalThis.fetch = async (url) => {
+    if (!String(url).startsWith('/api/opensky')) {
+      return { ok: true, status: 200, json: async () => ({ found: false }) };
+    }
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => ({
+        time: nowSec,
+        states: [[
+          icao24,
+          '   ',
+          'United States',
+          nowSec,
+          nowSec,
+          -97.7,
+          30.2,
+          500,
+          false,
+          null,
+          null,
+          null,
+          null,
+          520,
+          null,
+          null,
+          null,
+          null,
+        ]],
+      }),
+    };
+  };
+  try {
+    await flightsLayer.update(viewer);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  const model = entity.gevLabelModel;
+  assert.equal(model.title, 'ABC123');
+  assert.equal(model.selected, true);
+  assert.equal(model.details[0], 'Alt 1,640 ft · GS -- · HDG --');
+  assert.match(model.details.at(-1), /\bUpd /);
+  assert.doesNotMatch(model.details.join(' · '), /\b(?:null|undefined)\b/);
 });
 
 // ---------------------------------------------------------------------------

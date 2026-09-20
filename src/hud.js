@@ -141,6 +141,7 @@ export class IntelHUD {
       status: false,
       coordinates: false,
     };
+    this._rightTelemetryCollapsed = false;
     this._widgetHandlers = [];
     this._mobileLayoutMedia =
       typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -228,11 +229,25 @@ export class IntelHUD {
       </div>
 
       <div class="hud-corner hud-top-right">
+        <button
+          type="button"
+          class="hud-group-toggle"
+          data-hud-right-toggle
+          aria-label="Minimize right HUD"
+          title="Minimize right HUD"
+        >−</button>
         <div class="hud-content" style="text-align:right">
           <div class="hud-rec"><span id="hud-rec-dot">●</span> REC  <span id="hud-timestamp">2026-01-01 00:00:00Z</span></div>
           <div class="hud-orbital">ORB: ${this._orbitNum}  PASS: DESC-${this._passNum}</div>
         </div>
         <div class="hud-bracket">┐</div>
+        <button
+          type="button"
+          class="hud-group-chip"
+          data-hud-right-restore
+          aria-label="Restore right HUD"
+          title="Restore right HUD"
+        >HUD</button>
       </div>
 
       <div class="hud-corner hud-bottom-left">
@@ -315,6 +330,30 @@ export class IntelHUD {
         this._widgetHandlers.push(() => chip.removeEventListener('click', onClick));
       }
     }
+    const telemetryToggle = this._el.querySelector('[data-hud-right-toggle]');
+    const telemetryChip = this._el.querySelector('[data-hud-right-restore]');
+    if (telemetryToggle) {
+      const onClick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        this._setRightTelemetryCollapsed(!this._rightTelemetryCollapsed);
+      };
+      telemetryToggle.addEventListener('click', onClick);
+      this._widgetHandlers.push(() =>
+        telemetryToggle.removeEventListener('click', onClick),
+      );
+    }
+    if (telemetryChip) {
+      const onClick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        this._setRightTelemetryCollapsed(false);
+      };
+      telemetryChip.addEventListener('click', onClick);
+      this._widgetHandlers.push(() =>
+        telemetryChip.removeEventListener('click', onClick),
+      );
+    }
   }
 
   _syncWidgetPresentation() {
@@ -340,11 +379,11 @@ export class IntelHUD {
       }
       if (chip) {
         chip.setAttribute('aria-hidden', String(!collapsed));
-        chip.setAttribute('aria-expanded', String(!collapsed));
         chip.disabled = !collapsed;
         chip.tabIndex = collapsed ? 0 : -1;
       }
     }
+    this._syncRightTelemetryPresentation();
   }
 
   _setWidgetCollapsed(widget, collapsed, { emit = true } = {}) {
@@ -369,6 +408,38 @@ export class IntelHUD {
         }),
       );
     }
+  }
+
+  _syncRightTelemetryPresentation() {
+    if (!this._el) return;
+    const collapsed = !!this._rightTelemetryCollapsed;
+    const topRight = this._el.querySelector('.hud-top-right');
+    const bottomRight = this._el.querySelector('.hud-bottom-right');
+    const toggle = this._el.querySelector('[data-hud-right-toggle]');
+    const chip = this._el.querySelector('[data-hud-right-restore]');
+    topRight?.classList.toggle('hud-collapsed', collapsed);
+    bottomRight?.classList.toggle('hud-collapsed', collapsed);
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', String(!collapsed));
+      toggle.setAttribute(
+        'aria-label',
+        collapsed ? 'Restore right HUD' : 'Minimize right HUD',
+      );
+      toggle.title = collapsed ? 'Restore right HUD' : 'Minimize right HUD';
+    }
+    if (chip) {
+      chip.setAttribute('aria-hidden', String(!collapsed));
+      chip.setAttribute('aria-expanded', String(!collapsed));
+      chip.disabled = !collapsed;
+      chip.tabIndex = collapsed ? 0 : -1;
+    }
+  }
+
+  _setRightTelemetryCollapsed(collapsed) {
+    const next = !!collapsed;
+    if (this._rightTelemetryCollapsed === next) return;
+    this._rightTelemetryCollapsed = next;
+    this._syncRightTelemetryPresentation();
   }
 
   /**
@@ -1049,6 +1120,14 @@ export class IntelHUD {
       emit: false,
     });
     this._syncWidgetPresentation();
+  }
+
+  getRightTelemetryCollapsed() {
+    return !!this._rightTelemetryCollapsed;
+  }
+
+  setRightTelemetryCollapsed(collapsed) {
+    this._setRightTelemetryCollapsed(collapsed);
   }
 
   attachDataManager(dataManager) {

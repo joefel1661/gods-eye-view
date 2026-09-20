@@ -84,6 +84,29 @@ test('HUD widget collapse restore tolerates null and preserves valid preferences
   ]);
 });
 
+test('right HUD telemetry collapse setter syncs the grouped state', () => {
+  const calls = [];
+  const fakeHud = {
+    _rightTelemetryCollapsed: false,
+    _setRightTelemetryCollapsed: IntelHUD.prototype._setRightTelemetryCollapsed,
+    _syncRightTelemetryPresentation() {
+      calls.push(this._rightTelemetryCollapsed);
+    },
+  };
+
+  IntelHUD.prototype.setRightTelemetryCollapsed.call(fakeHud, true);
+  assert.equal(
+    IntelHUD.prototype.getRightTelemetryCollapsed.call(fakeHud),
+    true,
+  );
+  IntelHUD.prototype.setRightTelemetryCollapsed.call(fakeHud, false);
+  assert.equal(
+    IntelHUD.prototype.getRightTelemetryCollapsed.call(fakeHud),
+    false,
+  );
+  assert.deepEqual(calls, [true, false]);
+});
+
 test('startup defaults do not override an explicit persisted HUD overlay mode', () => {
   const calls = [];
   StyleManager.prototype._applyGlobalPostDefaults.call({
