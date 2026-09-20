@@ -379,7 +379,6 @@ export class IntelHUD {
       }
       if (chip) {
         chip.setAttribute('aria-hidden', String(!collapsed));
-        chip.setAttribute('aria-expanded', String(!collapsed));
         chip.disabled = !collapsed;
         chip.tabIndex = collapsed ? 0 : -1;
       }
