@@ -12,7 +12,6 @@ const DB_NAME = 'gev-markups-v1';
 const STORE_NAME = 'markups';
 const IMPORT_FORMAT = 'gev-markup';
 const IMPORT_VERSION = 1;
-
 const DEFAULT_CATEGORIES = Object.freeze([
   'Principal',
   'Residence',
@@ -31,17 +30,25 @@ const DEFAULT_CATEGORIES = Object.freeze([
   'Concern',
   'Other',
 ]);
-
-const TOOL_HINTS = Object.freeze({
-  none: 'Select a tool to start editing.',
-  marker: 'Tap the map to place a marker.',
-  line: 'Tap points to draw a line. Double-click or Enter to finish.',
-  polygon: 'Tap points to draw an area. 3 points minimum.',
-  circle: 'Tap center, then tap again to set radius.',
-  delete: 'Tap a markup object to delete it.',
-});
-
+const ROUTE_TYPE_OPTIONS = Object.freeze([
+  'Route',
+  'Primary Route',
+  'Alternate Route',
+  'Emergency Route',
+  'Evacuation Route',
+  'Foot Route',
+  'Vehicle Route',
+  'Patrol Route',
+  'Other',
+]);
 const DRAWING_TOOLS = new Set(['marker', 'line', 'polygon', 'circle']);
+const DRAWING_LABELS = Object.freeze({
+  marker: 'MARKER',
+  line: 'ROUTE',
+  polygon: 'AREA',
+  circle: 'RADIUS',
+  delete: 'DELETE',
+});
 
 function nowIso() {
   return new Date().toISOString();
@@ -75,10 +82,11 @@ function distanceMeters(a, b) {
   return geodesic.surfaceDistance || 0;
 }
 
-function normalizeCategory(input) {
+function normalizeCategory(input, options = DEFAULT_CATEGORIES) {
   const category = sanitizeText(input);
-  if (!category) return 'Other';
-  const known = DEFAULT_CATEGORIES.find(
+  if (!category)
+    return options.includes('Other') ? 'Other' : options[0] || 'Other';
+  const known = options.find(
     (entry) => entry.toLowerCase() === category.toLowerCase(),
   );
   return known || category;
@@ -129,10 +137,31 @@ function validateMarkup(markup) {
   return markup.objects.every(validateMarkupObject);
 }
 
+function ensureMarkupObject(raw) {
+  const timestamp = nowIso();
+  const type = raw?.type;
+  const categoryOptions =
+    type === 'line' ? ROUTE_TYPE_OPTIONS : DEFAULT_CATEGORIES;
+  const object = {
+    id: sanitizeText(raw?.id) || uuid(),
+    type,
+    visible: raw?.visible !== false,
+    category: normalizeCategory(raw?.category, categoryOptions),
+    title: sanitizeText(raw?.title),
+    description: sanitizeText(raw?.description),
+    notes: sanitizeText(raw?.notes),
+    geometry: raw?.geometry,
+    createdAt: sanitizeText(raw?.createdAt) || timestamp,
+    updatedAt: sanitizeText(raw?.updatedAt) || timestamp,
+  };
+  if (!validateMarkupObject(object)) return null;
+  return object;
+}
+
 function normalizeMarkup(raw) {
   const timestamp = nowIso();
   const objects = Array.isArray(raw?.objects)
-    ? raw.objects.filter(validateMarkupObject)
+    ? raw.objects.map(ensureMarkupObject).filter(Boolean)
     : [];
   return {
     id: sanitizeText(raw?.id) || uuid(),
@@ -143,23 +172,6 @@ function normalizeMarkup(raw) {
     visible: raw?.visible !== false,
     objects,
   };
-}
-
-function ensureMarkupObject(raw) {
-  const timestamp = nowIso();
-  const object = {
-    id: sanitizeText(raw?.id) || uuid(),
-    type: raw?.type,
-    category: normalizeCategory(raw?.category),
-    title: sanitizeText(raw?.title),
-    description: sanitizeText(raw?.description),
-    notes: sanitizeText(raw?.notes),
-    geometry: raw?.geometry,
-    createdAt: sanitizeText(raw?.createdAt) || timestamp,
-    updatedAt: sanitizeText(raw?.updatedAt) || timestamp,
-  };
-  if (!validateMarkupObject(object)) return null;
-  return object;
 }
 
 function createMarkupDb() {
@@ -225,6 +237,80 @@ function toCesiumPositions(points = []) {
   );
 }
 
+function flattenRouteSegments(segments = []) {
+  const points = [];
+  for (const segment of segments) {
+    if (!Array.isArray(segment) || !segment.length) continue;
+    for (const point of segment) {
+      const previous = points[points.length - 1];
+      if (
+        previous &&
+        previous.lon === point.lon &&
+        previous.lat === point.lat &&
+        previous.height === point.height
+      ) {
+        continue;
+      }
+      points.push(point);
+    }
+  }
+  return points;
+}
+
+function perpendicularDistance(point, start, end) {
+  const x = point.lon;
+  const y = point.lat;
+  const x1 = start.lon;
+  const y1 = start.lat;
+  const x2 = end.lon;
+  const y2 = end.lat;
+  if (x1 === x2 && y1 === y2) {
+    const dx = x - x1;
+    const dy = y - y1;
+    return Math.hypot(dx, dy);
+  }
+  const numerator = Math.abs((y2 - y1) * x - (x2 - x1) * y + x2 * y1 - y2 * x1);
+  const denominator = Math.hypot(y2 - y1, x2 - x1);
+  return numerator / denominator;
+}
+
+function simplifyDouglasPeucker(points, epsilon) {
+  if (!Array.isArray(points) || points.length <= 2) return points.slice();
+  let maxDistance = 0;
+  let index = 0;
+  const start = points[0];
+  const end = points[points.length - 1];
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const distance = perpendicularDistance(points[i], start, end);
+    if (distance > maxDistance) {
+      index = i;
+      maxDistance = distance;
+    }
+  }
+  if (maxDistance <= epsilon) return [start, end];
+  const left = simplifyDouglasPeucker(points.slice(0, index + 1), epsilon);
+  const right = simplifyDouglasPeucker(points.slice(index), epsilon);
+  return [...left.slice(0, -1), ...right];
+}
+
+function simplifyRoutePoints(points = []) {
+  if (points.length <= 2) return points.slice();
+  const deduped = [points[0]];
+  for (let i = 1; i < points.length; i += 1) {
+    const current = points[i];
+    const previous = deduped[deduped.length - 1];
+    if (
+      !previous ||
+      distanceMeters(previous, current) >= 3 ||
+      i === points.length - 1
+    ) {
+      deduped.push(current);
+    }
+  }
+  if (deduped.length <= 2) return deduped;
+  return simplifyDouglasPeucker(deduped, 0.00003);
+}
+
 export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const panel = document.getElementById('scene-panel');
   const home = document.getElementById('markup-home');
@@ -234,51 +320,104 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const status = document.getElementById('markup-status');
   const hint = document.getElementById('markup-tool-hint');
   const newBtn = document.getElementById('markup-new-btn');
-  const newInlineForm = document.getElementById('markup-new-inline');
-  const newInlineName = document.getElementById('markup-new-name');
-  const newInlineDescription = document.getElementById('markup-new-description');
-  const newInlineCreateBtn = document.getElementById('markup-new-create-btn');
-  const newInlineCancelBtn = document.getElementById('markup-new-cancel-btn');
+  const importBtn = document.getElementById('markup-import-btn');
   const saveBtn = document.getElementById('markup-save-btn');
   const exitBtn = document.getElementById('markup-exit-btn');
   const undoBtn = document.getElementById('markup-undo-btn');
-  const importBtn = document.getElementById('markup-import-btn');
   const importFile = document.getElementById('markup-import-file');
-  const markerCard = document.getElementById('markup-marker-card');
-  const markerCardTitle = document.getElementById('markup-marker-card-title');
-  const markerCardBody = document.getElementById('markup-marker-card-body');
-  const markerEditBtn = document.getElementById('markup-marker-edit-btn');
-  const markerCloseBtn = document.getElementById('markup-marker-close-btn');
-  const markerMinBtn = document.getElementById('markup-marker-minimize-btn');
-  const markerCardBodyNode = document.getElementById('markup-marker-card-body');
-  const markerForm = document.getElementById('markup-marker-form');
-  const markerTitleInput = document.getElementById('markup-marker-title');
-  const markerCategorySelect = document.getElementById('markup-marker-category');
-  const markerCustomWrap = document.getElementById('markup-marker-custom-wrap');
-  const markerCustomInput = document.getElementById(
-    'markup-marker-custom-category',
-  );
-  const markerDescriptionInput = document.getElementById(
-    'markup-marker-description',
-  );
-  const markerNotesInput = document.getElementById('markup-marker-notes');
-  const markerCancelBtn = document.getElementById('markup-marker-cancel-btn');
-  const markerSubmitBtn = document.getElementById('markup-marker-submit-btn');
+  const routeModeRow = document.getElementById('markup-route-mode-row');
   const compactToggleBtn = document.getElementById('markup-compact-toggle-btn');
-  const compactBar = document.getElementById('markup-compact-bar');
-  const compactTitle = document.getElementById('markup-compact-title');
-  const compactDetail = document.getElementById('markup-compact-detail');
-  const compactUndoBtn = document.getElementById('markup-compact-undo-btn');
-  const compactFinishBtn = document.getElementById('markup-compact-finish-btn');
-  const compactExpandBtn = document.getElementById('markup-compact-expand-btn');
-  const compactCancelBtn = document.getElementById('markup-compact-cancel-btn');
-  const layoutMedia = globalThis.matchMedia?.(MOBILE_LAYOUT_MEDIA_QUERY) || null;
+  const mobileOverlay = document.getElementById('markup-mobile-overlay');
+  const activeControl = document.getElementById('markup-active-control');
+  const activeName = document.getElementById('markup-active-name');
+  const mobileDoneBtn = document.getElementById('markup-mobile-done-btn');
+  const mobileUndoBtn = document.getElementById('markup-mobile-undo-btn');
+  const drawingStatus = document.getElementById('markup-drawing-status');
+  const drawingStatusTitle = document.getElementById(
+    'markup-drawing-status-title',
+  );
+  const drawingStatusDetail = document.getElementById(
+    'markup-drawing-status-detail',
+  );
+  const statusUndoBtn = document.getElementById('markup-status-undo-btn');
+  const statusRedrawBtn = document.getElementById('markup-status-redraw-btn');
+  const statusFinishBtn = document.getElementById('markup-status-finish-btn');
+  const statusCancelBtn = document.getElementById('markup-status-cancel-btn');
+  const managerSheet = document.getElementById('markup-manager-sheet');
+  const managerCloseBtn = document.getElementById('markup-manager-close-btn');
+  const managerNewBtn = document.getElementById('markup-manager-new-btn');
+  const managerImportBtn = document.getElementById('markup-manager-import-btn');
+  const managerEmptyState = document.getElementById(
+    'markup-manager-empty-state',
+  );
+  const managerList = document.getElementById('markup-manager-list');
+  const metadataSheet = document.getElementById('markup-metadata-sheet');
+  const metadataSheetTitle = document.getElementById(
+    'markup-metadata-sheet-title',
+  );
+  const metadataNameInput = document.getElementById('markup-metadata-name');
+  const metadataDescriptionInput = document.getElementById(
+    'markup-metadata-description',
+  );
+  const metadataCancelBtn = document.getElementById(
+    'markup-metadata-cancel-btn',
+  );
+  const metadataSubmitBtn = document.getElementById(
+    'markup-metadata-submit-btn',
+  );
+  const objectSheet = document.getElementById('markup-object-sheet');
+  const objectSheetTitle = document.getElementById('markup-object-sheet-title');
+  const objectNameLabel = document.getElementById('markup-object-name-label');
+  const objectNameInput = document.getElementById('markup-object-name');
+  const objectCategoryLabel = document.getElementById(
+    'markup-object-category-label',
+  );
+  const objectCategorySelect = document.getElementById(
+    'markup-object-category',
+  );
+  const objectCustomWrap = document.getElementById('markup-object-custom-wrap');
+  const objectCustomInput = document.getElementById(
+    'markup-object-custom-category',
+  );
+  const objectDescriptionLabel = document.getElementById(
+    'markup-object-description-label',
+  );
+  const objectDescriptionInput = document.getElementById(
+    'markup-object-description',
+  );
+  const objectMoreBtn = document.getElementById('markup-object-more-btn');
+  const objectMoreFields = document.getElementById('markup-object-more-fields');
+  const objectNotesInput = document.getElementById('markup-object-notes');
+  const objectCancelBtn = document.getElementById('markup-object-cancel-btn');
+  const objectSubmitBtn = document.getElementById('markup-object-submit-btn');
+  const objectCard = document.getElementById('markup-object-card');
+  const objectCardTitle = document.getElementById('markup-object-card-title');
+  const objectCardSubtitle = document.getElementById(
+    'markup-object-card-subtitle',
+  );
+  const objectEditBtn = document.getElementById('markup-object-edit-btn');
+  const objectHideBtn = document.getElementById('markup-object-hide-btn');
+  const objectDeleteBtn = document.getElementById('markup-object-delete-btn');
+  const confirmSheet = document.getElementById('markup-confirm-sheet');
+  const confirmTitle = document.getElementById('markup-confirm-title');
+  const confirmMessage = document.getElementById('markup-confirm-message');
+  const confirmCancelBtn = document.getElementById('markup-confirm-cancel-btn');
+  const confirmSubmitBtn = document.getElementById('markup-confirm-submit-btn');
+  const layoutMedia =
+    globalThis.matchMedia?.(MOBILE_LAYOUT_MEDIA_QUERY) || null;
+  const body = document.body;
 
-  if (!viewer || !panel || !savedList || !newBtn) return null;
+  if (!viewer || !panel || !savedList || !managerList) return null;
 
   const toolButtons = [
     ...document.querySelectorAll('.markup-tool-btn[data-markup-tool]'),
   ];
+  const routeModeButtons = [
+    ...document.querySelectorAll('.markup-route-mode-btn[data-route-mode]'),
+  ];
+  const mobileRouteModeRow = document.getElementById(
+    'markup-mobile-route-mode-row',
+  );
   const dataSource = new Cesium.CustomDataSource('gev-markups');
   await viewer.dataSources.add(dataSource);
 
@@ -289,155 +428,194 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   let currentMarkupId = null;
   let editing = false;
   let activeTool = null;
+  let routeMode = 'free';
   let drawPoints = [];
+  let freeDrawSegments = [];
+  let currentFreeDrawSegment = null;
+  let isFreeDrawing = false;
   let circleCenter = null;
+  let circleRadiusMeters = 0;
   let lease = null;
   let editHandler = null;
   let savedSingleClick = null;
   let savedDoubleClick = null;
   let editKeyRemover = null;
-  let selectedMarkerObjectId = null;
-  let selectedMarkerMarkupId = null;
-  let pendingMarkerPoint = null;
-  let pendingMarkerEditTarget = null;
+  let isMobileLayout = Boolean(layoutMedia?.matches);
+  let pointPreviewEntity = null;
   let pathPreviewEntity = null;
   let polygonPreviewEntity = null;
-  let drawingVertexEntities = [];
-  let compactMode = false;
-  let isMobileLayout = Boolean(layoutMedia?.matches);
-  let creatingMarkup = false;
-  let panelClassObserver = null;
+  let circlePreviewEntity = null;
+  let panelObserver = null;
+  let bodyObserver = null;
+  let statusResetTimer = null;
+  let activeSheet = null;
+  let confirmAction = null;
+  let selectedObjectRef = null;
+  let pendingObjectContext = null;
+  let metadataMode = 'create';
+  let metadataTargetMarkupId = null;
+  let objectDetailsExpanded = false;
+  let cameraControlState = null;
   const undoStacks = new Map();
   const listeners = [];
 
-  const updateStatus = (text) => {
-    if (status) status.textContent = text;
-  };
+  function currentMarkup() {
+    return markups.find((entry) => entry.id === currentMarkupId) || null;
+  }
 
-  const drawingModeLabel = (tool) => {
-    if (tool === 'marker') return 'MARKER MODE';
-    if (tool === 'line') return 'LINE MODE';
-    if (tool === 'polygon') return 'AREA MODE';
-    if (tool === 'circle') return 'RADIUS MODE';
-    return 'DRAW MODE';
-  };
+  function currentUndoStack() {
+    if (!currentMarkupId) return [];
+    if (!undoStacks.has(currentMarkupId)) undoStacks.set(currentMarkupId, []);
+    return undoStacks.get(currentMarkupId);
+  }
 
-  const syncCompactToggle = () => {
-    if (!compactToggleBtn) return;
-    const canShow =
-      editing && isMobileLayout && !panel.classList.contains('collapsed');
-    compactToggleBtn.hidden = !canShow;
-    compactToggleBtn.textContent = compactMode ? '▴' : '▾';
-    compactToggleBtn.setAttribute(
-      'aria-label',
-      compactMode ? 'Expand drawing panel' : 'Collapse drawing panel',
-    );
-    compactToggleBtn.setAttribute(
-      'title',
-      compactMode ? 'Expand drawing panel' : 'Collapse drawing panel',
-    );
-    compactToggleBtn.setAttribute('aria-pressed', String(compactMode));
-  };
+  function emitLayerChange() {
+    document.dispatchEvent(new CustomEvent('gev:markup-layer-change'));
+  }
 
-  const syncCompactBar = () => {
-    if (!compactBar || !compactTitle || !compactDetail) return;
-    const show =
-      compactMode &&
-      editing &&
-      isMobileLayout &&
-      !panel.classList.contains('collapsed');
-    compactBar.hidden = !show;
-    panel.classList.toggle('markup-compact', show);
-    if (!show) {
-      syncCompactToggle();
-      return;
-    }
-    compactTitle.textContent = drawingModeLabel(activeTool);
-    if (activeTool === 'marker') {
-      compactDetail.textContent = 'Tap map to place';
-    } else if (activeTool === 'line' || activeTool === 'polygon') {
-      compactDetail.textContent = `${drawPoints.length} point${drawPoints.length === 1 ? '' : 's'}`;
-    } else if (activeTool === 'circle') {
-      compactDetail.textContent = circleCenter
-        ? 'Tap map to set radius'
-        : 'Tap map to set center';
-    } else {
-      compactDetail.textContent = 'Select a drawing tool';
-    }
-    const showUndo =
-      (activeTool === 'line' || activeTool === 'polygon') && drawPoints.length > 0;
-    const showFinish =
-      (activeTool === 'line' && drawPoints.length >= 2) ||
-      (activeTool === 'polygon' && drawPoints.length >= 3);
-    if (compactUndoBtn) compactUndoBtn.hidden = !showUndo;
-    if (compactFinishBtn) compactFinishBtn.hidden = !showFinish;
-    if (compactExpandBtn) compactExpandBtn.hidden = false;
-    if (compactCancelBtn) compactCancelBtn.hidden = !Boolean(activeTool);
-    syncCompactToggle();
-  };
-
-  const setCompactMode = (enabled, { force = false } = {}) => {
-    const next = Boolean(enabled);
-    if (!force && compactMode === next) {
-      syncCompactBar();
-      return;
-    }
-    compactMode = next;
-    syncCompactBar();
-  };
-
-  const requestRender = () => {
+  function requestRender() {
     try {
       viewer.scene.requestRender();
     } catch {
       /* ignored */
     }
-  };
+  }
 
-  const currentMarkup = () =>
-    markups.find((entry) => entry.id === currentMarkupId) || null;
-  const currentUndoStack = () => {
-    if (!currentMarkupId) return [];
-    if (!undoStacks.has(currentMarkupId)) undoStacks.set(currentMarkupId, []);
-    return undoStacks.get(currentMarkupId);
-  };
-
-  const emitLayerChange = () => {
-    document.dispatchEvent(new CustomEvent('gev:markup-layer-change'));
-  };
-
-  const saveMarkup = async (markup) => {
-    markup.updatedAt = nowIso();
-    if (db) await dbPut(db, markup);
-    const index = markups.findIndex((entry) => entry.id === markup.id);
-    if (index >= 0) markups[index] = structuredClone(markup);
-    else markups.push(structuredClone(markup));
-    emitLayerChange();
-  };
-
-  const removeMarkup = async (id) => {
-    if (db) await dbDelete(db, id);
-    markups = markups.filter((entry) => entry.id !== id);
-    undoStacks.delete(id);
-    emitLayerChange();
-  };
-
-  const refreshLayerPanel = () => {
+  function refreshLayerPanel() {
     try {
       window.__gevLayerPanelRefresh?.();
     } catch {
       /* ignored */
     }
-  };
+  }
 
-  const renderMap = () => {
+  function readSheet(name) {
+    if (name === 'manager') return managerSheet;
+    if (name === 'metadata') return metadataSheet;
+    if (name === 'object') return objectSheet;
+    if (name === 'confirm') return confirmSheet;
+    return null;
+  }
+
+  function updateStatus(text, { ephemeralMs = 0 } = {}) {
+    if (status) status.textContent = text;
+    if (hint && !activeTool && !editing) hint.textContent = text;
+    if (statusResetTimer) {
+      clearTimeout(statusResetTimer);
+      statusResetTimer = null;
+    }
+    if (ephemeralMs > 0) {
+      statusResetTimer = setTimeout(() => {
+        statusResetTimer = null;
+        syncStatusCopy();
+      }, ephemeralMs);
+    }
+  }
+
+  function showSavedFeedback(message = '✓ Saved') {
+    updateStatus(message, { ephemeralMs: 1800 });
+    try {
+      showToast(message);
+    } catch {
+      /* ignored */
+    }
+  }
+
+  function saveMarkup(markup) {
+    return (async () => {
+      markup.updatedAt = nowIso();
+      if (db) await dbPut(db, markup);
+      const index = markups.findIndex((entry) => entry.id === markup.id);
+      if (index >= 0) markups[index] = structuredClone(markup);
+      else markups.push(structuredClone(markup));
+      emitLayerChange();
+    })();
+  }
+
+  function removeMarkup(id) {
+    return (async () => {
+      if (db) await dbDelete(db, id);
+      markups = markups.filter((entry) => entry.id !== id);
+      undoStacks.delete(id);
+      emitLayerChange();
+    })();
+  }
+
+  function findMarkupObject(markupId, objectId) {
+    const markup = markups.find((entry) => entry.id === markupId);
+    const object = markup?.objects?.find((entry) => entry.id === objectId);
+    return { markup, object };
+  }
+
+  function populateSelectOptions(select, options) {
+    if (!select) return;
+    select.textContent = '';
+    for (const option of options) {
+      const node = document.createElement('option');
+      node.value = option;
+      node.textContent = option;
+      select.appendChild(node);
+    }
+  }
+
+  function syncObjectCustomField() {
+    if (!objectCustomWrap) return;
+    const isOther =
+      sanitizeText(objectCategorySelect?.value).toLowerCase() === 'other';
+    objectCustomWrap.hidden = !objectDetailsExpanded || !isOther;
+  }
+
+  function closeSheet(name) {
+    const sheet = readSheet(name);
+    if (sheet) sheet.hidden = true;
+    if (activeSheet === name) activeSheet = null;
+    if (name === 'manager')
+      activeControl?.setAttribute('aria-expanded', 'false');
+    if (name === 'metadata') {
+      metadataTargetMarkupId = null;
+      metadataMode = 'create';
+    }
+    if (name === 'object') {
+      pendingObjectContext = null;
+      objectDetailsExpanded = false;
+      if (objectMoreFields) objectMoreFields.hidden = true;
+      syncObjectCustomField();
+    }
+    if (name === 'confirm') confirmAction = null;
+  }
+
+  function closeAllSheets({ keep = null } = {}) {
+    for (const name of ['manager', 'metadata', 'object', 'confirm']) {
+      if (name === keep) continue;
+      closeSheet(name);
+    }
+  }
+
+  function openSheet(name) {
+    closeAllSheets({ keep: name });
+    const sheet = readSheet(name);
+    if (!sheet) return;
+    sheet.hidden = false;
+    activeSheet = name;
+    if (name === 'manager')
+      activeControl?.setAttribute('aria-expanded', 'true');
+  }
+
+  function syncActiveMarkupLabel() {
+    const markup = currentMarkup();
+    if (activeName) activeName.textContent = markup?.name || 'SELECT MARKUP';
+  }
+
+  function renderMap() {
     dataSource.entities.removeAll();
+    pointPreviewEntity = null;
     pathPreviewEntity = null;
     polygonPreviewEntity = null;
-    drawingVertexEntities = [];
+    circlePreviewEntity = null;
     for (const markup of markups) {
       if (markup.visible === false) continue;
       for (const object of markup.objects || []) {
+        if (object.visible === false) continue;
         if (!validateMarkupObject(object)) continue;
         const entityBase = {
           properties: {
@@ -445,6 +623,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
             gevMarkupObjectId: object.id,
             gevMarkupType: object.type,
             gevMarkupCategory: object.category,
+            gevMarkupVisible: object.visible !== false,
           },
         };
         if (object.type === 'marker') {
@@ -493,12 +672,13 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
           continue;
         }
         if (object.type === 'polygon') {
-          const points = object.geometry.points || [];
           dataSource.entities.add({
             ...entityBase,
             id: `markup-${markup.id}-${object.id}`,
             polygon: {
-              hierarchy: new Cesium.PolygonHierarchy(toCesiumPositions(points)),
+              hierarchy: new Cesium.PolygonHierarchy(
+                toCesiumPositions(object.geometry.points || []),
+              ),
               material: Cesium.Color.CYAN.withAlpha(0.2),
               outline: true,
               outlineColor: Cesium.Color.CYAN.withAlpha(0.9),
@@ -528,147 +708,23 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         }
       }
     }
-    if (
-      editing &&
-      (activeTool === 'line' || activeTool === 'polygon') &&
-      drawPoints.length
-    ) {
-      updateDrawPreview();
-    }
+    syncPreviewEntities();
     requestRender();
-  };
+  }
 
-  const setMarkerCard = (object, markupId) => {
-    if (!markerCard || !markerCardBody || !markerCardTitle) return;
-    if (!object) {
-      markerCard.hidden = true;
-      markerCard.classList.remove('is-minimized');
-      selectedMarkerMarkupId = null;
-      selectedMarkerObjectId = null;
-      return;
+  function previewRoutePoints() {
+    if (routeMode === 'points') return drawPoints.slice();
+    return flattenRouteSegments([
+      ...freeDrawSegments,
+      ...(currentFreeDrawSegment?.length ? [currentFreeDrawSegment] : []),
+    ]);
+  }
+
+  function clearPreviewEntities() {
+    if (pointPreviewEntity) {
+      dataSource.entities.remove(pointPreviewEntity);
+      pointPreviewEntity = null;
     }
-    selectedMarkerMarkupId = markupId;
-    selectedMarkerObjectId = object.id;
-    markerCard.hidden = false;
-    markerCard.classList.remove('is-minimized');
-    markerCardTitle.textContent = object.title || 'Untitled marker';
-    markerCardBody.innerHTML = '';
-    const rows = [
-      ['Category', object.category || 'Other'],
-      ['Description', object.description || '—'],
-      ['Notes', object.notes || '—'],
-    ];
-    for (const [label, value] of rows) {
-      const row = document.createElement('div');
-      row.className = 'markup-marker-row';
-      const key = document.createElement('strong');
-      key.textContent = `${label}: `;
-      const content = document.createElement('span');
-      content.textContent = value;
-      row.appendChild(key);
-      row.appendChild(content);
-      markerCardBody.appendChild(row);
-    }
-    markerEditBtn.hidden = !(
-      editing && selectedMarkerMarkupId === currentMarkupId
-    );
-  };
-
-  const selectedMarkerCategoryOption = () =>
-    sanitizeText(markerCategorySelect?.value || 'Other') || 'Other';
-
-  const syncMarkerCustomCategoryVisibility = () => {
-    const isOther =
-      selectedMarkerCategoryOption().toLowerCase() === 'other' ||
-      !DEFAULT_CATEGORIES.some(
-        (entry) =>
-          entry.toLowerCase() === selectedMarkerCategoryOption().toLowerCase(),
-      );
-    if (markerCustomWrap) markerCustomWrap.hidden = !isOther;
-  };
-
-  const hideMarkerForm = () => {
-    pendingMarkerPoint = null;
-    pendingMarkerEditTarget = null;
-    if (markerForm) markerForm.hidden = true;
-    if (markerCategorySelect) markerCategorySelect.value = 'Other';
-    if (markerCustomInput) markerCustomInput.value = '';
-    if (markerTitleInput) markerTitleInput.value = '';
-    if (markerDescriptionInput) markerDescriptionInput.value = '';
-    if (markerNotesInput) markerNotesInput.value = '';
-    if (markerSubmitBtn) markerSubmitBtn.textContent = 'ADD MARKER';
-    syncMarkerCustomCategoryVisibility();
-  };
-
-  const setNewMarkupFormVisible = (visible) => {
-    if (!newInlineForm) return;
-    newInlineForm.hidden = !visible;
-    if (newInlineCreateBtn) newInlineCreateBtn.disabled = false;
-    if (newInlineCancelBtn) newInlineCancelBtn.disabled = false;
-    if (newInlineName) newInlineName.disabled = false;
-    if (newInlineDescription) newInlineDescription.disabled = false;
-    creatingMarkup = false;
-    if (visible) {
-      if (newInlineName) newInlineName.value = '';
-      if (newInlineDescription) newInlineDescription.value = '';
-      newInlineName?.focus();
-      return;
-    }
-    if (newInlineName) newInlineName.value = '';
-    if (newInlineDescription) newInlineDescription.value = '';
-  };
-
-  const setNewMarkupSubmitting = (submitting) => {
-    creatingMarkup = Boolean(submitting);
-    if (newInlineCreateBtn) newInlineCreateBtn.disabled = creatingMarkup;
-    if (newInlineCancelBtn) newInlineCancelBtn.disabled = creatingMarkup;
-    if (newInlineName) newInlineName.disabled = creatingMarkup;
-    if (newInlineDescription) newInlineDescription.disabled = creatingMarkup;
-  };
-
-  const markerDetailsFromForm = () => {
-    const selectedCategory = selectedMarkerCategoryOption();
-    let category = normalizeCategory(selectedCategory);
-    if (selectedCategory.toLowerCase() === 'other') {
-      const customCategory = sanitizeText(markerCustomInput?.value);
-      if (customCategory) category = customCategory;
-    }
-    return {
-      title: sanitizeText(markerTitleInput?.value),
-      category,
-      description: sanitizeText(markerDescriptionInput?.value),
-      notes: sanitizeText(markerNotesInput?.value),
-    };
-  };
-
-  const showMarkerForm = ({
-    point = null,
-    seed = null,
-    submitLabel,
-    editTarget = null,
-  } = {}) => {
-    if (!markerForm) return;
-    setCompactMode(false);
-    pendingMarkerPoint = point || null;
-    pendingMarkerEditTarget = editTarget || null;
-    markerForm.hidden = false;
-    if (markerTitleInput) markerTitleInput.value = seed?.title || '';
-    const seedCategory = sanitizeText(seed?.category);
-    const knownCategory = DEFAULT_CATEGORIES.find(
-      (entry) => entry.toLowerCase() === seedCategory.toLowerCase(),
-    );
-    if (markerCategorySelect) markerCategorySelect.value = knownCategory || 'Other';
-    if (markerCustomInput)
-      markerCustomInput.value = knownCategory ? '' : seedCategory || '';
-    if (markerDescriptionInput)
-      markerDescriptionInput.value = seed?.description || '';
-    if (markerNotesInput) markerNotesInput.value = seed?.notes || '';
-    if (markerSubmitBtn) markerSubmitBtn.textContent = submitLabel || 'ADD MARKER';
-    syncMarkerCustomCategoryVisibility();
-    markerTitleInput?.focus();
-  };
-
-  const clearDrawingPreview = () => {
     if (pathPreviewEntity) {
       dataSource.entities.remove(pathPreviewEntity);
       pathPreviewEntity = null;
@@ -677,63 +733,78 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       dataSource.entities.remove(polygonPreviewEntity);
       polygonPreviewEntity = null;
     }
-    if (drawingVertexEntities.length) {
-      for (const entity of drawingVertexEntities) dataSource.entities.remove(entity);
-      drawingVertexEntities = [];
+    if (circlePreviewEntity) {
+      dataSource.entities.remove(circlePreviewEntity);
+      circlePreviewEntity = null;
     }
-  };
+  }
 
-  const updateDrawPreview = () => {
-    if (activeTool !== 'line' && activeTool !== 'polygon') {
-      clearDrawingPreview();
-      return;
-    }
-    if (!drawPoints.length) {
-      clearDrawingPreview();
-      return;
-    }
-    if (!pathPreviewEntity) {
-      pathPreviewEntity = dataSource.entities.add({
-        polyline: {
-          positions: new Cesium.CallbackProperty(
-            () => toCesiumPositions(drawPoints),
-            false,
-          ),
-          width: 4,
-          clampToGround: true,
-          material: Cesium.Color.CYAN.withAlpha(0.9),
-        },
-      });
-    }
-    if (drawingVertexEntities.length) {
-      for (const entity of drawingVertexEntities) dataSource.entities.remove(entity);
-      drawingVertexEntities = [];
-    }
-    for (const point of drawPoints) {
-      drawingVertexEntities.push(
-        dataSource.entities.add({
+  function syncPreviewEntities() {
+    clearPreviewEntities();
+    if (!editing) return;
+    if (activeTool === 'line') {
+      const points = previewRoutePoints();
+      if (points.length === 1) {
+        pointPreviewEntity = dataSource.entities.add({
           position: Cesium.Cartesian3.fromDegrees(
-            point.lon,
-            point.lat,
-            point.height || 0,
+            points[0].lon,
+            points[0].lat,
+            points[0].height || 0,
           ),
           point: {
-            pixelSize: 9,
-            color: Cesium.Color.fromCssColorString('#00d4ff').withAlpha(0.95),
+            pixelSize: 10,
+            color: Cesium.Color.CYAN.withAlpha(0.95),
             outlineColor: Cesium.Color.BLACK.withAlpha(0.75),
             outlineWidth: 2,
             disableDepthTestDistance: Number.POSITIVE_INFINITY,
           },
-        }),
-      );
+        });
+      }
+      if (points.length >= 2) {
+        pathPreviewEntity = dataSource.entities.add({
+          polyline: {
+            positions: toCesiumPositions(points),
+            width: 4,
+            clampToGround: true,
+            material: Cesium.Color.CYAN.withAlpha(0.9),
+          },
+        });
+      }
+      requestRender();
+      return;
     }
-    if (activeTool === 'polygon' && drawPoints.length >= 3) {
-      if (!polygonPreviewEntity) {
+    if (activeTool === 'polygon') {
+      if (drawPoints.length === 1) {
+        pointPreviewEntity = dataSource.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(
+            drawPoints[0].lon,
+            drawPoints[0].lat,
+            drawPoints[0].height || 0,
+          ),
+          point: {
+            pixelSize: 10,
+            color: Cesium.Color.CYAN.withAlpha(0.95),
+            outlineColor: Cesium.Color.BLACK.withAlpha(0.75),
+            outlineWidth: 2,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+        });
+      }
+      if (drawPoints.length >= 2) {
+        pathPreviewEntity = dataSource.entities.add({
+          polyline: {
+            positions: toCesiumPositions(drawPoints),
+            width: 4,
+            clampToGround: true,
+            material: Cesium.Color.CYAN.withAlpha(0.9),
+          },
+        });
+      }
+      if (drawPoints.length >= 3) {
         polygonPreviewEntity = dataSource.entities.add({
           polygon: {
-            hierarchy: new Cesium.CallbackProperty(
-              () => new Cesium.PolygonHierarchy(toCesiumPositions(drawPoints)),
-              false,
+            hierarchy: new Cesium.PolygonHierarchy(
+              toCesiumPositions(drawPoints),
             ),
             material: Cesium.Color.CYAN.withAlpha(0.26),
             outline: true,
@@ -742,177 +813,758 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
           },
         });
       }
-    } else if (polygonPreviewEntity) {
-      dataSource.entities.remove(polygonPreviewEntity);
-      polygonPreviewEntity = null;
-    }
-    requestRender();
-  };
-
-  const findMarkupObject = (markupId, objectId) => {
-    const markup = markups.find((entry) => entry.id === markupId);
-    const object = markup?.objects?.find((entry) => entry.id === objectId);
-    return { markup, object };
-  };
-
-  const onSelectedEntityChanged = () => {
-    const entity = viewer.selectedEntity;
-    const markupId = valueFromEntityProperty(entity, 'gevMarkupId');
-    const objectId = valueFromEntityProperty(entity, 'gevMarkupObjectId');
-    const type = valueFromEntityProperty(entity, 'gevMarkupType');
-    if (!markupId || !objectId || type !== 'marker') {
-      setMarkerCard(null);
+      requestRender();
       return;
     }
-    const { object } = findMarkupObject(markupId, objectId);
-    if (!object) {
-      setMarkerCard(null);
-      return;
+    if (activeTool === 'circle' && circleCenter) {
+      circlePreviewEntity = dataSource.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(
+          circleCenter.lon,
+          circleCenter.lat,
+          circleCenter.height || 0,
+        ),
+        ellipse: {
+          semiMinorAxis: Math.max(circleRadiusMeters, 1),
+          semiMajorAxis: Math.max(circleRadiusMeters, 1),
+          material: Cesium.Color.CYAN.withAlpha(0.14),
+          outline: true,
+          outlineColor: Cesium.Color.CYAN.withAlpha(0.92),
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        },
+      });
+      requestRender();
     }
-    setMarkerCard(object, markupId);
-  };
+  }
 
-  const selectTool = (tool) => {
-    activeTool = tool || null;
+  function clearTransientGeometry() {
     drawPoints = [];
+    freeDrawSegments = [];
+    currentFreeDrawSegment = null;
+    isFreeDrawing = false;
     circleCenter = null;
-    clearDrawingPreview();
-    if (activeTool !== 'marker') hideMarkerForm();
-    for (const button of toolButtons) {
-      const on = button.dataset.markupTool === activeTool;
+    circleRadiusMeters = 0;
+    restoreCameraControls();
+    syncPreviewEntities();
+  }
+
+  function syncRouteModeButtons() {
+    routeModeRow.hidden = activeTool !== 'line';
+    if (mobileRouteModeRow)
+      mobileRouteModeRow.hidden = !(isMobileLayout && activeTool === 'line');
+    for (const button of routeModeButtons) {
+      const on = button.dataset.routeMode === routeMode;
       button.classList.toggle('active', on);
       button.setAttribute('aria-pressed', String(on));
     }
-    hint.textContent = activeTool ? TOOL_HINTS[activeTool] : TOOL_HINTS.none;
-    if (isMobileLayout && DRAWING_TOOLS.has(activeTool)) setCompactMode(true);
-    else if (!DRAWING_TOOLS.has(activeTool)) setCompactMode(false);
-    else syncCompactBar();
-    bindEditingHandler();
-  };
+  }
 
-  const leaveEditMode = () => {
-    editing = false;
-    selectTool(null);
-    hideMarkerForm();
-    setNewMarkupFormVisible(false);
-    setCompactMode(false, { force: true });
-    clearDrawingPreview();
-    if (editor) editor.hidden = true;
-    if (home) home.hidden = false;
-    panel.classList.remove('markup-editing');
-    setMarkerCard(null);
-    renderSavedMarkups();
-  };
+  function isMobileMarkupPresentationActive() {
+    return (
+      isMobileLayout &&
+      body?.dataset?.mobilePanel === 'markup' &&
+      !panel.classList.contains('collapsed')
+    );
+  }
 
-  const setEditMode = (enabled) => {
+  function syncStatusCopy() {
+    const drawingLabel = activeTool ? DRAWING_LABELS[activeTool] : 'MARKUP';
+    if (hint) {
+      if (!editing) hint.textContent = 'Select a markup to begin.';
+      else if (!activeTool)
+        hint.textContent = 'Choose a tool and draw directly on the map.';
+      else if (activeTool === 'marker') hint.textContent = 'Tap map to place.';
+      else if (activeTool === 'polygon')
+        hint.textContent = 'Tap points to draw an area.';
+      else if (activeTool === 'circle')
+        hint.textContent = circleCenter
+          ? 'Drag or release to set radius.'
+          : 'Tap center, then drag to set radius.';
+      else if (activeTool === 'delete')
+        hint.textContent = 'Tap an object to delete it.';
+      else if (routeMode === 'free')
+        hint.textContent = 'Drag on the map to draw a route.';
+      else hint.textContent = 'Tap points to draw a route.';
+    }
+    if (!drawingStatus) return;
+    if (!editing || !isMobileMarkupPresentationActive()) {
+      drawingStatus.hidden = true;
+      return;
+    }
+    if (!activeTool) {
+      drawingStatus.hidden = true;
+      return;
+    }
+    drawingStatus.hidden = false;
+    if (drawingStatusTitle) drawingStatusTitle.textContent = drawingLabel;
+    let detail = '';
+    let showUndo = false;
+    let showRedraw = false;
+    let showFinish = false;
+    let showCancel = true;
+    if (activeTool === 'marker') {
+      detail = 'Tap map to place';
+    } else if (activeTool === 'polygon') {
+      detail = `Tap points to draw\n${drawPoints.length} point${drawPoints.length === 1 ? '' : 's'}`;
+      showUndo = drawPoints.length > 0;
+      showFinish = drawPoints.length >= 3;
+    } else if (activeTool === 'circle') {
+      detail = circleCenter
+        ? `Drag to set radius${circleRadiusMeters ? `\n${Math.round(circleRadiusMeters)} m` : ''}`
+        : 'Tap center, then drag';
+    } else if (activeTool === 'delete') {
+      detail = 'Tap object to delete';
+      showCancel = true;
+    } else if (routeMode === 'free') {
+      const count = previewRoutePoints().length;
+      detail = isFreeDrawing
+        ? 'Free Draw\nRelease to stop'
+        : count >= 2
+          ? 'Free Draw\nRoute ready'
+          : 'Free Draw\nDrag on map';
+      showUndo = freeDrawSegments.length > 0;
+      showRedraw = count > 0;
+      showFinish = count >= 2 && !isFreeDrawing;
+    } else {
+      detail = `Points\n${drawPoints.length} point${drawPoints.length === 1 ? '' : 's'}`;
+      showUndo = drawPoints.length > 0;
+      showFinish = drawPoints.length >= 2;
+    }
+    if (drawingStatusDetail) drawingStatusDetail.textContent = detail;
+    if (statusUndoBtn) statusUndoBtn.hidden = !showUndo;
+    if (statusRedrawBtn) statusRedrawBtn.hidden = !showRedraw;
+    if (statusFinishBtn) statusFinishBtn.hidden = !showFinish;
+    if (statusCancelBtn) statusCancelBtn.hidden = !showCancel;
+    syncRouteModeButtons();
+  }
+
+  function syncMobilePresentation() {
+    const mobileMode = Boolean(editing && isMobileMarkupPresentationActive());
+    panel.classList.toggle('markup-mobile-mode', mobileMode);
+    if (mobileOverlay) mobileOverlay.hidden = !mobileMode;
+    if (compactToggleBtn) compactToggleBtn.hidden = true;
+    syncStatusCopy();
+  }
+
+  function hideObjectCard() {
+    selectedObjectRef = null;
+    if (objectCard) objectCard.hidden = true;
+  }
+
+  function setObjectCard(markupId, objectId) {
+    const { markup, object } = findMarkupObject(markupId, objectId);
+    if (!markup || !object || !objectCard) {
+      hideObjectCard();
+      return;
+    }
+    selectedObjectRef = { markupId, objectId };
+    objectCard.hidden = false;
+    if (objectCardTitle) {
+      objectCardTitle.textContent =
+        object.title ||
+        object.category ||
+        DRAWING_LABELS[object.type] ||
+        'Object';
+    }
+    if (objectCardSubtitle) {
+      objectCardSubtitle.textContent =
+        object.category || object.type || 'Markup object';
+    }
+    if (objectHideBtn) {
+      objectHideBtn.textContent = object.visible === false ? 'SHOW' : 'HIDE';
+    }
+  }
+
+  function setEditingState(enabled) {
     editing = Boolean(enabled);
     panel.classList.toggle('markup-editing', editing);
     if (editor) editor.hidden = !editing;
     if (home) home.hidden = editing;
     if (!editing) {
-      selectTool(null);
-      hideMarkerForm();
-      setCompactMode(false, { force: true });
-      clearDrawingPreview();
+      closeAllSheets();
+      hideObjectCard();
+      clearTransientGeometry();
+      activeTool = null;
+      viewer.selectedEntity = null;
     }
-    markerEditBtn.hidden = !editing;
-    syncCompactToggle();
-    syncCompactBar();
-  };
+    syncToolButtons();
+    syncRouteModeButtons();
+    syncActiveMarkupLabel();
+    syncMobilePresentation();
+  }
 
-  async function addObjectToCurrent(object, message = 'Markup object added.') {
-    const markup = currentMarkup();
-    if (!markup) return;
+  function syncToolButtons() {
+    for (const button of toolButtons) {
+      const on = button.dataset.markupTool === activeTool;
+      button.classList.toggle('active', on);
+      button.setAttribute('aria-pressed', String(on));
+    }
+  }
+
+  function withCameraController(callback) {
+    const controller = viewer?.scene?.screenSpaceCameraController;
+    if (!controller) return;
+    callback(controller);
+  }
+
+  function lockCameraControls() {
+    if (cameraControlState) return;
+    withCameraController((controller) => {
+      cameraControlState = {
+        enableTranslate: controller.enableTranslate,
+        enableRotate: controller.enableRotate,
+        enableTilt: controller.enableTilt,
+        enableLook: controller.enableLook,
+        enableZoom: controller.enableZoom,
+      };
+      controller.enableTranslate = false;
+      controller.enableRotate = false;
+      controller.enableTilt = false;
+      controller.enableLook = false;
+      controller.enableZoom = false;
+    });
+  }
+
+  function restoreCameraControls() {
+    if (!cameraControlState) return;
+    withCameraController((controller) => {
+      controller.enableTranslate = cameraControlState.enableTranslate;
+      controller.enableRotate = cameraControlState.enableRotate;
+      controller.enableTilt = cameraControlState.enableTilt;
+      controller.enableLook = cameraControlState.enableLook;
+      controller.enableZoom = cameraControlState.enableZoom;
+    });
+    cameraControlState = null;
+  }
+
+  function syncLayersApi() {
+    window.__gevMarkupsLayerApi = {
+      list: () =>
+        markups.map((markup) => ({
+          id: markup.id,
+          name: markup.name,
+          visible: markup.visible !== false,
+        })),
+      setVisible: async (markupId, visible) => {
+        const markup = markups.find((entry) => entry.id === markupId);
+        if (!markup) return false;
+        markup.visible = Boolean(visible);
+        await saveMarkup(markup);
+        renderMap();
+        renderSavedMarkups();
+        refreshLayerPanel();
+        showSavedFeedback();
+        return true;
+      },
+      subscribe: (listener) => {
+        if (typeof listener !== 'function') return () => {};
+        const handler = () => listener();
+        document.addEventListener('gev:markup-layer-change', handler);
+        return () =>
+          document.removeEventListener('gev:markup-layer-change', handler);
+      },
+    };
+  }
+
+  async function addObjectToMarkup(markupId, object, message = '✓ Saved') {
+    const markup = markups.find((entry) => entry.id === markupId);
+    if (!markup) return false;
     markup.objects.push(object);
-    currentUndoStack().push({ type: 'add', object: structuredClone(object) });
+    if (!undoStacks.has(markup.id)) undoStacks.set(markup.id, []);
+    undoStacks
+      .get(markup.id)
+      .push({ type: 'add', object: structuredClone(object) });
     await saveMarkup(markup);
     renderMap();
     renderSavedMarkups();
-    updateStatus(message);
+    refreshLayerPanel();
+    showSavedFeedback(message);
+    return true;
   }
 
-  async function removeObjectFromCurrent(
+  async function updateObject(
+    markupId,
     objectId,
-    message = 'Markup object removed.',
+    updater,
+    message = '✓ Saved',
   ) {
-    const markup = currentMarkup();
-    if (!markup) return;
-    const index = markup.objects.findIndex((entry) => entry.id === objectId);
-    if (index < 0) return;
-    const [removed] = markup.objects.splice(index, 1);
-    currentUndoStack().push({
-      type: 'remove',
-      object: structuredClone(removed),
+    const { markup, object } = findMarkupObject(markupId, objectId);
+    if (!markup || !object) return false;
+    const before = structuredClone(object);
+    updater(object);
+    object.updatedAt = nowIso();
+    if (!undoStacks.has(markup.id)) undoStacks.set(markup.id, []);
+    undoStacks.get(markup.id).push({
+      type: 'update',
+      objectId,
+      before,
+      after: structuredClone(object),
     });
     await saveMarkup(markup);
     renderMap();
     renderSavedMarkups();
-    if (selectedMarkerObjectId === objectId) setMarkerCard(null);
-    updateStatus(message);
+    refreshLayerPanel();
+    showSavedFeedback(message);
+    return true;
   }
 
-  const cancelActiveDrawing = () => {
-    drawPoints = [];
-    circleCenter = null;
-    clearDrawingPreview();
-    if (activeTool === 'marker') hideMarkerForm();
-    selectTool(null);
-    setCompactMode(false);
-    updateStatus('Drawing cancelled.');
-  };
+  async function removeObjectFromMarkup(
+    markupId,
+    objectId,
+    message = '✓ Saved',
+  ) {
+    const markup = markups.find((entry) => entry.id === markupId);
+    if (!markup) return false;
+    const index = markup.objects.findIndex((entry) => entry.id === objectId);
+    if (index < 0) return false;
+    const [removed] = markup.objects.splice(index, 1);
+    if (!undoStacks.has(markup.id)) undoStacks.set(markup.id, []);
+    undoStacks.get(markup.id).push({
+      type: 'remove',
+      object: structuredClone(removed),
+    });
+    await saveMarkup(markup);
+    if (selectedObjectRef?.objectId === objectId) hideObjectCard();
+    renderMap();
+    renderSavedMarkups();
+    refreshLayerPanel();
+    showSavedFeedback(message);
+    return true;
+  }
 
-  const undoDrawingPoint = () => {
-    if (activeTool === 'line' || activeTool === 'polygon') {
+  function markupRow(markup, { forManager = false } = {}) {
+    const row = document.createElement('div');
+    row.className = 'markup-row';
+    row.dataset.markupId = markup.id;
+
+    const top = document.createElement('div');
+    top.className = 'markup-row-top';
+    row.appendChild(top);
+
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'markup-row-title-wrap';
+    top.appendChild(titleWrap);
+
+    const title = document.createElement('div');
+    title.className = 'markup-row-title';
+    title.textContent = markup.name;
+    titleWrap.appendChild(title);
+
+    if (markup.id === currentMarkupId) {
+      const badge = document.createElement('div');
+      badge.className = 'markup-row-badge';
+      badge.textContent = 'ACTIVE';
+      titleWrap.appendChild(badge);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'markup-row-actions';
+    top.appendChild(actions);
+
+    const useBtn = document.createElement('button');
+    useBtn.type = 'button';
+    useBtn.className = 'scene-btn';
+    useBtn.dataset.action = 'use';
+    useBtn.dataset.markupId = markup.id;
+    useBtn.textContent = markup.id === currentMarkupId ? 'OPEN' : 'USE';
+    actions.appendChild(useBtn);
+
+    const visibilityBtn = document.createElement('button');
+    visibilityBtn.type = 'button';
+    visibilityBtn.className = `scene-btn ${markup.visible !== false ? 'active' : ''}`;
+    visibilityBtn.dataset.action = 'toggle-visibility';
+    visibilityBtn.dataset.markupId = markup.id;
+    visibilityBtn.textContent = markup.visible !== false ? 'VISIBLE' : 'HIDDEN';
+    actions.appendChild(visibilityBtn);
+
+    const renameBtn = document.createElement('button');
+    renameBtn.type = 'button';
+    renameBtn.className = 'scene-btn';
+    renameBtn.dataset.action = 'rename';
+    renameBtn.dataset.markupId = markup.id;
+    renameBtn.textContent = 'RENAME';
+    actions.appendChild(renameBtn);
+
+    const exportBtn = document.createElement('button');
+    exportBtn.type = 'button';
+    exportBtn.className = 'scene-btn';
+    exportBtn.dataset.action = 'export';
+    exportBtn.dataset.markupId = markup.id;
+    exportBtn.textContent = 'EXPORT';
+    actions.appendChild(exportBtn);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'scene-btn scene-btn-danger';
+    deleteBtn.dataset.action = 'delete';
+    deleteBtn.dataset.markupId = markup.id;
+    deleteBtn.textContent = 'DELETE';
+    actions.appendChild(deleteBtn);
+
+    if (markup.description) {
+      const description = document.createElement('div');
+      description.className = 'markup-row-description';
+      description.textContent = markup.description;
+      row.appendChild(description);
+    }
+
+    if (forManager) row.classList.add('markup-manager-row');
+    return row;
+  }
+
+  function renderSavedMarkups() {
+    const sorted = markups.slice().sort((a, b) => a.name.localeCompare(b.name));
+    savedList.textContent = '';
+    managerList.textContent = '';
+    if (emptyState) emptyState.hidden = sorted.length > 0;
+    if (managerEmptyState) managerEmptyState.hidden = sorted.length > 0;
+    for (const markup of sorted) {
+      savedList.appendChild(markupRow(markup));
+      managerList.appendChild(markupRow(markup, { forManager: true }));
+    }
+    syncActiveMarkupLabel();
+  }
+
+  function activeMarkupFallback() {
+    if (currentMarkupId && currentMarkup()) return currentMarkupId;
+    const candidate =
+      markups.find((entry) => entry.visible !== false) || markups[0];
+    return candidate?.id || null;
+  }
+
+  function enterMarkupMode({ markupId = null, openCreateIfEmpty = true } = {}) {
+    currentMarkupId = markupId || activeMarkupFallback();
+    setEditingState(true);
+    renderSavedMarkups();
+    renderMap();
+    if (!currentMarkupId && openCreateIfEmpty) {
+      if (markups.length) {
+        openSheet('manager');
+      } else {
+        openMarkupMetadataSheet({ mode: 'create' });
+      }
+    }
+    updateStatus(
+      currentMarkupId
+        ? `Editing ${currentMarkup()?.name || 'markup'}`
+        : 'Create a markup to begin.',
+    );
+  }
+
+  function leaveMarkupMode({ collapseMobilePanel = false } = {}) {
+    setEditingState(false);
+    if (
+      collapseMobilePanel &&
+      isMobileLayout &&
+      !panel.classList.contains('collapsed')
+    ) {
+      const collapseButton = panel.querySelector(
+        '.panel-collapse-btn[data-collapse-target="scene-panel"]',
+      );
+      collapseButton?.click();
+    }
+    syncStatusCopy();
+  }
+
+  function pickMarkupObject(position) {
+    const pick = viewer.scene.pick(position);
+    const markupId = valueFromEntityProperty(pick?.id, 'gevMarkupId');
+    const objectId = valueFromEntityProperty(pick?.id, 'gevMarkupObjectId');
+    if (!markupId || !objectId) return null;
+    const found = findMarkupObject(markupId, objectId);
+    if (!found.markup || !found.object) return null;
+    return {
+      markupId,
+      objectId,
+      markup: found.markup,
+      object: found.object,
+    };
+  }
+
+  function objectSheetOptions(kind) {
+    if (kind === 'line') {
+      return {
+        title: 'NEW ROUTE',
+        submit: 'ADD ROUTE',
+        categoryLabel: 'Type',
+        options: ROUTE_TYPE_OPTIONS,
+      };
+    }
+    if (kind === 'polygon') {
+      return {
+        title: 'NEW AREA',
+        submit: 'ADD AREA',
+        categoryLabel: 'Category',
+        options: DEFAULT_CATEGORIES,
+      };
+    }
+    if (kind === 'circle') {
+      return {
+        title: 'NEW RADIUS',
+        submit: 'ADD RADIUS',
+        categoryLabel: 'Category',
+        options: DEFAULT_CATEGORIES,
+      };
+    }
+    return {
+      title: 'NEW MARKER',
+      submit: 'ADD MARKER',
+      categoryLabel: 'Category',
+      options: DEFAULT_CATEGORIES,
+    };
+  }
+
+  function openMarkupMetadataSheet({ mode, markupId = null } = {}) {
+    const markup = markupId
+      ? markups.find((entry) => entry.id === markupId)
+      : null;
+    metadataMode = mode === 'edit' ? 'edit' : 'create';
+    metadataTargetMarkupId = markup?.id || null;
+    metadataSheetTitle.textContent =
+      metadataMode === 'edit' ? 'EDIT MARKUP' : 'NEW MARKUP';
+    metadataSubmitBtn.textContent = metadataMode === 'edit' ? 'SAVE' : 'CREATE';
+    metadataNameInput.value = markup?.name || '';
+    metadataDescriptionInput.value = markup?.description || '';
+    openSheet('metadata');
+    metadataNameInput.focus();
+  }
+
+  function openObjectSheet({
+    mode = 'create',
+    kind,
+    geometry = null,
+    markupId = null,
+    objectId = null,
+  } = {}) {
+    const config = objectSheetOptions(kind);
+    const seed =
+      mode === 'edit' && markupId && objectId
+        ? findMarkupObject(markupId, objectId).object
+        : null;
+    pendingObjectContext = {
+      mode,
+      kind,
+      geometry,
+      markupId,
+      objectId,
+    };
+    objectDetailsExpanded = Boolean(seed?.notes);
+    objectSheetTitle.textContent =
+      mode === 'edit' ? config.title.replace('NEW ', 'EDIT ') : config.title;
+    objectSubmitBtn.textContent =
+      mode === 'edit' ? config.submit.replace('ADD ', 'SAVE ') : config.submit;
+    objectNameLabel.textContent =
+      kind === 'polygon' || kind === 'line' || kind === 'circle'
+        ? 'Name *'
+        : 'Title *';
+    objectCategoryLabel.textContent = config.categoryLabel;
+    objectDescriptionLabel.textContent = 'Description';
+    populateSelectOptions(objectCategorySelect, config.options);
+    objectNameInput.value = seed?.title || '';
+    const normalizedCategory = normalizeCategory(
+      seed?.category,
+      config.options,
+    );
+    objectCategorySelect.value = normalizedCategory;
+    if (
+      !config.options.some(
+        (entry) => entry.toLowerCase() === normalizedCategory.toLowerCase(),
+      )
+    ) {
+      objectCategorySelect.value = 'Other';
+    }
+    objectCustomInput.value =
+      objectCategorySelect.value === 'Other' ? seed?.category || '' : '';
+    objectDescriptionInput.value = seed?.description || '';
+    objectNotesInput.value = seed?.notes || '';
+    objectMoreFields.hidden = !objectDetailsExpanded;
+    objectMoreBtn.textContent = objectDetailsExpanded
+      ? 'LESS DETAILS'
+      : 'MORE DETAILS';
+    syncObjectCustomField();
+    openSheet('object');
+    objectNameInput.focus();
+  }
+
+  function clearPendingObjectDraft() {
+    pendingObjectContext = null;
+    objectDetailsExpanded = false;
+    if (objectMoreFields) objectMoreFields.hidden = true;
+    syncObjectCustomField();
+  }
+
+  function showConfirm({
+    title,
+    message,
+    confirmLabel = 'DELETE',
+    confirmClassName = 'scene-btn scene-btn-danger',
+    onConfirm,
+  }) {
+    confirmTitle.textContent = title;
+    confirmMessage.textContent = message;
+    confirmSubmitBtn.textContent = confirmLabel;
+    confirmSubmitBtn.className = confirmClassName;
+    confirmAction = onConfirm;
+    openSheet('confirm');
+  }
+
+  function syncSelectedEntityCard() {
+    if (!editing || activeTool) {
+      hideObjectCard();
+      return;
+    }
+    const entity = viewer.selectedEntity;
+    const markupId = valueFromEntityProperty(entity, 'gevMarkupId');
+    const objectId = valueFromEntityProperty(entity, 'gevMarkupObjectId');
+    if (!markupId || !objectId) {
+      hideObjectCard();
+      return;
+    }
+    currentMarkupId = markupId;
+    syncActiveMarkupLabel();
+    setObjectCard(markupId, objectId);
+  }
+
+  function selectTool(tool) {
+    activeTool = tool || null;
+    clearTransientGeometry();
+    closeAllSheets();
+    hideObjectCard();
+    syncToolButtons();
+    syncRouteModeButtons();
+    syncStatusCopy();
+    bindEditingHandler();
+  }
+
+  function worldAt(position) {
+    const canvas = viewer.scene.canvas;
+    const width = canvas.clientWidth || canvas.width || 1;
+    const height = canvas.clientHeight || canvas.height || 1;
+    return pickWorldFromScreen(viewer, position.x / width, position.y / height);
+  }
+
+  function beginFreeDraw(coordinate) {
+    if (!coordinate) return;
+    isFreeDrawing = true;
+    currentFreeDrawSegment = [coordinate];
+    lockCameraControls();
+    syncPreviewEntities();
+    syncStatusCopy();
+  }
+
+  function pushFreeDrawPoint(coordinate) {
+    if (!isFreeDrawing || !coordinate) return;
+    const segment = currentFreeDrawSegment || [];
+    const previous = segment[segment.length - 1];
+    if (previous && distanceMeters(previous, coordinate) < 4) return;
+    segment.push(coordinate);
+    currentFreeDrawSegment = segment;
+    syncPreviewEntities();
+  }
+
+  function finishFreeDrawSegment() {
+    if (!isFreeDrawing) return;
+    isFreeDrawing = false;
+    restoreCameraControls();
+    if (currentFreeDrawSegment?.length >= 2) {
+      freeDrawSegments.push(simplifyRoutePoints(currentFreeDrawSegment));
+    }
+    currentFreeDrawSegment = null;
+    syncPreviewEntities();
+    syncStatusCopy();
+  }
+
+  function finishRoutePoints() {
+    if (routeMode === 'free') {
+      const points = simplifyRoutePoints(previewRoutePoints());
+      if (points.length < 2) return false;
+      openObjectSheet({
+        mode: 'create',
+        kind: 'line',
+        geometry: { points },
+        markupId: currentMarkupId,
+      });
+      return true;
+    }
+    if (drawPoints.length < 2) return false;
+    openObjectSheet({
+      mode: 'create',
+      kind: 'line',
+      geometry: { points: structuredClone(drawPoints) },
+      markupId: currentMarkupId,
+    });
+    return true;
+  }
+
+  function finishPolygon() {
+    if (drawPoints.length < 3) return false;
+    openObjectSheet({
+      mode: 'create',
+      kind: 'polygon',
+      geometry: { points: structuredClone(drawPoints) },
+      markupId: currentMarkupId,
+    });
+    return true;
+  }
+
+  function cancelDrawing({ clearTool = true } = {}) {
+    clearTransientGeometry();
+    if (clearTool) activeTool = null;
+    syncToolButtons();
+    syncStatusCopy();
+    bindEditingHandler();
+    updateStatus('Drawing cancelled.');
+  }
+
+  function redrawRoute() {
+    clearTransientGeometry();
+    syncStatusCopy();
+    updateStatus('Route cleared.');
+  }
+
+  function undoDrawingPoint() {
+    if (activeTool === 'line') {
+      if (routeMode === 'free') {
+        if (isFreeDrawing) {
+          if (currentFreeDrawSegment?.length > 1) currentFreeDrawSegment.pop();
+          else currentFreeDrawSegment = [];
+        } else {
+          freeDrawSegments.pop();
+        }
+        syncPreviewEntities();
+        syncStatusCopy();
+        updateStatus('Removed last drawing step.');
+        return;
+      }
       if (!drawPoints.length) return;
       drawPoints.pop();
-      updateDrawPreview();
-      hint.textContent = `${TOOL_HINTS[activeTool]} (${drawPoints.length} point${drawPoints.length === 1 ? '' : 's'})`;
-      syncCompactBar();
+      syncPreviewEntities();
+      syncStatusCopy();
+      updateStatus('Removed last drawing step.');
+      return;
+    }
+    if (activeTool === 'polygon') {
+      if (!drawPoints.length) return;
+      drawPoints.pop();
+      syncPreviewEntities();
+      syncStatusCopy();
+      updateStatus('Removed last drawing step.');
       return;
     }
     if (activeTool === 'circle' && circleCenter) {
       circleCenter = null;
-      hint.textContent = TOOL_HINTS.circle;
-      syncCompactBar();
+      circleRadiusMeters = 0;
+      syncPreviewEntities();
+      syncStatusCopy();
+      updateStatus('Removed last drawing step.');
     }
-  };
+  }
 
-  const finishActivePath = async () => {
+  async function finishActiveGeometry() {
     if (!editing || !activeTool) return false;
-    let saved = false;
-    if (activeTool === 'line' && drawPoints.length >= 2) {
-      const object = ensureMarkupObject({
-        id: uuid(),
-        type: 'line',
-        category: 'Other',
-        title: 'Line',
-        geometry: { points: structuredClone(drawPoints) },
-      });
-      if (object) {
-        await addObjectToCurrent(object, 'Line saved to markup.');
-        saved = true;
-      }
-    }
-    if (activeTool === 'polygon' && drawPoints.length >= 3) {
-      const object = ensureMarkupObject({
-        id: uuid(),
-        type: 'polygon',
-        category: 'Other',
-        title: 'Area',
-        geometry: { points: structuredClone(drawPoints) },
-      });
-      if (object) {
-        await addObjectToCurrent(object, 'Area saved to markup.');
-        saved = true;
-      }
-    }
-    drawPoints = [];
-    clearDrawingPreview();
-    hint.textContent = TOOL_HINTS[activeTool] || TOOL_HINTS.none;
-    if (saved) setCompactMode(false);
-    else syncCompactBar();
-    return saved;
-  };
+    if (activeTool === 'line') return finishRoutePoints();
+    if (activeTool === 'polygon') return finishPolygon();
+    return false;
+  }
 
   function bindEditingHandler() {
     if (editHandler) {
@@ -939,11 +1591,15 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       releasePointer(lease);
       lease = null;
     }
+    restoreCameraControls();
     if (!editing || !activeTool) return;
+    if (isMobileLayout && !isMobileMarkupPresentationActive()) return;
     lease = claimPointer(MARKUP_POINTER_OWNER);
     if (!lease) {
       updateStatus(`${pointerOwner()} is using the pointer — close it first.`);
       activeTool = null;
+      syncToolButtons();
+      syncStatusCopy();
       return;
     }
     const stock = viewer.screenSpaceEventHandler;
@@ -955,332 +1611,182 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     stock.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
     stock.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
-    const worldAt = (position) => {
-      const canvas = viewer.scene.canvas;
-      const width = canvas.clientWidth || canvas.width || 1;
-      const height = canvas.clientHeight || canvas.height || 1;
-      return pickWorldFromScreen(
-        viewer,
-        position.x / width,
-        position.y / height,
-      );
-    };
-
     editHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
     editHandler.setInputAction(async (event) => {
-      if (markerForm && !markerForm.hidden) return;
+      if (activeSheet === 'object') return;
       const world = worldAt(event.position);
-      if (!world) return;
       const coordinate = coordFromWorld(world);
-      if (!coordinate) return;
       if (activeTool === 'marker') {
-        showMarkerForm({ point: coordinate, submitLabel: 'ADD MARKER' });
-        updateStatus('Enter marker details, then add or cancel.');
-        return;
-      }
-      if (activeTool === 'line' || activeTool === 'polygon') {
-        drawPoints.push(coordinate);
-        updateDrawPreview();
-        hint.textContent = `${TOOL_HINTS[activeTool]} (${drawPoints.length} point${drawPoints.length === 1 ? '' : 's'})`;
-        syncCompactBar();
-        return;
-      }
-      if (activeTool === 'circle') {
-        if (!circleCenter) {
-          circleCenter = coordinate;
-          hint.textContent = 'Tap again to set radius.';
-          syncCompactBar();
-          return;
-        }
-        const radiusMeters = Math.max(
-          1,
-          distanceMeters(circleCenter, coordinate),
-        );
-        const object = ensureMarkupObject({
-          id: uuid(),
-          type: 'circle',
-          category: 'Other',
-          title: 'Radius',
-          geometry: { center: circleCenter, radiusMeters },
+        if (!coordinate || !currentMarkupId) return;
+        openObjectSheet({
+          mode: 'create',
+          kind: 'marker',
+          geometry: { position: coordinate },
+          markupId: currentMarkupId,
         });
-        circleCenter = null;
-        hint.textContent = TOOL_HINTS.circle;
-        if (object) {
-          await addObjectToCurrent(object, 'Radius saved to markup.');
-          setCompactMode(false);
-        } else {
-          syncCompactBar();
-        }
+        return;
+      }
+      if (activeTool === 'line' && routeMode === 'points') {
+        if (!coordinate) return;
+        drawPoints.push(coordinate);
+        syncPreviewEntities();
+        syncStatusCopy();
+        return;
+      }
+      if (activeTool === 'polygon') {
+        if (!coordinate) return;
+        drawPoints.push(coordinate);
+        syncPreviewEntities();
+        syncStatusCopy();
         return;
       }
       if (activeTool === 'delete') {
-        const pick = viewer.scene.pick(event.position);
-        const markupId = valueFromEntityProperty(pick?.id, 'gevMarkupId');
-        const objectId = valueFromEntityProperty(pick?.id, 'gevMarkupObjectId');
-        if (!markupId || !objectId || markupId !== currentMarkupId) return;
-        await removeObjectFromCurrent(objectId);
+        const found = pickMarkupObject(event.position);
+        if (!found) return;
+        if (found.markupId !== currentMarkupId) {
+          updateStatus(
+            'Delete mode only removes objects from the active markup.',
+          );
+          return;
+        }
+        showConfirm({
+          title: `Delete "${found.object.title || found.object.category || 'markup object'}"?`,
+          message: 'This object will be removed from the active markup.',
+          onConfirm: async () => {
+            await removeObjectFromMarkup(found.markupId, found.objectId);
+            viewer.selectedEntity = null;
+          },
+        });
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
     editHandler.setInputAction(async () => {
-      if (activeTool === 'line' || activeTool === 'polygon')
-        await finishActivePath();
+      if (activeTool === 'line' && routeMode === 'points') {
+        await finishActiveGeometry();
+      }
+      if (activeTool === 'polygon') await finishActiveGeometry();
     }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
+    editHandler.setInputAction((event) => {
+      const world = worldAt(event.position);
+      const coordinate = coordFromWorld(world);
+      if (activeTool === 'line' && routeMode === 'free') {
+        if (!coordinate) return;
+        beginFreeDraw(coordinate);
+        return;
+      }
+      if (activeTool === 'circle') {
+        if (!coordinate) return;
+        circleCenter = coordinate;
+        circleRadiusMeters = 1;
+        lockCameraControls();
+        syncPreviewEntities();
+        syncStatusCopy();
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+
+    editHandler.setInputAction((event) => {
+      const coordinate = coordFromWorld(worldAt(event.endPosition));
+      if (activeTool === 'line' && routeMode === 'free') {
+        pushFreeDrawPoint(coordinate);
+        return;
+      }
+      if (activeTool === 'circle' && circleCenter && coordinate) {
+        circleRadiusMeters = Math.max(
+          1,
+          distanceMeters(circleCenter, coordinate),
+        );
+        syncPreviewEntities();
+        syncStatusCopy();
+      }
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+    editHandler.setInputAction(() => {
+      if (activeTool === 'line' && routeMode === 'free') {
+        finishFreeDrawSegment();
+        return;
+      }
+      if (activeTool === 'circle' && circleCenter) {
+        restoreCameraControls();
+        if (circleRadiusMeters > 0) {
+          openObjectSheet({
+            mode: 'create',
+            kind: 'circle',
+            geometry: {
+              center: structuredClone(circleCenter),
+              radiusMeters: Math.max(circleRadiusMeters, 1),
+            },
+            markupId: currentMarkupId,
+          });
+        }
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_UP);
+
     const onKey = async (event) => {
-      if (!editing || !activeTool) return;
+      if (!editing) return;
       if (event.key === 'Escape') {
         event.preventDefault();
-        drawPoints = [];
-        circleCenter = null;
-        clearDrawingPreview();
-        if (activeTool === 'marker') hideMarkerForm();
-        hint.textContent = TOOL_HINTS[activeTool] || TOOL_HINTS.none;
-        syncCompactBar();
+        if (activeSheet) {
+          if (
+            activeSheet === 'object' &&
+            pendingObjectContext?.mode === 'create'
+          ) {
+            clearTransientGeometry();
+          }
+          closeSheet(activeSheet);
+          syncStatusCopy();
+          return;
+        }
+        if (activeTool) {
+          cancelDrawing();
+          return;
+        }
+        leaveMarkupMode({ collapseMobilePanel: isMobileLayout });
       }
       if (
         event.key === 'Enter' &&
-        (activeTool === 'line' || activeTool === 'polygon')
+        activeTool &&
+        ((activeTool === 'line' && routeMode === 'points') ||
+          activeTool === 'polygon')
       ) {
         event.preventDefault();
-        await finishActivePath();
+        await finishActiveGeometry();
       }
     };
     document.addEventListener('keydown', onKey, true);
     editKeyRemover = () => document.removeEventListener('keydown', onKey, true);
   }
 
-  function renderSavedMarkups() {
-    if (!savedList) return;
-    savedList.textContent = '';
-    const sorted = markups.slice().sort((a, b) => a.name.localeCompare(b.name));
-    emptyState.hidden = sorted.length > 0;
-    for (const markup of sorted) {
-      const row = document.createElement('div');
-      row.className = 'markup-row';
-
-      const top = document.createElement('div');
-      top.className = 'markup-row-top';
-
-      const title = document.createElement('div');
-      title.className = 'markup-row-title';
-      title.textContent = markup.name;
-
-      const actions = document.createElement('div');
-      actions.className = 'markup-row-actions';
-
-      const open = document.createElement('button');
-      open.type = 'button';
-      open.className = 'scene-btn';
-      open.textContent = 'OPEN/EDIT';
-      open.addEventListener('click', () => {
-        currentMarkupId = markup.id;
-        viewer.selectedEntity = null;
-        setMarkerCard(null);
-        setEditMode(true);
-        selectTool(null);
-        updateStatus(`Editing ${markup.name}`);
-        renderSavedMarkups();
-      });
-
-      const visibility = document.createElement('button');
-      visibility.type = 'button';
-      visibility.className = `scene-btn ${markup.visible !== false ? 'active' : ''}`;
-      visibility.textContent = markup.visible !== false ? 'VISIBLE' : 'HIDDEN';
-      visibility.addEventListener('click', async () => {
-        markup.visible = markup.visible === false;
-        await saveMarkup(markup);
-        renderMap();
-        renderSavedMarkups();
-        refreshLayerPanel();
-      });
-
-      const more = document.createElement('details');
-      more.className = 'markup-row-more';
-      const summary = document.createElement('summary');
-      summary.textContent = 'MORE';
-      more.appendChild(summary);
-
-      const menu = document.createElement('div');
-      menu.className = 'markup-row-menu';
-
-      const exportBtn = document.createElement('button');
-      exportBtn.type = 'button';
-      exportBtn.className = 'scene-btn';
-      exportBtn.textContent = 'EXPORT JSON';
-      exportBtn.addEventListener('click', () => exportMarkup(markup.id));
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.type = 'button';
-      deleteBtn.className = 'scene-btn scene-btn-danger';
-      deleteBtn.textContent = 'DELETE';
-      deleteBtn.addEventListener('click', async () => {
-        if (!window.confirm(`Delete markup "${markup.name}"?`)) return;
-        if (currentMarkupId === markup.id) {
-          currentMarkupId = null;
-          leaveEditMode();
-        }
-        await removeMarkup(markup.id);
-        renderMap();
-        renderSavedMarkups();
-        refreshLayerPanel();
-      });
-
-      menu.appendChild(exportBtn);
-      menu.appendChild(deleteBtn);
-      more.appendChild(menu);
-
-      actions.appendChild(open);
-      actions.appendChild(visibility);
-      actions.appendChild(more);
-
-      top.appendChild(title);
-      top.appendChild(actions);
-      row.appendChild(top);
-
-      if (markup.description) {
-        const description = document.createElement('div');
-        description.className = 'markup-row-description';
-        description.textContent = markup.description;
-        row.appendChild(description);
-      }
-      savedList.appendChild(row);
-    }
+  function exportMarkup(markupId) {
+    const markup = markups.find((entry) => entry.id === markupId);
+    if (!markup) return;
+    const payload = {
+      format: IMPORT_FORMAT,
+      version: IMPORT_VERSION,
+      exportedAt: nowIso(),
+      markup,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    });
+    const link = document.createElement('a');
+    const safeName =
+      markup.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'markup';
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = `${safeName}.gev-markup.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    updateStatus(`Exported ${markup.name}`);
   }
 
-  const createNewMarkup = async () => {
-    if (creatingMarkup) return;
-    const markupName = sanitizeText(newInlineName?.value);
-    if (!markupName) {
-      updateStatus('Markup name is required.');
-      newInlineName?.focus();
-      return;
-    }
-    setNewMarkupSubmitting(true);
-    let created = false;
-    try {
-      const description = sanitizeText(newInlineDescription?.value);
-      const markup = normalizeMarkup({
-        id: uuid(),
-        name: markupName,
-        description,
-        visible: true,
-        objects: [],
-      });
-      await saveMarkup(markup);
-      currentMarkupId = markup.id;
-      undoStacks.set(markup.id, []);
-      viewer.selectedEntity = null;
-      setMarkerCard(null);
-      setEditMode(true);
-      selectTool(null);
-      setNewMarkupFormVisible(false);
-      renderSavedMarkups();
-      renderMap();
-      refreshLayerPanel();
-      updateStatus(`Created ${markup.name}`);
-      created = true;
-    } finally {
-      if (created) creatingMarkup = false;
-      else setNewMarkupSubmitting(false);
-    }
-  };
-
-  const saveCurrentMarkup = async () => {
-    const markup = currentMarkup();
-    if (!markup) return;
-    const name = window.prompt('Markup name *', markup.name);
-    if (name === null) return;
-    const markupName = sanitizeText(name);
-    if (!markupName) {
-      updateStatus('Markup name is required.');
-      return;
-    }
-    const description =
-      window.prompt('Optional description', markup.description || '') || '';
-    markup.name = markupName;
-    markup.description = sanitizeText(description);
-    markup.visible = true;
-    await saveMarkup(markup);
-    renderSavedMarkups();
-    renderMap();
-    refreshLayerPanel();
-    selectTool(null);
-    updateStatus(`Saved ${markup.name}`);
-  };
-
-  const submitMarkerForm = async () => {
-    if (!editing) return;
-    const details = markerDetailsFromForm();
-    if (!pendingMarkerPoint && !pendingMarkerEditTarget) return;
-    if (pendingMarkerEditTarget) {
-      const { markupId, objectId } = pendingMarkerEditTarget;
-      const { markup, object } = findMarkupObject(markupId, objectId);
-      if (!markup || !object || object.type !== 'marker') return;
-      object.title = details.title;
-      object.category = details.category;
-      object.description = details.description;
-      object.notes = details.notes;
-      object.updatedAt = nowIso();
-      await saveMarkup(markup);
-      renderMap();
-      setMarkerCard(object, markupId);
-      hideMarkerForm();
-      updateStatus('Marker updated.');
-      return;
-    }
-    if (activeTool !== 'marker') return;
-    const object = ensureMarkupObject({
-      id: uuid(),
-      type: 'marker',
-      category: details.category,
-      title: details.title,
-      description: details.description,
-      notes: details.notes,
-      geometry: { position: pendingMarkerPoint },
-    });
-    if (!object) return;
-    await addObjectToCurrent(object, 'Marker saved to markup.');
-    hideMarkerForm();
-  };
-
-  const undo = async () => {
-    if (
-      editing &&
-      (activeTool === 'line' || activeTool === 'polygon') &&
-      drawPoints.length
-    ) {
-      drawPoints.pop();
-      updateDrawPreview();
-      hint.textContent = drawPoints.length
-        ? `${TOOL_HINTS[activeTool]} (${drawPoints.length} point${drawPoints.length === 1 ? '' : 's'})`
-        : TOOL_HINTS[activeTool];
-      updateStatus('Removed last point.');
-      return;
-    }
-    const markup = currentMarkup();
-    if (!markup) return;
-    const stack = currentUndoStack();
-    const action = stack.pop();
-    if (!action) {
-      updateStatus('Nothing to undo.');
-      return;
-    }
-    if (action.type === 'add') {
-      const index = markup.objects.findIndex(
-        (entry) => entry.id === action.object.id,
-      );
-      if (index >= 0) markup.objects.splice(index, 1);
-    } else if (action.type === 'remove') {
-      markup.objects.push(action.object);
-    }
-    await saveMarkup(markup);
-    renderMap();
-    renderSavedMarkups();
-    updateStatus('Undo complete.');
-  };
-
-  const importMarkup = async (file) => {
+  async function importMarkup(file) {
     const rawText = await file.text();
     let payload = null;
     try {
@@ -1310,84 +1816,232 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       return;
     }
     const existing = markups.find((entry) => entry.id === incoming.id);
-    if (
-      existing &&
-      !window.confirm(
-        `Markup "${existing.name}" already exists. Import this file as a new copy?`,
-      )
-    ) {
-      updateStatus('Import cancelled.');
+    const commitImport = async (asCopy) => {
+      if (asCopy) {
+        incoming.id = uuid();
+        incoming.createdAt = nowIso();
+        incoming.updatedAt = nowIso();
+      }
+      await saveMarkup(incoming);
+      currentMarkupId = incoming.id;
+      undoStacks.set(incoming.id, []);
+      renderSavedMarkups();
+      renderMap();
+      refreshLayerPanel();
+      closeAllSheets();
+      updateStatus(`Imported ${incoming.name}`);
+      enterMarkupMode({ markupId: incoming.id, openCreateIfEmpty: false });
+    };
+    if (existing) {
+      showConfirm({
+        title: `Import "${incoming.name}" as a new copy?`,
+        message: `A markup named "${existing.name}" already exists with the same saved ID.`,
+        confirmLabel: 'IMPORT COPY',
+        confirmClassName: 'scene-btn',
+        onConfirm: async () => {
+          await commitImport(true);
+        },
+      });
       return;
     }
-    if (existing) {
-      incoming.id = uuid();
-      incoming.createdAt = nowIso();
-      incoming.updatedAt = nowIso();
+    await commitImport(false);
+  }
+
+  async function submitMarkupMetadata() {
+    const name = sanitizeText(metadataNameInput.value);
+    if (!name) {
+      updateStatus('Markup name is required.');
+      metadataNameInput.focus();
+      return;
     }
-    await saveMarkup(incoming);
-    currentMarkupId = incoming.id;
-    undoStacks.set(incoming.id, []);
+    const description = sanitizeText(metadataDescriptionInput.value);
+    if (metadataMode === 'edit' && metadataTargetMarkupId) {
+      const markup = markups.find(
+        (entry) => entry.id === metadataTargetMarkupId,
+      );
+      if (!markup) return;
+      markup.name = name;
+      markup.description = description;
+      markup.visible = true;
+      await saveMarkup(markup);
+      renderSavedMarkups();
+      renderMap();
+      refreshLayerPanel();
+      closeSheet('metadata');
+      syncActiveMarkupLabel();
+      showSavedFeedback();
+      return;
+    }
+    const markup = normalizeMarkup({
+      id: uuid(),
+      name,
+      description,
+      visible: true,
+      objects: [],
+    });
+    await saveMarkup(markup);
+    currentMarkupId = markup.id;
+    undoStacks.set(markup.id, []);
     renderSavedMarkups();
     renderMap();
     refreshLayerPanel();
-    updateStatus(`Imported ${incoming.name}`);
-  };
+    closeSheet('metadata');
+    enterMarkupMode({ markupId: markup.id, openCreateIfEmpty: false });
+    showSavedFeedback(`Created ${markup.name}`);
+  }
 
-  const exportMarkup = (markupId) => {
+  async function submitObjectSheet() {
+    const context = pendingObjectContext;
+    if (!context) return;
+    const categoryOptions =
+      context.kind === 'line' ? ROUTE_TYPE_OPTIONS : DEFAULT_CATEGORIES;
+    let category = normalizeCategory(
+      objectCategorySelect.value,
+      categoryOptions,
+    );
+    if (sanitizeText(objectCategorySelect.value).toLowerCase() === 'other') {
+      const customCategory = sanitizeText(objectCustomInput.value);
+      if (customCategory) category = customCategory;
+    }
+    const title = sanitizeText(objectNameInput.value);
+    if (!title) {
+      updateStatus('A name is required.');
+      objectNameInput.focus();
+      return;
+    }
+    const payload = {
+      id: context.objectId || uuid(),
+      type: context.kind,
+      visible: true,
+      category,
+      title,
+      description: sanitizeText(objectDescriptionInput.value),
+      notes: sanitizeText(objectNotesInput.value),
+      geometry:
+        context.geometry ||
+        findMarkupObject(context.markupId, context.objectId).object?.geometry,
+    };
+    const object = ensureMarkupObject(payload);
+    if (!object) {
+      updateStatus('Markup object failed validation.');
+      return;
+    }
+    if (context.mode === 'edit' && context.markupId && context.objectId) {
+      await updateObject(context.markupId, context.objectId, (entry) => {
+        entry.title = object.title;
+        entry.category = object.category;
+        entry.description = object.description;
+        entry.notes = object.notes;
+        entry.visible = object.visible;
+      });
+      closeSheet('object');
+      setObjectCard(context.markupId, context.objectId);
+      return;
+    }
+    await addObjectToMarkup(
+      context.markupId || currentMarkupId,
+      object,
+      `✓ Saved`,
+    );
+    clearTransientGeometry();
+    closeSheet('object');
+    syncStatusCopy();
+  }
+
+  async function handleMarkupAction(action, markupId) {
     const markup = markups.find((entry) => entry.id === markupId);
     if (!markup) return;
-    const payload = {
-      format: IMPORT_FORMAT,
-      version: IMPORT_VERSION,
-      exportedAt: nowIso(),
-      markup,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: 'application/json',
-    });
-    const link = document.createElement('a');
-    const safeName =
-      markup.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '') || 'markup';
-    const url = URL.createObjectURL(blob);
-    link.href = url;
-    link.download = `${safeName}.gev-markup.json`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
-    updateStatus(`Exported ${markup.name}`);
-  };
+    if (action === 'use') {
+      currentMarkupId = markup.id;
+      enterMarkupMode({ markupId: markup.id, openCreateIfEmpty: false });
+      closeSheet('manager');
+      return;
+    }
+    if (action === 'toggle-visibility') {
+      markup.visible = markup.visible === false;
+      await saveMarkup(markup);
+      renderSavedMarkups();
+      renderMap();
+      refreshLayerPanel();
+      showSavedFeedback();
+      return;
+    }
+    if (action === 'rename') {
+      openMarkupMetadataSheet({ mode: 'edit', markupId: markup.id });
+      return;
+    }
+    if (action === 'export') {
+      exportMarkup(markup.id);
+      return;
+    }
+    if (action === 'delete') {
+      showConfirm({
+        title: `Delete "${markup.name}"?`,
+        message: 'This markup and all of its saved objects will be removed.',
+        onConfirm: async () => {
+          const removedActive = currentMarkupId === markup.id;
+          await removeMarkup(markup.id);
+          if (removedActive) currentMarkupId = activeMarkupFallback();
+          renderSavedMarkups();
+          renderMap();
+          refreshLayerPanel();
+          if (!markups.length) hideObjectCard();
+        },
+      });
+    }
+  }
 
-  const syncLayersApi = () => {
-    window.__gevMarkupsLayerApi = {
-      list: () =>
-        markups.map((markup) => ({
-          id: markup.id,
-          name: markup.name,
-          visible: markup.visible !== false,
-        })),
-      setVisible: async (markupId, visible) => {
-        const markup = markups.find((entry) => entry.id === markupId);
-        if (!markup) return false;
-        markup.visible = Boolean(visible);
-        await saveMarkup(markup);
-        renderMap();
-        renderSavedMarkups();
-        refreshLayerPanel();
-        return true;
-      },
-      subscribe: (listener) => {
-        if (typeof listener !== 'function') return () => {};
-        const handler = () => listener();
-        document.addEventListener('gev:markup-layer-change', handler);
-        return () =>
-          document.removeEventListener('gev:markup-layer-change', handler);
-      },
-    };
-  };
+  async function undo() {
+    if (editing && activeTool) {
+      if (
+        activeTool === 'line' ||
+        activeTool === 'polygon' ||
+        (activeTool === 'circle' && circleCenter)
+      ) {
+        undoDrawingPoint();
+        return;
+      }
+    }
+    const markup = currentMarkup();
+    if (!markup) return;
+    const stack = currentUndoStack();
+    const action = stack.pop();
+    if (!action) {
+      updateStatus('Nothing to undo.');
+      return;
+    }
+    if (action.type === 'add') {
+      const index = markup.objects.findIndex(
+        (entry) => entry.id === action.object.id,
+      );
+      if (index >= 0) markup.objects.splice(index, 1);
+    } else if (action.type === 'remove') {
+      const restored = ensureMarkupObject(action.object);
+      if (restored) markup.objects.push(restored);
+    } else if (action.type === 'update') {
+      const index = markup.objects.findIndex(
+        (entry) => entry.id === action.objectId,
+      );
+      const restored = ensureMarkupObject(action.before);
+      if (index >= 0 && restored) markup.objects[index] = restored;
+    }
+    await saveMarkup(markup);
+    renderMap();
+    renderSavedMarkups();
+    refreshLayerPanel();
+    showSavedFeedback('✓ Saved');
+  }
+
+  function syncPanelState() {
+    isMobileLayout = Boolean(layoutMedia?.matches);
+    const mobileMarkupOpen = isMobileMarkupPresentationActive();
+    if (mobileMarkupOpen && !editing) {
+      enterMarkupMode();
+    } else {
+      syncMobilePresentation();
+      bindEditingHandler();
+    }
+  }
 
   try {
     db = await createMarkupDb();
@@ -1399,61 +2053,49 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     markups = [];
     const reason = error?.message || String(error);
     updateStatus(`Markup storage unavailable: ${reason}`);
-    showToast(
-      'Markup storage unavailable; running in-memory for this session.',
-    );
+    try {
+      showToast(
+        'Markup storage unavailable; running in-memory for this session.',
+      );
+    } catch {
+      /* ignored */
+    }
   }
+
+  populateSelectOptions(objectCategorySelect, DEFAULT_CATEGORIES);
   renderMap();
   renderSavedMarkups();
   syncLayersApi();
-  refreshLayerPanel();
-  hideMarkerForm();
   if (storageEnabled) updateStatus('Ready');
+  syncActiveMarkupLabel();
+  syncToolButtons();
+  syncRouteModeButtons();
+  syncMobilePresentation();
 
   const selectedEntityRemover = viewer.selectedEntityChanged.addEventListener(
-    onSelectedEntityChanged,
+    () => {
+      syncSelectedEntityCard();
+    },
   );
 
-  const listen = (target, type, handler) => {
+  function listen(target, type, handler) {
     if (!target) return;
     target.addEventListener(type, handler);
     listeners.push(() => target.removeEventListener(type, handler));
-  };
+  }
 
-  listen(newBtn, 'click', () => {
-    setNewMarkupFormVisible(true);
-  });
-  listen(newInlineCancelBtn, 'click', () => {
-    setNewMarkupFormVisible(false);
-    updateStatus('New markup creation cancelled.');
-  });
-  listen(newInlineForm, 'submit', (event) => {
-    event.preventDefault();
-    void createNewMarkup();
-  });
+  listen(newBtn, 'click', () => openMarkupMetadataSheet({ mode: 'create' }));
+  listen(importBtn, 'click', () => importFile?.click());
   listen(saveBtn, 'click', () => {
-    void saveCurrentMarkup();
+    if (!currentMarkupId) return;
+    openMarkupMetadataSheet({ mode: 'edit', markupId: currentMarkupId });
   });
   listen(exitBtn, 'click', () => {
-    leaveEditMode();
-    updateStatus('Edit mode closed.');
+    leaveMarkupMode({ collapseMobilePanel: isMobileLayout });
   });
   listen(undoBtn, 'click', () => {
     void undo();
   });
-  listen(markerCategorySelect, 'change', () => {
-    syncMarkerCustomCategoryVisibility();
-  });
-  listen(markerCancelBtn, 'click', () => {
-    const wasEditing = Boolean(pendingMarkerEditTarget);
-    hideMarkerForm();
-    updateStatus(wasEditing ? 'Marker edit cancelled.' : 'Marker creation cancelled.');
-  });
-  listen(markerForm, 'submit', (event) => {
-    event.preventDefault();
-    void submitMarkerForm();
-  });
-  listen(importBtn, 'click', () => importFile?.click());
   listen(importFile, 'change', () => {
     const file = importFile?.files?.[0];
     if (!file) return;
@@ -1462,6 +2104,101 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       if (importFile) importFile.value = '';
     })();
   });
+  listen(activeControl, 'click', () => {
+    if (managerSheet?.hidden) openSheet('manager');
+    else closeSheet('manager');
+  });
+  listen(managerCloseBtn, 'click', () => closeSheet('manager'));
+  listen(managerNewBtn, 'click', () =>
+    openMarkupMetadataSheet({ mode: 'create' }),
+  );
+  listen(managerImportBtn, 'click', () => importFile?.click());
+  listen(metadataCancelBtn, 'click', () => closeSheet('metadata'));
+  listen(metadataSheet, 'submit', (event) => {
+    event.preventDefault();
+    void submitMarkupMetadata();
+  });
+  listen(objectCategorySelect, 'change', () => syncObjectCustomField());
+  listen(objectMoreBtn, 'click', () => {
+    objectDetailsExpanded = !objectDetailsExpanded;
+    objectMoreFields.hidden = !objectDetailsExpanded;
+    objectMoreBtn.textContent = objectDetailsExpanded
+      ? 'LESS DETAILS'
+      : 'MORE DETAILS';
+    syncObjectCustomField();
+  });
+  listen(objectCancelBtn, 'click', () => {
+    if (pendingObjectContext?.mode === 'create') clearTransientGeometry();
+    closeSheet('object');
+    clearPendingObjectDraft();
+    syncStatusCopy();
+  });
+  listen(objectSheet, 'submit', (event) => {
+    event.preventDefault();
+    void submitObjectSheet();
+  });
+  listen(confirmCancelBtn, 'click', () => closeSheet('confirm'));
+  listen(confirmSubmitBtn, 'click', () => {
+    const action = confirmAction;
+    closeSheet('confirm');
+    void action?.();
+  });
+  listen(objectEditBtn, 'click', () => {
+    if (!selectedObjectRef) return;
+    const { markup, object } = findMarkupObject(
+      selectedObjectRef.markupId,
+      selectedObjectRef.objectId,
+    );
+    if (!markup || !object) return;
+    openObjectSheet({
+      mode: 'edit',
+      kind: object.type,
+      markupId: markup.id,
+      objectId: object.id,
+    });
+  });
+  listen(objectHideBtn, 'click', () => {
+    if (!selectedObjectRef) return;
+    const { markupId, objectId } = selectedObjectRef;
+    const { object } = findMarkupObject(markupId, objectId);
+    if (!object) return;
+    void updateObject(markupId, objectId, (entry) => {
+      entry.visible = entry.visible === false;
+    }).then(() => {
+      const updated = findMarkupObject(markupId, objectId).object;
+      if (updated?.visible === false) {
+        viewer.selectedEntity = null;
+      } else {
+        setObjectCard(markupId, objectId);
+      }
+    });
+  });
+  listen(objectDeleteBtn, 'click', () => {
+    if (!selectedObjectRef) return;
+    const { markupId, objectId } = selectedObjectRef;
+    const { object } = findMarkupObject(markupId, objectId);
+    if (!object) return;
+    showConfirm({
+      title: `Delete "${object.title || object.category || 'markup object'}"?`,
+      message: 'This object will be removed from the markup.',
+      onConfirm: async () => {
+        await removeObjectFromMarkup(markupId, objectId);
+        viewer.selectedEntity = null;
+      },
+    });
+  });
+  listen(mobileDoneBtn, 'click', () => {
+    leaveMarkupMode({ collapseMobilePanel: true });
+  });
+  listen(mobileUndoBtn, 'click', () => {
+    void undo();
+  });
+  listen(statusUndoBtn, 'click', () => undoDrawingPoint());
+  listen(statusRedrawBtn, 'click', () => redrawRoute());
+  listen(statusFinishBtn, 'click', () => {
+    void finishActiveGeometry();
+  });
+  listen(statusCancelBtn, 'click', () => cancelDrawing());
 
   for (const button of toolButtons) {
     listen(button, 'click', () => {
@@ -1472,79 +2209,58 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     });
   }
 
-  listen(markerCloseBtn, 'click', () => {
-    viewer.selectedEntity = null;
-    setMarkerCard(null);
-  });
-  listen(markerMinBtn, 'click', () => {
-    markerCard?.classList.toggle('is-minimized');
-    if (markerCardBodyNode)
-      markerCardBodyNode.hidden =
-        markerCard?.classList.contains('is-minimized');
-  });
-  listen(markerEditBtn, 'click', () => {
-    if (
-      !editing ||
-      selectedMarkerMarkupId !== currentMarkupId ||
-      !selectedMarkerObjectId
-    )
-      return;
-    const { object } = findMarkupObject(
-      selectedMarkerMarkupId,
-      selectedMarkerObjectId,
-    );
-    if (!object || object.type !== 'marker') return;
-    showMarkerForm({
-      seed: object,
-      submitLabel: 'SAVE MARKER',
-      editTarget: {
-        markupId: selectedMarkerMarkupId,
-        objectId: selectedMarkerObjectId,
-      },
+  for (const button of routeModeButtons) {
+    listen(button, 'click', () => {
+      if (routeMode === button.dataset.routeMode) return;
+      routeMode = button.dataset.routeMode === 'points' ? 'points' : 'free';
+      clearTransientGeometry();
+      syncRouteModeButtons();
+      syncStatusCopy();
     });
-    updateStatus('Update marker details and save.');
-  });
-  listen(compactToggleBtn, 'click', () => {
-    if (!editing) return;
-    setCompactMode(!compactMode, { force: true });
-  });
-  listen(compactExpandBtn, 'click', () => {
-    setCompactMode(false, { force: true });
-  });
-  listen(compactCancelBtn, 'click', () => {
-    if (!editing) return;
-    cancelActiveDrawing();
-  });
-  listen(compactUndoBtn, 'click', () => {
-    if (!editing) return;
-    undoDrawingPoint();
-  });
-  listen(compactFinishBtn, 'click', () => {
-    if (!editing) return;
-    void finishActivePath();
-  });
+  }
+
+  const onMarkupListClick = (event) => {
+    const button = event.target.closest?.(
+      'button[data-action][data-markup-id]',
+    );
+    if (!button) return;
+    void handleMarkupAction(button.dataset.action, button.dataset.markupId);
+  };
+  listen(savedList, 'click', onMarkupListClick);
+  listen(managerList, 'click', onMarkupListClick);
+
   if (layoutMedia) {
     const onLayoutChange = (event) => {
       isMobileLayout = Boolean(event.matches);
-      if (!isMobileLayout) setCompactMode(false, { force: true });
-      syncCompactToggle();
-      syncCompactBar();
+      if (
+        !isMobileLayout &&
+        body?.dataset?.mobilePanel === 'markup' &&
+        editing
+      ) {
+        closeAllSheets();
+      }
+      syncPanelState();
     };
     layoutMedia.addEventListener('change', onLayoutChange);
-    listeners.push(() => layoutMedia.removeEventListener('change', onLayoutChange));
+    listeners.push(() =>
+      layoutMedia.removeEventListener('change', onLayoutChange),
+    );
   }
-  panelClassObserver = new MutationObserver(() => {
-    syncCompactToggle();
-    syncCompactBar();
-  });
-  panelClassObserver.observe(panel, {
+
+  panelObserver = new MutationObserver(() => syncPanelState());
+  panelObserver.observe(panel, {
     attributes: true,
     attributeFilter: ['class'],
   });
-  listeners.push(() => panelClassObserver?.disconnect());
+  bodyObserver = new MutationObserver(() => syncPanelState());
+  bodyObserver.observe(body, {
+    attributes: true,
+    attributeFilter: ['data-mobile-panel'],
+  });
+  listeners.push(() => panelObserver?.disconnect());
+  listeners.push(() => bodyObserver?.disconnect());
 
-  syncCompactToggle();
-  syncCompactBar();
+  syncPanelState();
 
   window.__gevMarkups = {
     list: () => structuredClone(markups),
@@ -1577,6 +2293,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         releasePointer(lease);
         lease = null;
       }
+      restoreCameraControls();
       if (savedSingleClick) {
         viewer.screenSpaceEventHandler.setInputAction(
           savedSingleClick,
@@ -1591,11 +2308,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         );
         savedDoubleClick = null;
       }
-      setMarkerCard(null);
-      setNewMarkupFormVisible(false);
-      hideMarkerForm();
-      setCompactMode(false, { force: true });
-      clearDrawingPreview();
+      if (statusResetTimer) clearTimeout(statusResetTimer);
+      hideObjectCard();
+      closeAllSheets();
+      clearPreviewEntities();
       viewer.dataSources.remove(dataSource, true);
       if (window.__gevMarkupsLayerApi) delete window.__gevMarkupsLayerApi;
       if (window.__gevMarkups) delete window.__gevMarkups;
