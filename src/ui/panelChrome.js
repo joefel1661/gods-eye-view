@@ -30,7 +30,7 @@ const COCKPIT_ENTRY_COLLAPSE_PANEL_IDS = Object.freeze([
 const MOBILE_NAV_QUERY = MOBILE_LAYOUT_MEDIA_QUERY;
 const MOBILE_STANDARD_PANEL_BY_KEY = Object.freeze({
   layers: 'data-panel',
-  scenes: 'scene-panel',
+  markup: 'scene-panel',
   cctv: 'cctv-panel',
   context: 'global-context-panel',
 });
@@ -72,7 +72,7 @@ export class PanelChrome {
     this._cockpitContextCollapsedForDataPanel = false;
     this._mobileStandardPanelByKey = {
       layers: 'data-panel',
-      scenes: 'scene-panel',
+      markup: 'scene-panel',
       cctv: 'cctv-panel',
       context: 'global-context-panel',
     };
@@ -309,7 +309,7 @@ export class PanelChrome {
   _syncPanelCollapseButton(panelEl) {
     const mobilePanelByKey = this._mobileStandardPanelByKey || {
       layers: 'data-panel',
-      scenes: 'scene-panel',
+      markup: 'scene-panel',
       cctv: 'cctv-panel',
       context: 'global-context-panel',
     };
@@ -430,7 +430,7 @@ export class PanelChrome {
   ) {
     const mobilePanelByKey = this._mobileStandardPanelByKey || {
       layers: 'data-panel',
-      scenes: 'scene-panel',
+      markup: 'scene-panel',
       cctv: 'cctv-panel',
       context: 'global-context-panel',
     };
@@ -713,7 +713,7 @@ export class PanelChrome {
     if (!this._isMobileViewport()) return;
     const mobilePanelByKey = this._mobileStandardPanelByKey || {
       layers: 'data-panel',
-      scenes: 'scene-panel',
+      markup: 'scene-panel',
       cctv: 'cctv-panel',
       context: 'global-context-panel',
     };
@@ -736,7 +736,7 @@ export class PanelChrome {
     if (key === 'controls') {
       this._syncingMobilePanels = true;
       try {
-      for (const panelId of mobilePanelIds) {
+        for (const panelId of mobilePanelIds) {
           const panel = document.getElementById(panelId);
           if (!panel || panel.classList.contains('collapsed')) continue;
           this.setPanelCollapsed(panelId, true, {
@@ -760,7 +760,7 @@ export class PanelChrome {
   _syncMobileNavigationState({ normalize = false } = {}) {
     const mobilePanelByKey = this._mobileStandardPanelByKey || {
       layers: 'data-panel',
-      scenes: 'scene-panel',
+      markup: 'scene-panel',
       cctv: 'cctv-panel',
       context: 'global-context-panel',
     };
@@ -815,9 +815,7 @@ export class PanelChrome {
     }
     let activeKey = document.body.dataset.mobilePanel || null;
     if (activeKey && activeKey !== 'controls') {
-      const activePanel = document.getElementById(
-        mobilePanelByKey[activeKey],
-      );
+      const activePanel = document.getElementById(mobilePanelByKey[activeKey]);
       if (!activePanel || activePanel.classList.contains('collapsed'))
         activeKey = null;
     }
