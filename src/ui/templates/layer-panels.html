@@ -158,6 +158,17 @@
         <span class="panel-title">MARKUP</span>
         <span class="panel-divider"></span>
         <button
+          id="markup-compact-toggle-btn"
+          class="panel-collapse-btn markup-compact-toggle-btn"
+          type="button"
+          title="Collapse drawing panel"
+          aria-label="Collapse drawing panel"
+          aria-pressed="false"
+          hidden
+        >
+          ▾
+        </button>
+        <button
           class="panel-collapse-btn"
           data-collapse-target="scene-panel"
           title="Collapse panel"
@@ -165,11 +176,42 @@
           +
         </button>
       </div>
+      <div id="markup-panel-content" class="markup-panel-content">
       <div id="markup-home" class="markup-home">
         <div class="markup-home-actions">
           <button id="markup-new-btn" class="scene-btn">+ NEW MARKUP</button>
           <button id="markup-import-btn" class="scene-btn">IMPORT JSON</button>
         </div>
+        <form
+          id="markup-new-inline"
+          class="markup-new-inline"
+          aria-labelledby="markup-new-inline-title"
+          hidden
+        >
+          <div id="markup-new-inline-title" class="markup-new-inline-title">
+            NEW MARKUP
+          </div>
+          <label class="markup-new-inline-field" for="markup-new-name">
+            <span>Name</span>
+            <input id="markup-new-name" type="text" autocomplete="off" />
+          </label>
+          <label class="markup-new-inline-field" for="markup-new-description">
+            <span>Description (optional)</span>
+            <input id="markup-new-description" type="text" autocomplete="off" />
+          </label>
+          <div class="markup-new-inline-actions">
+            <button id="markup-new-create-btn" class="scene-btn" type="submit">
+              CREATE
+            </button>
+            <button
+              id="markup-new-cancel-btn"
+              class="scene-btn"
+              type="button"
+            >
+              CANCEL
+            </button>
+          </div>
+        </form>
         <div id="markup-empty-state" class="markup-empty-state">
           Markup lets you annotate and save operational maps for later reuse.
         </div>
@@ -330,6 +372,31 @@
         hidden
       />
       <div id="markup-status" class="markup-status">Ready</div>
+      </div>
+      <div id="markup-compact-bar" class="markup-compact-bar" hidden>
+        <div class="markup-compact-summary">
+          <div id="markup-compact-title" class="markup-compact-title"></div>
+          <div id="markup-compact-detail" class="markup-compact-detail"></div>
+        </div>
+        <div class="markup-compact-actions">
+          <button id="markup-compact-undo-btn" class="scene-btn" type="button">
+            UNDO
+          </button>
+          <button id="markup-compact-finish-btn" class="scene-btn" type="button">
+            FINISH
+          </button>
+          <button id="markup-compact-expand-btn" class="scene-btn" type="button">
+            EXPAND
+          </button>
+          <button
+            id="markup-compact-cancel-btn"
+            class="scene-btn scene-btn-danger"
+            type="button"
+          >
+            CANCEL
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
