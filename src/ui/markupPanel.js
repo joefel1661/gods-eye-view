@@ -285,6 +285,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   await viewer.dataSources.add(dataSource);
 
   let db = null;
+  let storageEnabled = false;
   let destroyed = false;
   let markups = [];
   let currentMarkupId = null;
@@ -299,7 +300,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   let editKeyRemover = null;
   let selectedMarkerObjectId = null;
   let selectedMarkerMarkupId = null;
-  const undoStack = [];
+  const undoStacks = new Map();
   const listeners = [];
 
   const updateStatus = (text) => {
@@ -316,6 +317,11 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
 
   const currentMarkup = () =>
     markups.find((entry) => entry.id === currentMarkupId) || null;
+  const currentUndoStack = () => {
+    if (!currentMarkupId) return [];
+    if (!undoStacks.has(currentMarkupId)) undoStacks.set(currentMarkupId, []);
+    return undoStacks.get(currentMarkupId);
+  };
 
   const emitLayerChange = () => {
     document.dispatchEvent(new CustomEvent('gev:markup-layer-change'));
@@ -323,7 +329,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
 
   const saveMarkup = async (markup) => {
     markup.updatedAt = nowIso();
-    await dbPut(db, markup);
+    if (db) await dbPut(db, markup);
     const index = markups.findIndex((entry) => entry.id === markup.id);
     if (index >= 0) markups[index] = structuredClone(markup);
     else markups.push(structuredClone(markup));
@@ -331,8 +337,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   };
 
   const removeMarkup = async (id) => {
-    await dbDelete(db, id);
+    if (db) await dbDelete(db, id);
     markups = markups.filter((entry) => entry.id !== id);
+    undoStacks.delete(id);
     emitLayerChange();
   };
 
@@ -537,7 +544,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     const markup = currentMarkup();
     if (!markup) return;
     markup.objects.push(object);
-    undoStack.push({ type: 'add', object: structuredClone(object) });
+    currentUndoStack().push({ type: 'add', object: structuredClone(object) });
     await saveMarkup(markup);
     renderMap();
     renderSavedMarkups();
@@ -553,7 +560,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     const index = markup.objects.findIndex((entry) => entry.id === objectId);
     if (index < 0) return;
     const [removed] = markup.objects.splice(index, 1);
-    undoStack.push({ type: 'remove', object: structuredClone(removed) });
+    currentUndoStack().push({
+      type: 'remove',
+      object: structuredClone(removed),
+    });
     await saveMarkup(markup);
     renderMap();
     renderSavedMarkups();
@@ -719,7 +729,6 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       }
     };
     document.addEventListener('keydown', onKey, true);
-    document.addEventListener('keydown', onKey, true);
     editKeyRemover = () => document.removeEventListener('keydown', onKey, true);
   }
 
@@ -748,6 +757,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       open.textContent = 'OPEN/EDIT';
       open.addEventListener('click', () => {
         currentMarkupId = markup.id;
+        viewer.selectedEntity = null;
+        setMarkerCard(null);
         setEditMode(true);
         selectTool(null);
         updateStatus(`Editing ${markup.name}`);
@@ -837,6 +848,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     });
     await saveMarkup(markup);
     currentMarkupId = markup.id;
+    undoStacks.set(markup.id, []);
+    viewer.selectedEntity = null;
+    setMarkerCard(null);
     setEditMode(true);
     selectTool(null);
     renderSavedMarkups();
@@ -871,7 +885,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const undo = async () => {
     const markup = currentMarkup();
     if (!markup) return;
-    const action = undoStack.pop();
+    const stack = currentUndoStack();
+    const action = stack.pop();
     if (!action) {
       updateStatus('Nothing to undo.');
       return;
@@ -906,8 +921,16 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       updateStatus('File is not a valid GEV Markup export.');
       return;
     }
-    const incoming = normalizeMarkup(payload.markup);
-    if (!validateMarkup(incoming)) {
+    const importedMarkup = payload.markup;
+    const importedObjectCount = Array.isArray(importedMarkup?.objects)
+      ? importedMarkup.objects.length
+      : -1;
+    const incoming = normalizeMarkup(importedMarkup);
+    if (
+      !validateMarkup(incoming) ||
+      importedObjectCount < 0 ||
+      incoming.objects.length !== importedObjectCount
+    ) {
       updateStatus('Imported markup failed validation.');
       return;
     }
@@ -928,6 +951,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }
     await saveMarkup(incoming);
     currentMarkupId = incoming.id;
+    undoStacks.set(incoming.id, []);
     renderSavedMarkups();
     renderMap();
     refreshLayerPanel();
@@ -952,12 +976,13 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '') || 'markup';
-    link.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    link.href = url;
     link.download = `${safeName}.gev-markup.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();
-    URL.revokeObjectURL(link.href);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
     updateStatus(`Exported ${markup.name}`);
   };
 
@@ -989,13 +1014,25 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     };
   };
 
-  db = await createMarkupDb();
-  markups = (await dbReadAll(db)).map(normalizeMarkup);
+  try {
+    db = await createMarkupDb();
+    storageEnabled = true;
+    markups = (await dbReadAll(db)).map(normalizeMarkup);
+  } catch (error) {
+    db = null;
+    storageEnabled = false;
+    markups = [];
+    const reason = error?.message || String(error);
+    updateStatus(`Markup storage unavailable: ${reason}`);
+    showToast(
+      'Markup storage unavailable; running in-memory for this session.',
+    );
+  }
   renderMap();
   renderSavedMarkups();
   syncLayersApi();
   refreshLayerPanel();
-  updateStatus('Ready');
+  if (storageEnabled) updateStatus('Ready');
 
   const selectedEntityRemover = viewer.selectedEntityChanged.addEventListener(
     onSelectedEntityChanged,

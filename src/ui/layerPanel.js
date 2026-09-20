@@ -302,7 +302,6 @@ export class LayerPanel {
       button.setAttribute('aria-pressed', String(Boolean(entry.visible)));
       button.addEventListener('click', async () => {
         await api.setVisible?.(entry.id, !entry.visible);
-        this._refreshTogglePanel();
       });
       right.appendChild(button);
       top.append(left, right);
