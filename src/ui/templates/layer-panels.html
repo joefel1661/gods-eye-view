@@ -521,54 +521,72 @@
           </button>
         </div>
       </form>
-      <form id="markup-object-sheet" class="markup-bottom-sheet" hidden>
+      <form
+        id="markup-object-sheet"
+        class="markup-bottom-sheet markup-object-sheet"
+        hidden
+      >
         <div class="markup-sheet-handle" aria-hidden="true"></div>
-        <div id="markup-object-sheet-title" class="markup-sheet-title">
-          NEW MARKER
+        <div class="markup-sheet-header">
+          <div class="markup-sheet-header-copy">
+            <div id="markup-object-sheet-title" class="markup-sheet-title">
+              NEW MARKER
+            </div>
+          </div>
+          <button
+            id="markup-object-delete-secondary-btn"
+            class="scene-btn scene-btn-danger markup-sheet-header-action"
+            type="button"
+            hidden
+          >
+            DELETE
+          </button>
         </div>
-        <label class="markup-sheet-field" for="markup-object-name">
-          <span id="markup-object-name-label">Title *</span>
-          <input id="markup-object-name" type="text" autocomplete="off" />
-        </label>
-        <label class="markup-sheet-field" for="markup-object-category">
-          <span id="markup-object-category-label">Category</span>
-          <select id="markup-object-category"></select>
-        </label>
-        <label
-          id="markup-object-custom-wrap"
-          class="markup-sheet-field"
-          for="markup-object-custom-category"
-          hidden
-        >
-          <span>Custom Category</span>
-          <input
-            id="markup-object-custom-category"
-            type="text"
-            autocomplete="off"
-          />
-        </label>
-        <label class="markup-sheet-field" for="markup-object-description">
-          <span id="markup-object-description-label">Description</span>
-          <input
-            id="markup-object-description"
-            type="text"
-            autocomplete="off"
-          />
-        </label>
-        <button
-          id="markup-object-more-btn"
-          class="scene-btn markup-sheet-more-btn"
-          type="button"
-        >
-          MORE DETAILS
-        </button>
-        <div id="markup-object-more-fields" hidden>
-          <label class="markup-sheet-field" for="markup-object-notes">
-            <span>Detailed Notes</span>
-            <textarea id="markup-object-notes" rows="3"></textarea>
+        <div class="markup-object-sheet-body">
+          <label class="markup-sheet-field" for="markup-object-name">
+            <span id="markup-object-name-label">Title *</span>
+            <input id="markup-object-name" type="text" autocomplete="off" />
           </label>
+          <label class="markup-sheet-field" for="markup-object-category">
+            <span id="markup-object-category-label">Category</span>
+            <select id="markup-object-category"></select>
+          </label>
+          <label class="markup-sheet-field" for="markup-object-description">
+            <span id="markup-object-description-label">Description</span>
+            <input
+              id="markup-object-description"
+              type="text"
+              autocomplete="off"
+            />
+          </label>
+          <button
+            id="markup-object-more-btn"
+            class="scene-btn markup-sheet-more-btn"
+            type="button"
+          >
+            MORE DETAILS
+          </button>
+          <div id="markup-object-more-fields" hidden>
+            <label
+              id="markup-object-custom-wrap"
+              class="markup-sheet-field"
+              for="markup-object-custom-category"
+              hidden
+            >
+              <span>Custom Category</span>
+              <input
+                id="markup-object-custom-category"
+                type="text"
+                autocomplete="off"
+              />
+            </label>
+            <label class="markup-sheet-field" for="markup-object-notes">
+              <span>Detailed Notes</span>
+              <textarea id="markup-object-notes" rows="3"></textarea>
+            </label>
+          </div>
         </div>
-        <div class="markup-sheet-footer">
+        <div class="markup-sheet-footer markup-sheet-footer-sticky">
           <button id="markup-object-cancel-btn" class="scene-btn" type="button">
             CANCEL
           </button>

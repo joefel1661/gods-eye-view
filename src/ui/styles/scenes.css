@@ -482,6 +482,14 @@
   margin-bottom: 10px;
 }
 
+.markup-sheet-header-copy {
+  min-width: 0;
+}
+
+.markup-sheet-header-action {
+  flex: 0 0 auto;
+}
+
 .markup-sheet-field {
   display: flex;
   flex-direction: column;
@@ -513,6 +521,42 @@
 
 .markup-sheet-more-btn {
   margin-top: 10px;
+}
+
+.markup-object-sheet {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.markup-object-sheet-body {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin-right: -12px;
+  margin-left: -12px;
+  padding-right: 12px;
+  padding-bottom: 8px;
+  padding-left: 12px;
+}
+
+.markup-sheet-footer-sticky {
+  position: sticky;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin-top: 10px;
+  padding-top: 10px;
+  padding-bottom: 8px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(8, 20, 30, 0) 0%,
+      rgba(8, 20, 30, 0.9) 24%,
+      rgba(8, 20, 30, 0.98) 100%
+    );
+  border-top: 1px solid rgba(123, 189, 211, 0.18);
 }
 
 .markup-manager-list {
