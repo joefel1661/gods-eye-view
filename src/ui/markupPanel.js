@@ -577,7 +577,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     syncStatusCopy();
   }
 
-  function closeSheet(name) {
+  function closeSheet(name, { restoreConfirmSheet = true } = {}) {
     const sheet = readSheet(name);
     if (sheet) sheet.hidden = true;
     if (activeSheet === name) activeSheet = null;
@@ -597,7 +597,11 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       confirmAction = null;
       const resumeSheet = confirmResumeSheet;
       confirmResumeSheet = null;
-      if (resumeSheet && !readSheet(resumeSheet)?.hidden) {
+      if (
+        restoreConfirmSheet &&
+        resumeSheet &&
+        !readSheet(resumeSheet)?.hidden
+      ) {
         activeSheet = resumeSheet;
       }
     }
@@ -2178,7 +2182,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   listen(confirmCancelBtn, 'click', () => closeSheet('confirm'));
   listen(confirmSubmitBtn, 'click', () => {
     const action = confirmAction;
-    closeSheet('confirm');
+    closeSheet('confirm', { restoreConfirmSheet: false });
     void action?.();
   });
   listen(objectEditBtn, 'click', () => {

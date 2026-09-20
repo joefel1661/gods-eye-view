@@ -115,4 +115,8 @@ test('markup source preserves hidden-object rendering gates and mobile return-to
     markupPanel,
     /listen\(objectCategorySelect, 'change', \(\) => \{[\s\S]*?objectDetailsExpanded = true;[\s\S]*?objectMoreFields\.hidden = false;[\s\S]*?objectMoreBtn\.textContent = 'LESS DETAILS';/s,
   );
+  assert.match(
+    markupPanel,
+    /closeSheet\('confirm', \{ restoreConfirmSheet: false \}\);/,
+  );
 });
