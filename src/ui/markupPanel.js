@@ -1,5 +1,6 @@
 import * as Cesium from 'cesium';
 import { pickWorldFromScreen } from '../annotations/annotationResolver.js';
+import { MOBILE_LAYOUT_MEDIA_QUERY } from './layoutBreakpoints.js';
 import {
   claimPointer,
   pointerOwner,
@@ -39,6 +40,8 @@ const TOOL_HINTS = Object.freeze({
   circle: 'Tap center, then tap again to set radius.',
   delete: 'Tap a markup object to delete it.',
 });
+
+const DRAWING_TOOLS = new Set(['marker', 'line', 'polygon', 'circle']);
 
 function nowIso() {
   return new Date().toISOString();
@@ -231,6 +234,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const status = document.getElementById('markup-status');
   const hint = document.getElementById('markup-tool-hint');
   const newBtn = document.getElementById('markup-new-btn');
+  const newInlineForm = document.getElementById('markup-new-inline');
+  const newInlineName = document.getElementById('markup-new-name');
+  const newInlineDescription = document.getElementById('markup-new-description');
+  const newInlineCancelBtn = document.getElementById('markup-new-cancel-btn');
   const saveBtn = document.getElementById('markup-save-btn');
   const exitBtn = document.getElementById('markup-exit-btn');
   const undoBtn = document.getElementById('markup-undo-btn');
@@ -256,6 +263,15 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const markerNotesInput = document.getElementById('markup-marker-notes');
   const markerCancelBtn = document.getElementById('markup-marker-cancel-btn');
   const markerSubmitBtn = document.getElementById('markup-marker-submit-btn');
+  const compactToggleBtn = document.getElementById('markup-compact-toggle-btn');
+  const compactBar = document.getElementById('markup-compact-bar');
+  const compactTitle = document.getElementById('markup-compact-title');
+  const compactDetail = document.getElementById('markup-compact-detail');
+  const compactUndoBtn = document.getElementById('markup-compact-undo-btn');
+  const compactFinishBtn = document.getElementById('markup-compact-finish-btn');
+  const compactExpandBtn = document.getElementById('markup-compact-expand-btn');
+  const compactCancelBtn = document.getElementById('markup-compact-cancel-btn');
+  const layoutMedia = globalThis.matchMedia?.(MOBILE_LAYOUT_MEDIA_QUERY) || null;
 
   if (!viewer || !panel || !savedList || !newBtn) return null;
 
@@ -286,11 +302,86 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   let pathPreviewEntity = null;
   let polygonPreviewEntity = null;
   let drawingVertexEntities = [];
+  let compactMode = false;
+  let isMobileLayout = Boolean(layoutMedia?.matches);
+  let panelClassObserver = null;
   const undoStacks = new Map();
   const listeners = [];
 
   const updateStatus = (text) => {
     if (status) status.textContent = text;
+  };
+
+  const drawingModeLabel = (tool) => {
+    if (tool === 'marker') return 'MARKER MODE';
+    if (tool === 'line') return 'LINE MODE';
+    if (tool === 'polygon') return 'AREA MODE';
+    if (tool === 'circle') return 'RADIUS MODE';
+    return 'DRAW MODE';
+  };
+
+  const syncCompactToggle = () => {
+    if (!compactToggleBtn) return;
+    const canShow =
+      editing && isMobileLayout && !panel.classList.contains('collapsed');
+    compactToggleBtn.hidden = !canShow;
+    compactToggleBtn.textContent = compactMode ? '▴' : '▾';
+    compactToggleBtn.setAttribute(
+      'aria-label',
+      compactMode ? 'Expand drawing panel' : 'Collapse drawing panel',
+    );
+    compactToggleBtn.setAttribute(
+      'title',
+      compactMode ? 'Expand drawing panel' : 'Collapse drawing panel',
+    );
+    compactToggleBtn.setAttribute('aria-pressed', String(compactMode));
+  };
+
+  const syncCompactBar = () => {
+    if (!compactBar || !compactTitle || !compactDetail) return;
+    const show =
+      compactMode &&
+      editing &&
+      isMobileLayout &&
+      !panel.classList.contains('collapsed');
+    compactBar.hidden = !show;
+    panel.classList.toggle('markup-compact', show);
+    if (!show) {
+      syncCompactToggle();
+      return;
+    }
+    compactTitle.textContent = drawingModeLabel(activeTool);
+    if (activeTool === 'marker') {
+      compactDetail.textContent = 'Tap map to place';
+    } else if (activeTool === 'line' || activeTool === 'polygon') {
+      compactDetail.textContent = `${drawPoints.length} point${drawPoints.length === 1 ? '' : 's'}`;
+    } else if (activeTool === 'circle') {
+      compactDetail.textContent = circleCenter
+        ? 'Tap map to set radius'
+        : 'Tap map to set center';
+    } else {
+      compactDetail.textContent = 'Select a drawing tool';
+    }
+    const showUndo =
+      (activeTool === 'line' || activeTool === 'polygon') && drawPoints.length > 0;
+    const showFinish =
+      (activeTool === 'line' && drawPoints.length >= 2) ||
+      (activeTool === 'polygon' && drawPoints.length >= 3);
+    if (compactUndoBtn) compactUndoBtn.hidden = !showUndo;
+    if (compactFinishBtn) compactFinishBtn.hidden = !showFinish;
+    if (compactExpandBtn) compactExpandBtn.hidden = false;
+    if (compactCancelBtn) compactCancelBtn.hidden = !Boolean(activeTool);
+    syncCompactToggle();
+  };
+
+  const setCompactMode = (enabled, { force = false } = {}) => {
+    const next = Boolean(enabled);
+    if (!force && compactMode === next) {
+      syncCompactBar();
+      return;
+    }
+    compactMode = next;
+    syncCompactBar();
   };
 
   const requestRender = () => {
@@ -507,6 +598,19 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     syncMarkerCustomCategoryVisibility();
   };
 
+  const setNewMarkupFormVisible = (visible) => {
+    if (!newInlineForm) return;
+    newInlineForm.hidden = !visible;
+    if (visible) {
+      if (newInlineName) newInlineName.value = '';
+      if (newInlineDescription) newInlineDescription.value = '';
+      newInlineName?.focus();
+      return;
+    }
+    if (newInlineName) newInlineName.value = '';
+    if (newInlineDescription) newInlineDescription.value = '';
+  };
+
   const markerDetailsFromForm = () => {
     const selectedCategory = selectedMarkerCategoryOption();
     let category = normalizeCategory(selectedCategory);
@@ -529,6 +633,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     editTarget = null,
   } = {}) => {
     if (!markerForm) return;
+    setCompactMode(false);
     pendingMarkerPoint = point || null;
     pendingMarkerEditTarget = editTarget || null;
     markerForm.hidden = false;
@@ -664,6 +769,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       button.setAttribute('aria-pressed', String(on));
     }
     hint.textContent = TOOL_HINTS[activeTool || 'none'];
+    if (isMobileLayout && DRAWING_TOOLS.has(activeTool)) setCompactMode(true);
+    else if (!DRAWING_TOOLS.has(activeTool)) setCompactMode(false);
+    else syncCompactBar();
     bindEditingHandler();
   };
 
@@ -671,6 +779,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     editing = false;
     selectTool(null);
     hideMarkerForm();
+    setNewMarkupFormVisible(false);
+    setCompactMode(false, { force: true });
     clearDrawingPreview();
     if (editor) editor.hidden = true;
     if (home) home.hidden = false;
@@ -687,9 +797,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     if (!editing) {
       selectTool(null);
       hideMarkerForm();
+      setCompactMode(false, { force: true });
       clearDrawingPreview();
     }
     markerEditBtn.hidden = !editing;
+    syncCompactToggle();
+    syncCompactBar();
   };
 
   async function addObjectToCurrent(object, message = 'Markup object added.') {
@@ -722,6 +835,69 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     if (selectedMarkerObjectId === objectId) setMarkerCard(null);
     updateStatus(message);
   }
+
+  const cancelActiveDrawing = () => {
+    drawPoints = [];
+    circleCenter = null;
+    clearDrawingPreview();
+    if (activeTool === 'marker') hideMarkerForm();
+    selectTool(null);
+    setCompactMode(false);
+    updateStatus('Drawing cancelled.');
+  };
+
+  const undoDrawingPoint = () => {
+    if (activeTool === 'line' || activeTool === 'polygon') {
+      if (!drawPoints.length) return;
+      drawPoints.pop();
+      updateDrawPreview();
+      hint.textContent = `${TOOL_HINTS[activeTool]} (${drawPoints.length} point${drawPoints.length === 1 ? '' : 's'})`;
+      syncCompactBar();
+      return;
+    }
+    if (activeTool === 'circle' && circleCenter) {
+      circleCenter = null;
+      hint.textContent = TOOL_HINTS.circle;
+      syncCompactBar();
+    }
+  };
+
+  const finishActivePath = async () => {
+    if (!editing || !activeTool) return false;
+    let saved = false;
+    if (activeTool === 'line' && drawPoints.length >= 2) {
+      const object = ensureMarkupObject({
+        id: uuid(),
+        type: 'line',
+        category: 'Other',
+        title: 'Line',
+        geometry: { points: structuredClone(drawPoints) },
+      });
+      if (object) {
+        await addObjectToCurrent(object, 'Line saved to markup.');
+        saved = true;
+      }
+    }
+    if (activeTool === 'polygon' && drawPoints.length >= 3) {
+      const object = ensureMarkupObject({
+        id: uuid(),
+        type: 'polygon',
+        category: 'Other',
+        title: 'Area',
+        geometry: { points: structuredClone(drawPoints) },
+      });
+      if (object) {
+        await addObjectToCurrent(object, 'Area saved to markup.');
+        saved = true;
+      }
+    }
+    drawPoints = [];
+    clearDrawingPreview();
+    hint.textContent = TOOL_HINTS[activeTool] || TOOL_HINTS.none;
+    if (saved) setCompactMode(false);
+    else syncCompactBar();
+    return saved;
+  };
 
   function bindEditingHandler() {
     if (editHandler) {
@@ -775,33 +951,6 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       );
     };
 
-    const finishPath = async () => {
-      if (!editing || !activeTool) return;
-      if (activeTool === 'line' && drawPoints.length >= 2) {
-        const object = ensureMarkupObject({
-          id: uuid(),
-          type: 'line',
-          category: 'Other',
-          title: 'Line',
-          geometry: { points: structuredClone(drawPoints) },
-        });
-        if (object) await addObjectToCurrent(object, 'Line saved to markup.');
-      }
-      if (activeTool === 'polygon' && drawPoints.length >= 3) {
-        const object = ensureMarkupObject({
-          id: uuid(),
-          type: 'polygon',
-          category: 'Other',
-          title: 'Area',
-          geometry: { points: structuredClone(drawPoints) },
-        });
-        if (object) await addObjectToCurrent(object, 'Area saved to markup.');
-      }
-      drawPoints = [];
-      clearDrawingPreview();
-      hint.textContent = TOOL_HINTS[activeTool] || TOOL_HINTS.none;
-    };
-
     editHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     editHandler.setInputAction(async (event) => {
       if (markerForm && !markerForm.hidden) return;
@@ -818,12 +967,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         drawPoints.push(coordinate);
         updateDrawPreview();
         hint.textContent = `${TOOL_HINTS[activeTool]} (${drawPoints.length} point${drawPoints.length === 1 ? '' : 's'})`;
+        syncCompactBar();
         return;
       }
       if (activeTool === 'circle') {
         if (!circleCenter) {
           circleCenter = coordinate;
           hint.textContent = 'Tap again to set radius.';
+          syncCompactBar();
           return;
         }
         const radiusMeters = Math.max(
@@ -839,7 +990,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         });
         circleCenter = null;
         hint.textContent = TOOL_HINTS.circle;
-        if (object) await addObjectToCurrent(object, 'Radius saved to markup.');
+        if (object) {
+          await addObjectToCurrent(object, 'Radius saved to markup.');
+          setCompactMode(false);
+        } else {
+          syncCompactBar();
+        }
         return;
       }
       if (activeTool === 'delete') {
@@ -852,7 +1008,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
     editHandler.setInputAction(async () => {
-      if (activeTool === 'line' || activeTool === 'polygon') await finishPath();
+      if (activeTool === 'line' || activeTool === 'polygon')
+        await finishActivePath();
     }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
     const onKey = async (event) => {
@@ -864,13 +1021,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         clearDrawingPreview();
         if (activeTool === 'marker') hideMarkerForm();
         hint.textContent = TOOL_HINTS[activeTool] || TOOL_HINTS.none;
+        syncCompactBar();
       }
       if (
         event.key === 'Enter' &&
         (activeTool === 'line' || activeTool === 'polygon')
       ) {
         event.preventDefault();
-        await finishPath();
+        await finishActivePath();
       }
     };
     document.addEventListener('keydown', onKey, true);
@@ -976,14 +1134,13 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   }
 
   const createNewMarkup = async () => {
-    const name = window.prompt('Markup name *', 'New Markup');
-    if (name === null) return;
-    const markupName = sanitizeText(name);
+    const markupName = sanitizeText(newInlineName?.value);
     if (!markupName) {
       updateStatus('Markup name is required.');
+      newInlineName?.focus();
       return;
     }
-    const description = window.prompt('Optional description', '') || '';
+    const description = sanitizeText(newInlineDescription?.value);
     const markup = normalizeMarkup({
       id: uuid(),
       name: markupName,
@@ -998,6 +1155,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     setMarkerCard(null);
     setEditMode(true);
     selectTool(null);
+    setNewMarkupFormVisible(false);
     renderSavedMarkups();
     renderMap();
     refreshLayerPanel();
@@ -1239,6 +1397,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   };
 
   listen(newBtn, 'click', () => {
+    setNewMarkupFormVisible(true);
+  });
+  listen(newInlineCancelBtn, 'click', () => {
+    setNewMarkupFormVisible(false);
+    updateStatus('New markup creation cancelled.');
+  });
+  listen(newInlineForm, 'submit', (event) => {
+    event.preventDefault();
     void createNewMarkup();
   });
   listen(saveBtn, 'click', () => {
@@ -1314,6 +1480,47 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     });
     updateStatus('Update marker details and save.');
   });
+  listen(compactToggleBtn, 'click', () => {
+    if (!editing) return;
+    setCompactMode(!compactMode, { force: true });
+  });
+  listen(compactExpandBtn, 'click', () => {
+    setCompactMode(false, { force: true });
+  });
+  listen(compactCancelBtn, 'click', () => {
+    if (!editing) return;
+    cancelActiveDrawing();
+  });
+  listen(compactUndoBtn, 'click', () => {
+    if (!editing) return;
+    undoDrawingPoint();
+  });
+  listen(compactFinishBtn, 'click', () => {
+    if (!editing) return;
+    void finishActivePath();
+  });
+  if (layoutMedia) {
+    const onLayoutChange = (event) => {
+      isMobileLayout = Boolean(event.matches);
+      if (!isMobileLayout) setCompactMode(false, { force: true });
+      syncCompactToggle();
+      syncCompactBar();
+    };
+    layoutMedia.addEventListener('change', onLayoutChange);
+    listeners.push(() => layoutMedia.removeEventListener('change', onLayoutChange));
+  }
+  panelClassObserver = new MutationObserver(() => {
+    syncCompactToggle();
+    syncCompactBar();
+  });
+  panelClassObserver.observe(panel, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
+  listeners.push(() => panelClassObserver?.disconnect());
+
+  syncCompactToggle();
+  syncCompactBar();
 
   window.__gevMarkups = {
     list: () => structuredClone(markups),
@@ -1361,7 +1568,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         savedDoubleClick = null;
       }
       setMarkerCard(null);
+      setNewMarkupFormVisible(false);
       hideMarkerForm();
+      setCompactMode(false, { force: true });
       clearDrawingPreview();
       viewer.dataSources.remove(dataSource, true);
       if (window.__gevMarkupsLayerApi) delete window.__gevMarkupsLayerApi;

@@ -236,6 +236,7 @@
   }
 
   .mobile-nav-btn {
+    width: 100%;
     min-width: 0;
     min-height: 50px;
     display: flex;
@@ -251,10 +252,16 @@
     font: 500 10px/1 var(--font-sans);
     letter-spacing: 0.25px;
     text-align: center;
+    justify-self: stretch;
   }
 
   .mobile-nav-btn .mobile-nav-icon.material-symbols-outlined {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    overflow: hidden;
     font-family: 'Material Symbols Outlined';
     font-size: 19px;
     line-height: 1;
@@ -927,6 +934,10 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  #scene-panel #markup-compact-bar .markup-compact-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   #scene-panel :is(.markup-home-actions, .markup-tool-grid, .markup-editor-actions) .scene-btn {
     width: 100%;
     min-height: 42px;
@@ -940,8 +951,83 @@
   }
 
   #scene-panel .scene-panel-inner {
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
+
+  #scene-panel .markup-panel-content {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
+    padding-right: 2px;
+    padding-bottom: calc(var(--mobile-attribution-zone-height) + 8px);
+  }
+
+  #scene-panel.markup-compact:not(.collapsed) {
+    max-height: 82px !important;
+  }
+
+  #scene-panel.markup-compact:not(.collapsed) .scene-panel-inner {
+    max-height: 82px !important;
+    padding-bottom: 10px;
+    overflow: visible;
+  }
+
+  #scene-panel.markup-compact:not(.collapsed) .markup-panel-content {
+    display: none;
+  }
+
+  #scene-panel.markup-compact:not(.collapsed) #markup-compact-bar {
+    position: fixed;
+    right: auto;
+    bottom: var(--mobile-panel-bottom);
+    left: 50%;
+    z-index: 160;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: var(--mobile-panel-width);
+    max-width: min(var(--mobile-panel-max-width), var(--mobile-panel-width));
+    padding: 10px 12px;
+    border: 1px solid rgba(0, 212, 255, 0.42);
+    border-radius: 14px;
+    background: rgba(6, 13, 20, 0.95);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.42);
+    transform: translateX(-50%);
+  }
+
+  #scene-panel #markup-compact-bar :is(.markup-compact-title, .markup-compact-detail) {
+    font-family: var(--font-mono);
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
+  #scene-panel #markup-compact-bar .markup-compact-title {
+    font-size: 9px;
+    letter-spacing: 0.9px;
+    color: var(--text-primary);
+  }
+
+  #scene-panel #markup-compact-bar .markup-compact-detail {
+    font-size: 8px;
+    letter-spacing: 0.7px;
+    color: var(--text-secondary);
+  }
+
+  #scene-panel #markup-compact-bar .markup-compact-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  #scene-panel #markup-compact-bar .scene-btn {
+    min-height: 38px;
+  }
+
+  #scene-panel .markup-compact-toggle-btn {
+    min-width: 34px;
+    padding: 0;
   }
 
   #scene-panel :is(.markup-tool-hint, .markup-status) {
