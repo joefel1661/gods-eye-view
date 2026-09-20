@@ -917,7 +917,8 @@
     overflow-wrap: anywhere;
   }
 
-  #scene-panel :is(.markup-home-actions, .markup-tool-grid, .markup-editor-actions) {
+  #scene-panel
+    :is(.markup-home-actions, .markup-tool-grid, .markup-editor-actions) {
     display: grid;
     gap: 8px;
   }
@@ -934,7 +935,9 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  #scene-panel :is(.markup-home-actions, .markup-tool-grid, .markup-editor-actions) .scene-btn {
+  #scene-panel
+    :is(.markup-home-actions, .markup-tool-grid, .markup-editor-actions)
+    .scene-btn {
     width: 100%;
     min-height: 42px;
     white-space: nowrap;
@@ -1019,7 +1022,8 @@
     z-index: 168;
     display: block;
     max-height: calc(
-      100dvh - var(--mobile-safe-top) - var(--mobile-attribution-zone-top) - 18px
+      100dvh - var(--mobile-safe-top) - var(--mobile-attribution-zone-top) -
+        18px
     );
     overflow-x: hidden;
     overflow-y: auto;

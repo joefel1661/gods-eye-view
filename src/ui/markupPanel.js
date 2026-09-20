@@ -84,7 +84,8 @@ function distanceMeters(a, b) {
 
 function normalizeCategory(input, options = DEFAULT_CATEGORIES) {
   const category = sanitizeText(input);
-  if (!category) return options.includes('Other') ? 'Other' : options[0] || 'Other';
+  if (!category)
+    return options.includes('Other') ? 'Other' : options[0] || 'Other';
   const known = options.find(
     (entry) => entry.toLowerCase() === category.toLowerCase(),
   );
@@ -139,7 +140,8 @@ function validateMarkup(markup) {
 function ensureMarkupObject(raw) {
   const timestamp = nowIso();
   const type = raw?.type;
-  const categoryOptions = type === 'line' ? ROUTE_TYPE_OPTIONS : DEFAULT_CATEGORIES;
+  const categoryOptions =
+    type === 'line' ? ROUTE_TYPE_OPTIONS : DEFAULT_CATEGORIES;
   const object = {
     id: sanitizeText(raw?.id) || uuid(),
     type,
@@ -267,9 +269,7 @@ function perpendicularDistance(point, start, end) {
     const dy = y - y1;
     return Math.hypot(dx, dy);
   }
-  const numerator = Math.abs(
-    (y2 - y1) * x - (x2 - x1) * y + x2 * y1 - y2 * x1,
-  );
+  const numerator = Math.abs((y2 - y1) * x - (x2 - x1) * y + x2 * y1 - y2 * x1);
   const denominator = Math.hypot(y2 - y1, x2 - x1);
   return numerator / denominator;
 }
@@ -333,7 +333,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const mobileDoneBtn = document.getElementById('markup-mobile-done-btn');
   const mobileUndoBtn = document.getElementById('markup-mobile-undo-btn');
   const drawingStatus = document.getElementById('markup-drawing-status');
-  const drawingStatusTitle = document.getElementById('markup-drawing-status-title');
+  const drawingStatusTitle = document.getElementById(
+    'markup-drawing-status-title',
+  );
   const drawingStatusDetail = document.getElementById(
     'markup-drawing-status-detail',
   );
@@ -345,16 +347,24 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const managerCloseBtn = document.getElementById('markup-manager-close-btn');
   const managerNewBtn = document.getElementById('markup-manager-new-btn');
   const managerImportBtn = document.getElementById('markup-manager-import-btn');
-  const managerEmptyState = document.getElementById('markup-manager-empty-state');
+  const managerEmptyState = document.getElementById(
+    'markup-manager-empty-state',
+  );
   const managerList = document.getElementById('markup-manager-list');
   const metadataSheet = document.getElementById('markup-metadata-sheet');
-  const metadataSheetTitle = document.getElementById('markup-metadata-sheet-title');
+  const metadataSheetTitle = document.getElementById(
+    'markup-metadata-sheet-title',
+  );
   const metadataNameInput = document.getElementById('markup-metadata-name');
   const metadataDescriptionInput = document.getElementById(
     'markup-metadata-description',
   );
-  const metadataCancelBtn = document.getElementById('markup-metadata-cancel-btn');
-  const metadataSubmitBtn = document.getElementById('markup-metadata-submit-btn');
+  const metadataCancelBtn = document.getElementById(
+    'markup-metadata-cancel-btn',
+  );
+  const metadataSubmitBtn = document.getElementById(
+    'markup-metadata-submit-btn',
+  );
   const objectSheet = document.getElementById('markup-object-sheet');
   const objectSheetTitle = document.getElementById('markup-object-sheet-title');
   const objectNameLabel = document.getElementById('markup-object-name-label');
@@ -362,7 +372,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const objectCategoryLabel = document.getElementById(
     'markup-object-category-label',
   );
-  const objectCategorySelect = document.getElementById('markup-object-category');
+  const objectCategorySelect = document.getElementById(
+    'markup-object-category',
+  );
   const objectCustomWrap = document.getElementById('markup-object-custom-wrap');
   const objectCustomInput = document.getElementById(
     'markup-object-custom-category',
@@ -391,7 +403,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const confirmMessage = document.getElementById('markup-confirm-message');
   const confirmCancelBtn = document.getElementById('markup-confirm-cancel-btn');
   const confirmSubmitBtn = document.getElementById('markup-confirm-submit-btn');
-  const layoutMedia = globalThis.matchMedia?.(MOBILE_LAYOUT_MEDIA_QUERY) || null;
+  const layoutMedia =
+    globalThis.matchMedia?.(MOBILE_LAYOUT_MEDIA_QUERY) || null;
   const body = document.body;
 
   if (!viewer || !panel || !savedList || !managerList) return null;
@@ -402,7 +415,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const routeModeButtons = [
     ...document.querySelectorAll('.markup-route-mode-btn[data-route-mode]'),
   ];
-  const mobileRouteModeRow = document.getElementById('markup-mobile-route-mode-row');
+  const mobileRouteModeRow = document.getElementById(
+    'markup-mobile-route-mode-row',
+  );
   const dataSource = new Cesium.CustomDataSource('gev-markups');
   await viewer.dataSources.add(dataSource);
 
@@ -545,7 +560,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
 
   function syncObjectCustomField() {
     if (!objectCustomWrap) return;
-    const isOther = sanitizeText(objectCategorySelect?.value).toLowerCase() === 'other';
+    const isOther =
+      sanitizeText(objectCategorySelect?.value).toLowerCase() === 'other';
     objectCustomWrap.hidden = !objectDetailsExpanded || !isOther;
   }
 
@@ -553,7 +569,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     const sheet = readSheet(name);
     if (sheet) sheet.hidden = true;
     if (activeSheet === name) activeSheet = null;
-    if (name === 'manager') activeControl?.setAttribute('aria-expanded', 'false');
+    if (name === 'manager')
+      activeControl?.setAttribute('aria-expanded', 'false');
     if (name === 'metadata') {
       metadataTargetMarkupId = null;
       metadataMode = 'create';
@@ -580,7 +597,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     if (!sheet) return;
     sheet.hidden = false;
     activeSheet = name;
-    if (name === 'manager') activeControl?.setAttribute('aria-expanded', 'true');
+    if (name === 'manager')
+      activeControl?.setAttribute('aria-expanded', 'true');
   }
 
   function syncActiveMarkupLabel() {
@@ -785,7 +803,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       if (drawPoints.length >= 3) {
         polygonPreviewEntity = dataSource.entities.add({
           polygon: {
-            hierarchy: new Cesium.PolygonHierarchy(toCesiumPositions(drawPoints)),
+            hierarchy: new Cesium.PolygonHierarchy(
+              toCesiumPositions(drawPoints),
+            ),
             material: Cesium.Color.CYAN.withAlpha(0.26),
             outline: true,
             outlineColor: Cesium.Color.CYAN.withAlpha(0.92),
@@ -829,7 +849,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
 
   function syncRouteModeButtons() {
     routeModeRow.hidden = activeTool !== 'line';
-    if (mobileRouteModeRow) mobileRouteModeRow.hidden = !(isMobileLayout && activeTool === 'line');
+    if (mobileRouteModeRow)
+      mobileRouteModeRow.hidden = !(isMobileLayout && activeTool === 'line');
     for (const button of routeModeButtons) {
       const on = button.dataset.routeMode === routeMode;
       button.classList.toggle('active', on);
@@ -841,15 +862,19 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     const drawingLabel = activeTool ? DRAWING_LABELS[activeTool] : 'MARKUP';
     if (hint) {
       if (!editing) hint.textContent = 'Select a markup to begin.';
-      else if (!activeTool) hint.textContent = 'Choose a tool and draw directly on the map.';
+      else if (!activeTool)
+        hint.textContent = 'Choose a tool and draw directly on the map.';
       else if (activeTool === 'marker') hint.textContent = 'Tap map to place.';
-      else if (activeTool === 'polygon') hint.textContent = 'Tap points to draw an area.';
+      else if (activeTool === 'polygon')
+        hint.textContent = 'Tap points to draw an area.';
       else if (activeTool === 'circle')
         hint.textContent = circleCenter
           ? 'Drag or release to set radius.'
           : 'Tap center, then drag to set radius.';
-      else if (activeTool === 'delete') hint.textContent = 'Tap an object to delete it.';
-      else if (routeMode === 'free') hint.textContent = 'Drag on the map to draw a route.';
+      else if (activeTool === 'delete')
+        hint.textContent = 'Tap an object to delete it.';
+      else if (routeMode === 'free')
+        hint.textContent = 'Drag on the map to draw a route.';
       else hint.textContent = 'Tap points to draw a route.';
     }
     if (!drawingStatus) return;
@@ -927,7 +952,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     objectCard.hidden = false;
     if (objectCardTitle) {
       objectCardTitle.textContent =
-        object.title || object.category || DRAWING_LABELS[object.type] || 'Object';
+        object.title ||
+        object.category ||
+        DRAWING_LABELS[object.type] ||
+        'Object';
     }
     if (objectCardSubtitle) {
       objectCardSubtitle.textContent =
@@ -1034,7 +1062,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     if (!markup) return false;
     markup.objects.push(object);
     if (!undoStacks.has(markup.id)) undoStacks.set(markup.id, []);
-    undoStacks.get(markup.id).push({ type: 'add', object: structuredClone(object) });
+    undoStacks
+      .get(markup.id)
+      .push({ type: 'add', object: structuredClone(object) });
     await saveMarkup(markup);
     renderMap();
     renderSavedMarkups();
@@ -1043,7 +1073,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     return true;
   }
 
-  async function updateObject(markupId, objectId, updater, message = '✓ Saved') {
+  async function updateObject(
+    markupId,
+    objectId,
+    updater,
+    message = '✓ Saved',
+  ) {
     const { markup, object } = findMarkupObject(markupId, objectId);
     if (!markup || !object) return false;
     const before = structuredClone(object);
@@ -1064,7 +1099,11 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     return true;
   }
 
-  async function removeObjectFromMarkup(markupId, objectId, message = '✓ Saved') {
+  async function removeObjectFromMarkup(
+    markupId,
+    objectId,
+    message = '✓ Saved',
+  ) {
     const markup = markups.find((entry) => entry.id === markupId);
     if (!markup) return false;
     const index = markup.objects.findIndex((entry) => entry.id === objectId);
@@ -1179,7 +1218,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
 
   function activeMarkupFallback() {
     if (currentMarkupId && currentMarkup()) return currentMarkupId;
-    const candidate = markups.find((entry) => entry.visible !== false) || markups[0];
+    const candidate =
+      markups.find((entry) => entry.visible !== false) || markups[0];
     return candidate?.id || null;
   }
 
@@ -1204,7 +1244,11 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
 
   function leaveMarkupMode({ collapseMobilePanel = false } = {}) {
     setEditingState(false);
-    if (collapseMobilePanel && isMobileLayout && !panel.classList.contains('collapsed')) {
+    if (
+      collapseMobilePanel &&
+      isMobileLayout &&
+      !panel.classList.contains('collapsed')
+    ) {
       const collapseButton = panel.querySelector(
         '.panel-collapse-btn[data-collapse-target="scene-panel"]',
       );
@@ -1262,13 +1306,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   }
 
   function openMarkupMetadataSheet({ mode, markupId = null } = {}) {
-    const markup = markupId ? markups.find((entry) => entry.id === markupId) : null;
+    const markup = markupId
+      ? markups.find((entry) => entry.id === markupId)
+      : null;
     metadataMode = mode === 'edit' ? 'edit' : 'create';
     metadataTargetMarkupId = markup?.id || null;
     metadataSheetTitle.textContent =
       metadataMode === 'edit' ? 'EDIT MARKUP' : 'NEW MARKUP';
-    metadataSubmitBtn.textContent =
-      metadataMode === 'edit' ? 'SAVE' : 'CREATE';
+    metadataSubmitBtn.textContent = metadataMode === 'edit' ? 'SAVE' : 'CREATE';
     metadataNameInput.value = markup?.name || '';
     metadataDescriptionInput.value = markup?.description || '';
     openSheet('metadata');
@@ -1283,9 +1328,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     objectId = null,
   } = {}) {
     const config = objectSheetOptions(kind);
-    const seed = mode === 'edit' && markupId && objectId
-      ? findMarkupObject(markupId, objectId).object
-      : null;
+    const seed =
+      mode === 'edit' && markupId && objectId
+        ? findMarkupObject(markupId, objectId).object
+        : null;
     pendingObjectContext = {
       mode,
       kind,
@@ -1296,9 +1342,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     objectDetailsExpanded = Boolean(seed?.notes);
     objectSheetTitle.textContent =
       mode === 'edit' ? config.title.replace('NEW ', 'EDIT ') : config.title;
-    objectSubmitBtn.textContent = mode === 'edit'
-      ? config.submit.replace('ADD ', 'SAVE ')
-      : config.submit;
+    objectSubmitBtn.textContent =
+      mode === 'edit' ? config.submit.replace('ADD ', 'SAVE ') : config.submit;
     objectNameLabel.textContent =
       kind === 'polygon' || kind === 'line' || kind === 'circle'
         ? 'Name *'
@@ -1324,7 +1369,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     objectDescriptionInput.value = seed?.description || '';
     objectNotesInput.value = seed?.notes || '';
     objectMoreFields.hidden = !objectDetailsExpanded;
-    objectMoreBtn.textContent = objectDetailsExpanded ? 'LESS DETAILS' : 'MORE DETAILS';
+    objectMoreBtn.textContent = objectDetailsExpanded
+      ? 'LESS DETAILS'
+      : 'MORE DETAILS';
     syncObjectCustomField();
     openSheet('object');
     objectNameInput.focus();
@@ -1546,7 +1593,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     savedSingleClick =
       stock.getInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK) || null;
     savedDoubleClick =
-      stock.getInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK) || null;
+      stock.getInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK) ||
+      null;
     stock.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
     stock.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
@@ -1627,7 +1675,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         return;
       }
       if (activeTool === 'circle' && circleCenter && coordinate) {
-        circleRadiusMeters = Math.max(1, distanceMeters(circleCenter, coordinate));
+        circleRadiusMeters = Math.max(
+          1,
+          distanceMeters(circleCenter, coordinate),
+        );
         syncPreviewEntities();
         syncStatusCopy();
       }
@@ -1659,7 +1710,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       if (event.key === 'Escape') {
         event.preventDefault();
         if (activeSheet) {
-          if (activeSheet === 'object' && pendingObjectContext?.mode === 'create') {
+          if (
+            activeSheet === 'object' &&
+            pendingObjectContext?.mode === 'create'
+          ) {
             clearTransientGeometry();
           }
           closeSheet(activeSheet);
@@ -1675,7 +1729,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       if (
         event.key === 'Enter' &&
         activeTool &&
-        ((activeTool === 'line' && routeMode === 'points') || activeTool === 'polygon')
+        ((activeTool === 'line' && routeMode === 'points') ||
+          activeTool === 'polygon')
       ) {
         event.preventDefault();
         await finishActiveGeometry();
@@ -1783,7 +1838,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }
     const description = sanitizeText(metadataDescriptionInput.value);
     if (metadataMode === 'edit' && metadataTargetMarkupId) {
-      const markup = markups.find((entry) => entry.id === metadataTargetMarkupId);
+      const markup = markups.find(
+        (entry) => entry.id === metadataTargetMarkupId,
+      );
       if (!markup) return;
       markup.name = name;
       markup.description = description;
@@ -1818,8 +1875,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   async function submitObjectSheet() {
     const context = pendingObjectContext;
     if (!context) return;
-    const categoryOptions = context.kind === 'line' ? ROUTE_TYPE_OPTIONS : DEFAULT_CATEGORIES;
-    let category = normalizeCategory(objectCategorySelect.value, categoryOptions);
+    const categoryOptions =
+      context.kind === 'line' ? ROUTE_TYPE_OPTIONS : DEFAULT_CATEGORIES;
+    let category = normalizeCategory(
+      objectCategorySelect.value,
+      categoryOptions,
+    );
     if (sanitizeText(objectCategorySelect.value).toLowerCase() === 'other') {
       const customCategory = sanitizeText(objectCustomInput.value);
       if (customCategory) category = customCategory;
@@ -1848,17 +1909,13 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       return;
     }
     if (context.mode === 'edit' && context.markupId && context.objectId) {
-      await updateObject(
-        context.markupId,
-        context.objectId,
-        (entry) => {
-          entry.title = object.title;
-          entry.category = object.category;
-          entry.description = object.description;
-          entry.notes = object.notes;
-          entry.visible = object.visible;
-        },
-      );
+      await updateObject(context.markupId, context.objectId, (entry) => {
+        entry.title = object.title;
+        entry.category = object.category;
+        entry.description = object.description;
+        entry.notes = object.notes;
+        entry.visible = object.visible;
+      });
       closeSheet('object');
       setObjectCard(context.markupId, context.objectId);
       return;
@@ -1936,12 +1993,16 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       return;
     }
     if (action.type === 'add') {
-      const index = markup.objects.findIndex((entry) => entry.id === action.object.id);
+      const index = markup.objects.findIndex(
+        (entry) => entry.id === action.object.id,
+      );
       if (index >= 0) markup.objects.splice(index, 1);
     } else if (action.type === 'remove') {
       markup.objects.push(action.object);
     } else if (action.type === 'update') {
-      const index = markup.objects.findIndex((entry) => entry.id === action.objectId);
+      const index = markup.objects.findIndex(
+        (entry) => entry.id === action.objectId,
+      );
       if (index >= 0) markup.objects[index] = action.before;
     }
     await saveMarkup(markup);
@@ -1977,7 +2038,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     const reason = error?.message || String(error);
     updateStatus(`Markup storage unavailable: ${reason}`);
     try {
-      showToast('Markup storage unavailable; running in-memory for this session.');
+      showToast(
+        'Markup storage unavailable; running in-memory for this session.',
+      );
     } catch {
       /* ignored */
     }
@@ -1993,9 +2056,11 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   syncRouteModeButtons();
   syncMobilePresentation();
 
-  const selectedEntityRemover = viewer.selectedEntityChanged.addEventListener(() => {
-    syncSelectedEntityCard();
-  });
+  const selectedEntityRemover = viewer.selectedEntityChanged.addEventListener(
+    () => {
+      syncSelectedEntityCard();
+    },
+  );
 
   function listen(target, type, handler) {
     if (!target) return;
@@ -2028,7 +2093,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     else closeSheet('manager');
   });
   listen(managerCloseBtn, 'click', () => closeSheet('manager'));
-  listen(managerNewBtn, 'click', () => openMarkupMetadataSheet({ mode: 'create' }));
+  listen(managerNewBtn, 'click', () =>
+    openMarkupMetadataSheet({ mode: 'create' }),
+  );
   listen(managerImportBtn, 'click', () => importFile?.click());
   listen(metadataCancelBtn, 'click', () => closeSheet('metadata'));
   listen(metadataSheet, 'submit', (event) => {
@@ -2039,7 +2106,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   listen(objectMoreBtn, 'click', () => {
     objectDetailsExpanded = !objectDetailsExpanded;
     objectMoreFields.hidden = !objectDetailsExpanded;
-    objectMoreBtn.textContent = objectDetailsExpanded ? 'LESS DETAILS' : 'MORE DETAILS';
+    objectMoreBtn.textContent = objectDetailsExpanded
+      ? 'LESS DETAILS'
+      : 'MORE DETAILS';
     syncObjectCustomField();
   });
   listen(objectCancelBtn, 'click', () => {
@@ -2135,7 +2204,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   }
 
   const onMarkupListClick = (event) => {
-    const button = event.target.closest?.('button[data-action][data-markup-id]');
+    const button = event.target.closest?.(
+      'button[data-action][data-markup-id]',
+    );
     if (!button) return;
     void handleMarkupAction(button.dataset.action, button.dataset.markupId);
   };
@@ -2145,13 +2216,19 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   if (layoutMedia) {
     const onLayoutChange = (event) => {
       isMobileLayout = Boolean(event.matches);
-      if (!isMobileLayout && body?.dataset?.mobilePanel === 'markup' && editing) {
+      if (
+        !isMobileLayout &&
+        body?.dataset?.mobilePanel === 'markup' &&
+        editing
+      ) {
         closeAllSheets();
       }
       syncPanelState();
     };
     layoutMedia.addEventListener('change', onLayoutChange);
-    listeners.push(() => layoutMedia.removeEventListener('change', onLayoutChange));
+    listeners.push(() =>
+      layoutMedia.removeEventListener('change', onLayoutChange),
+    );
   }
 
   panelObserver = new MutationObserver(() => syncPanelState());
@@ -2171,7 +2248,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
 
   window.__gevMarkups = {
     list: () => structuredClone(markups),
-    setVisible: (id, visible) => window.__gevMarkupsLayerApi?.setVisible(id, visible),
+    setVisible: (id, visible) =>
+      window.__gevMarkupsLayerApi?.setVisible(id, visible),
     refresh: () => {
       renderMap();
       renderSavedMarkups();

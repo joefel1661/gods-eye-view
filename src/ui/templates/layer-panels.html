@@ -180,7 +180,9 @@
         <div id="markup-home" class="markup-home">
           <div class="markup-home-actions">
             <button id="markup-new-btn" class="scene-btn">+ NEW MARKUP</button>
-            <button id="markup-import-btn" class="scene-btn">IMPORT JSON</button>
+            <button id="markup-import-btn" class="scene-btn">
+              IMPORT JSON
+            </button>
           </div>
           <form
             id="markup-new-inline"
@@ -197,13 +199,25 @@
             </label>
             <label class="markup-new-inline-field" for="markup-new-description">
               <span>Description (optional)</span>
-              <input id="markup-new-description" type="text" autocomplete="off" />
+              <input
+                id="markup-new-description"
+                type="text"
+                autocomplete="off"
+              />
             </label>
             <div class="markup-new-inline-actions">
-              <button id="markup-new-cancel-btn" class="scene-btn" type="button">
+              <button
+                id="markup-new-cancel-btn"
+                class="scene-btn"
+                type="button"
+              >
                 CANCEL
               </button>
-              <button id="markup-new-create-btn" class="scene-btn" type="submit">
+              <button
+                id="markup-new-create-btn"
+                class="scene-btn"
+                type="submit"
+              >
                 CREATE
               </button>
             </div>
@@ -232,7 +246,10 @@
             <button class="scene-btn markup-tool-btn" data-markup-tool="line">
               ROUTE
             </button>
-            <button class="scene-btn markup-tool-btn" data-markup-tool="polygon">
+            <button
+              class="scene-btn markup-tool-btn"
+              data-markup-tool="polygon"
+            >
               AREA
             </button>
             <button class="scene-btn markup-tool-btn" data-markup-tool="circle">
@@ -252,10 +269,16 @@
             aria-label="Route drawing mode"
             hidden
           >
-            <button class="scene-btn markup-route-mode-btn" data-route-mode="free">
+            <button
+              class="scene-btn markup-route-mode-btn"
+              data-route-mode="free"
+            >
               FREE DRAW
             </button>
-            <button class="scene-btn markup-route-mode-btn" data-route-mode="points">
+            <button
+              class="scene-btn markup-route-mode-btn"
+              data-route-mode="points"
+            >
               POINTS
             </button>
           </div>
@@ -282,8 +305,15 @@
             <span id="markup-active-name">SELECT MARKUP</span>
             <span class="markup-active-caret" aria-hidden="true">⌄</span>
           </button>
-          <button id="markup-mobile-done-btn" class="markup-mobile-done-btn" type="button" aria-label="Exit markup mode">
-            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+          <button
+            id="markup-mobile-done-btn"
+            class="markup-mobile-done-btn"
+            type="button"
+            aria-label="Exit markup mode"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true"
+              >close</span
+            >
           </button>
         </div>
         <div class="markup-mobile-floating">
@@ -299,7 +329,9 @@
               aria-label="Marker"
               title="Marker"
             >
-              <span class="material-symbols-outlined" aria-hidden="true">my_location</span>
+              <span class="material-symbols-outlined" aria-hidden="true"
+                >my_location</span
+              >
             </button>
             <button
               class="markup-mobile-tool markup-tool-btn"
@@ -308,7 +340,9 @@
               aria-label="Route"
               title="Route"
             >
-              <span class="material-symbols-outlined" aria-hidden="true">navigation</span>
+              <span class="material-symbols-outlined" aria-hidden="true"
+                >navigation</span
+              >
             </button>
             <button
               class="markup-mobile-tool markup-tool-btn"
@@ -317,7 +351,9 @@
               aria-label="Area"
               title="Area"
             >
-              <span class="material-symbols-outlined" aria-hidden="true">open_in_full</span>
+              <span class="material-symbols-outlined" aria-hidden="true"
+                >open_in_full</span
+              >
             </button>
             <button
               class="markup-mobile-tool markup-tool-btn"
@@ -326,7 +362,9 @@
               aria-label="Radius"
               title="Radius"
             >
-              <span class="material-symbols-outlined" aria-hidden="true">radar</span>
+              <span class="material-symbols-outlined" aria-hidden="true"
+                >radar</span
+              >
             </button>
             <button
               class="markup-mobile-tool markup-tool-btn scene-btn-danger"
@@ -349,7 +387,10 @@
           </div>
           <div id="markup-drawing-status" class="markup-drawing-status" hidden>
             <div class="markup-drawing-status-copy">
-              <div id="markup-drawing-status-title" class="markup-drawing-status-title">
+              <div
+                id="markup-drawing-status-title"
+                class="markup-drawing-status-title"
+              >
                 MARKUP
               </div>
               <div
@@ -425,11 +466,7 @@
               Switch, create, rename, export, or manage visibility.
             </div>
           </div>
-          <button
-            id="markup-manager-close-btn"
-            class="scene-btn"
-            type="button"
-          >
+          <button id="markup-manager-close-btn" class="scene-btn" type="button">
             CLOSE
           </button>
         </div>
@@ -437,15 +474,15 @@
           <button id="markup-manager-new-btn" class="scene-btn" type="button">
             NEW
           </button>
-          <button id="markup-manager-import-btn" class="scene-btn" type="button">
+          <button
+            id="markup-manager-import-btn"
+            class="scene-btn"
+            type="button"
+          >
             IMPORT JSON
           </button>
         </div>
-        <div
-          id="markup-manager-empty-state"
-          class="markup-empty-state"
-          hidden
-        >
+        <div id="markup-manager-empty-state" class="markup-empty-state" hidden>
           Create a markup to start drawing directly on the map.
         </div>
         <div id="markup-manager-list" class="markup-manager-list"></div>
@@ -475,7 +512,11 @@
           >
             CANCEL
           </button>
-          <button id="markup-metadata-submit-btn" class="scene-btn" type="submit">
+          <button
+            id="markup-metadata-submit-btn"
+            class="scene-btn"
+            type="submit"
+          >
             CREATE
           </button>
         </div>
@@ -508,7 +549,11 @@
         </label>
         <label class="markup-sheet-field" for="markup-object-description">
           <span id="markup-object-description-label">Description</span>
-          <input id="markup-object-description" type="text" autocomplete="off" />
+          <input
+            id="markup-object-description"
+            type="text"
+            autocomplete="off"
+          />
         </label>
         <button
           id="markup-object-more-btn"
@@ -534,7 +579,10 @@
       </form>
       <section id="markup-object-card" class="markup-context-card" hidden>
         <div class="markup-context-card-copy">
-          <div id="markup-object-card-title" class="markup-context-card-title"></div>
+          <div
+            id="markup-object-card-title"
+            class="markup-context-card-title"
+          ></div>
           <div
             id="markup-object-card-subtitle"
             class="markup-context-card-subtitle"
@@ -561,7 +609,11 @@
         <div id="markup-confirm-title" class="markup-sheet-title"></div>
         <div id="markup-confirm-message" class="markup-sheet-subtitle"></div>
         <div class="markup-sheet-footer">
-          <button id="markup-confirm-cancel-btn" class="scene-btn" type="button">
+          <button
+            id="markup-confirm-cancel-btn"
+            class="scene-btn"
+            type="button"
+          >
             CANCEL
           </button>
           <button
