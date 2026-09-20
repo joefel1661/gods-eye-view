@@ -6,13 +6,17 @@ let _selected = null;
 let _cleanup = [];
 
 function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>'"]/g, (char) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    "'": '&#39;',
-    '"': '&quot;',
-  })[char]);
+  return String(value ?? '').replace(
+    /[&<>'"]/g,
+    (char) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;',
+      })[char],
+  );
 }
 
 function ensureCard() {
@@ -25,6 +29,14 @@ function ensureCard() {
   return card;
 }
 
+export function formatSecurityPointDistance(distanceM) {
+  if (!Number.isFinite(distanceM) || distanceM < 0) return '';
+  const miles = distanceM / 1609.344;
+  if (miles >= 10) return `${Math.round(miles)} mi`;
+  if (distanceM === 0) return '0.0 mi';
+  return `${Math.max(0.1, Math.round(miles * 10) / 10).toFixed(1)} mi`;
+}
+
 function renderCard(detail) {
   const card = ensureCard();
   if (!detail) {
@@ -33,7 +45,7 @@ function renderCard(detail) {
     return;
   }
   const distance = Number.isFinite(detail.distanceM)
-    ? `<div class="security-point-card-row"><span>Distance</span><strong>${escapeHtml(detail.distanceM >= 1000 ? `${(detail.distanceM / 1000).toFixed(detail.distanceM >= 10000 ? 0 : 1)} km` : `${detail.distanceM} m`)}</strong></div>`
+    ? `<div class="security-point-card-row"><span>Distance</span><strong>${escapeHtml(formatSecurityPointDistance(detail.distanceM))}</strong></div>`
     : '';
   const phoneValue = detail.telHref
     ? `<a class="security-point-card-phone" href="${escapeHtml(detail.telHref)}">${escapeHtml(detail.phone)}</a>`
@@ -58,9 +70,11 @@ function renderCard(detail) {
       ${distance}
       ${provider}
     </div>`;
-  card.querySelector('.security-point-card-close')?.addEventListener('click', () => {
-    window.dispatchEvent(new CustomEvent('gev:security-point-dismiss'));
-  });
+  card
+    .querySelector('.security-point-card-close')
+    ?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('gev:security-point-dismiss'));
+    });
   if (globalThis.matchMedia?.(MOBILE_LAYOUT_MEDIA_QUERY)?.matches) {
     card.setAttribute('data-mobile', 'true');
   } else {

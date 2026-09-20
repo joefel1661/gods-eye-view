@@ -156,7 +156,9 @@ export function readShellElements(document = globalThis.document) {
     _globalLoadingLabel: document.getElementById('global-loading-label'),
     _globalLoadingDetail: document.getElementById('global-loading-detail'),
     _mobileBottomNav: document.getElementById('mobile-bottom-nav'),
-    _mobileNavButtons: document.querySelectorAll('.mobile-nav-btn[data-mobile-panel]'),
+    _mobileNavButtons: document.querySelectorAll(
+      '.mobile-nav-btn[data-mobile-panel]',
+    ),
     _mobileCommandSheetCloseBtn: document.getElementById(
       'mobile-command-sheet-close',
     ),
@@ -178,6 +180,10 @@ export function readShellElements(document = globalThis.document) {
     _styleMiniValue: document.getElementById('style-mini-value'),
     _locationMiniCity: document.getElementById('location-mini-city'),
     _locationMiniPoi: document.getElementById('location-mini-poi'),
+    _myLocationOn: document.getElementById('my-location-on'),
+    _myLocationOff: document.getElementById('my-location-off'),
+    _myLocationRecenter: document.getElementById('my-location-recenter'),
+    _myLocationStatus: document.getElementById('my-location-status'),
     _safeFrameOverlay: document.getElementById('safe-frame-overlay'),
     _safeFrameBox: document.getElementById('safe-frame-box'),
     _detectionBtn: document.getElementById('detection-toggle'),

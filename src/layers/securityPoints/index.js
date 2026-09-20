@@ -1,5 +1,10 @@
 import * as Cesium from 'cesium';
 import { isPointerFree } from '../../data/inputOwnership.js';
+import { haversineDistanceMeters } from '../../geo/distance.js';
+import {
+  readMyLocationState,
+  subscribeMyLocationState,
+} from '../../myLocationState.js';
 import {
   CATEGORY_CONFIG,
   CATEGORY_ORDER,
@@ -104,14 +109,6 @@ export function countLabelForState(state) {
   }
 }
 
-function approximateDistanceM(latA, lonA, latB, lonB) {
-  const latitudeScale = 111320;
-  const longitudeScale = latitudeScale * Math.cos((latA * Math.PI) / 180);
-  return Math.round(
-    Math.hypot((latB - latA) * latitudeScale, (lonB - lonA) * longitudeScale),
-  );
-}
-
 function dispatchSelectionDetail(detail) {
   window.dispatchEvent(
     new CustomEvent('gev:security-point-selected', { detail }),
@@ -122,7 +119,7 @@ function dispatchSelectionCleared() {
   window.dispatchEvent(new CustomEvent('gev:security-point-cleared'));
 }
 
-function dispatchSelectionModel(record, contextDistanceM = null) {
+function dispatchSelectionModel(record, distanceM = null) {
   const google = record.google || null;
   const phone = formatPhone(google?.phone || record.phone);
   dispatchSelectionDetail({
@@ -138,7 +135,7 @@ function dispatchSelectionModel(record, contextDistanceM = null) {
     telHref: phone ? telHref(phone) : null,
     provider: google?.provider || record.provider || null,
     providerHref: google?.providerHref || record.providerHref || null,
-    distanceM: Number.isFinite(contextDistanceM) ? contextDistanceM : null,
+    distanceM: Number.isFinite(distanceM) ? distanceM : null,
   });
 }
 
@@ -192,7 +189,7 @@ export function createSecurityPointsLayer({ services, source }) {
     records: [],
     recordById: new Map(),
     selectedId: null,
-    selectedContextDistanceM: null,
+    selectedDistanceM: null,
     params: cloneCategoryParams(),
     timer: null,
     abort: null,
@@ -209,6 +206,7 @@ export function createSecurityPointsLayer({ services, source }) {
     moveEndRemove: null,
     clickHandler: null,
     dismissListener: null,
+    myLocationUnsubscribe: null,
   };
 
   function surfaceHeightM(record) {
@@ -235,7 +233,7 @@ export function createSecurityPointsLayer({ services, source }) {
     state.enrichAbort?.abort();
     state.enrichAbort = null;
     state.selectedId = null;
-    state.selectedContextDistanceM = null;
+    state.selectedDistanceM = null;
     if (clearContext)
       services.context.clearSelectedEntityContextForLayer(LAYER_ID);
     dispatchSelectionCleared();
@@ -342,21 +340,28 @@ export function createSecurityPointsLayer({ services, source }) {
     else if (state.selectedId) clearSelection();
   }
 
-  function computeContextDistanceM(record) {
-    const selected = services.context.getSelectedEntityContext?.();
+  function computeSelectedDistanceM(record) {
+    const location = readMyLocationState().position;
     if (
-      !selected ||
-      selected.layerId === LAYER_ID ||
-      !Number.isFinite(selected.latitude) ||
-      !Number.isFinite(selected.longitude)
+      !location ||
+      !Number.isFinite(location.latitude) ||
+      !Number.isFinite(location.longitude)
     )
       return null;
-    return approximateDistanceM(
-      selected.latitude,
-      selected.longitude,
+    return haversineDistanceMeters(
+      location.latitude,
+      location.longitude,
       record.latitude,
       record.longitude,
     );
+  }
+
+  function refreshSelectedDistance(record = null) {
+    const selectedRecord = record || state.recordById.get(state.selectedId);
+    if (!selectedRecord || !state.selectedId) return false;
+    state.selectedDistanceM = computeSelectedDistanceM(selectedRecord);
+    dispatchSelectionModel(selectedRecord, state.selectedDistanceM);
+    return true;
   }
 
   async function enrichSelectedRecord(record) {
@@ -376,7 +381,7 @@ export function createSecurityPointsLayer({ services, source }) {
         return;
       if (google) {
         record.google = google;
-        dispatchSelectionModel(record, state.selectedContextDistanceM);
+        dispatchSelectionModel(record, state.selectedDistanceM);
         renderRecords();
       }
     } catch (error) {
@@ -391,9 +396,9 @@ export function createSecurityPointsLayer({ services, source }) {
     const record = state.recordById.get(id);
     if (!record || !state.dataSource) return false;
     state.selectedId = id;
-    state.selectedContextDistanceM = computeContextDistanceM(record);
+    state.selectedDistanceM = computeSelectedDistanceM(record);
     renderRecords({ claimSelection: true });
-    dispatchSelectionModel(record, state.selectedContextDistanceM);
+    dispatchSelectionModel(record, state.selectedDistanceM);
     void enrichSelectedRecord(record);
     return true;
   }
@@ -570,6 +575,9 @@ export function createSecurityPointsLayer({ services, source }) {
         'gev:security-point-dismiss',
         state.dismissListener,
       );
+      state.myLocationUnsubscribe = subscribeMyLocationState(() => {
+        refreshSelectedDistance();
+      });
     },
     enable() {
       state.enabled = true;
@@ -608,6 +616,8 @@ export function createSecurityPointsLayer({ services, source }) {
           state.dismissListener,
         );
       state.dismissListener = null;
+      state.myLocationUnsubscribe?.();
+      state.myLocationUnsubscribe = null;
       if (state.dataSource && viewer)
         viewer.dataSources.remove(state.dataSource, true);
       state.dataSource = null;

@@ -13,10 +13,12 @@
     );
     --mobile-attribution-zone-height: clamp(24px, 4.4vh, 34px);
     --mobile-attribution-zone-top: calc(
-      var(--mobile-attribution-zone-bottom) + var(--mobile-attribution-zone-height)
+      var(--mobile-attribution-zone-bottom) +
+        var(--mobile-attribution-zone-height)
     );
     --mobile-panel-bottom: calc(
-      var(--mobile-safe-bottom) + var(--mobile-nav-height) + var(--mobile-nav-gap)
+      var(--mobile-safe-bottom) + var(--mobile-nav-height) +
+        var(--mobile-nav-gap)
     );
     --mobile-panel-max-height: calc(
       100dvh - var(--mobile-safe-top) - var(--mobile-panel-bottom) -
@@ -27,10 +29,8 @@
   #intel-hud {
     --hud-mobile-telemetry-color: #ffd166;
     --hud-mobile-telemetry-shadow:
-      1px 0 0 rgba(0, 0, 0, 0.9),
-      -1px 0 0 rgba(0, 0, 0, 0.9),
-      0 1px 0 rgba(0, 0, 0, 0.9),
-      0 -1px 0 rgba(0, 0, 0, 0.9);
+      1px 0 0 rgba(0, 0, 0, 0.9), -1px 0 0 rgba(0, 0, 0, 0.9),
+      0 1px 0 rgba(0, 0, 0, 0.9), 0 -1px 0 rgba(0, 0, 0, 0.9);
     --hud-mobile-telemetry-backing: rgba(5, 8, 12, 0.76);
   }
 
@@ -139,7 +139,9 @@
 
   #intel-hud[data-hud-status-collapsed='true'] .hud-top-left .hud-content,
   #intel-hud[data-hud-status-collapsed='true'] .hud-top-left .hud-bracket,
-  #intel-hud[data-hud-coordinates-collapsed='true'] .hud-bottom-left .hud-content,
+  #intel-hud[data-hud-coordinates-collapsed='true']
+    .hud-bottom-left
+    .hud-content,
   #intel-hud[data-hud-coordinates-collapsed='true']
     .hud-bottom-left
     .hud-bracket {
@@ -374,7 +376,8 @@
   #left-panel-stack > #data-panel:not(.collapsed) .data-panel-inner,
   #left-panel-stack > #scene-panel:not(.collapsed) .scene-panel-inner,
   #right-context-rail > #cctv-panel:not(.collapsed) .cctv-panel-inner,
-  #right-context-rail > #global-context-panel:not(.collapsed)
+  #right-context-rail
+    > #global-context-panel:not(.collapsed)
     .global-context-panel-inner {
     height: auto;
     max-height: var(--mobile-panel-max-height);
@@ -445,7 +448,8 @@
     margin: 0 auto 10px;
   }
 
-  :is(#data-panel, #scene-panel, #cctv-panel, #global-context-panel) .panel-header {
+  :is(#data-panel, #scene-panel, #cctv-panel, #global-context-panel)
+    .panel-header {
     position: sticky;
     top: 0;
     z-index: 3;
@@ -458,7 +462,8 @@
     );
   }
 
-  :is(#data-panel, #scene-panel, #cctv-panel, #global-context-panel) .panel-collapse-btn {
+  :is(#data-panel, #scene-panel, #cctv-panel, #global-context-panel)
+    .panel-collapse-btn {
     min-width: 36px;
     min-height: 36px;
     border-radius: 12px;
@@ -638,27 +643,53 @@
     border-radius: 18px;
   }
 
-  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control .gev-voice-heading,
-  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control .gev-voice-readout,
-  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control .gev-voice-help-tray,
-  #command-dock > #gev-voice-control:not([data-status='idle']) .gev-voice-heading,
-  #command-dock > #gev-voice-control:not([data-status='idle']) .gev-voice-readout {
+  body[data-mobile-panel='controls']
+    #command-dock
+    > #gev-voice-control
+    .gev-voice-heading,
+  body[data-mobile-panel='controls']
+    #command-dock
+    > #gev-voice-control
+    .gev-voice-readout,
+  body[data-mobile-panel='controls']
+    #command-dock
+    > #gev-voice-control
+    .gev-voice-help-tray,
+  #command-dock
+    > #gev-voice-control:not([data-status='idle'])
+    .gev-voice-heading,
+  #command-dock
+    > #gev-voice-control:not([data-status='idle'])
+    .gev-voice-readout {
     display: block;
   }
 
-  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control .gev-voice-visualizer,
-  #command-dock > #gev-voice-control:not([data-status='idle']) .gev-voice-visualizer {
+  body[data-mobile-panel='controls']
+    #command-dock
+    > #gev-voice-control
+    .gev-voice-visualizer,
+  #command-dock
+    > #gev-voice-control:not([data-status='idle'])
+    .gev-voice-visualizer {
     display: flex;
   }
 
-  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control #gev-voice-button,
-  #command-dock > #gev-voice-control:not([data-status='idle']) #gev-voice-button {
+  body[data-mobile-panel='controls']
+    #command-dock
+    > #gev-voice-control
+    #gev-voice-button,
+  #command-dock
+    > #gev-voice-control:not([data-status='idle'])
+    #gev-voice-button {
     width: 72px;
     height: 40px;
     border-radius: 14px;
   }
 
-  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control .gev-mic-label,
+  body[data-mobile-panel='controls']
+    #command-dock
+    > #gev-voice-control
+    .gev-mic-label,
   #command-dock > #gev-voice-control:not([data-status='idle']) .gev-mic-label {
     display: inline;
   }
@@ -709,7 +740,9 @@
   }
 
   body[data-mobile-panel='controls'] #command-dock .panel-title::after,
-  body[data-mobile-panel='controls'] #command-dock .location-toolbar-label::after,
+  body[data-mobile-panel='controls']
+    #command-dock
+    .location-toolbar-label::after,
   body[data-mobile-panel='controls'] #command-dock .panel-collapse-btn,
   body[data-mobile-panel='controls'] #command-dock .dock-pin-btn,
   body[data-mobile-panel='controls'] #command-dock .panel-mini-status,
@@ -728,8 +761,14 @@
     position: var(--mobile-controls-popover-position, absolute);
   }
 
-  body[data-mobile-panel='controls'] #command-dock #location-bar .dock-popover-content,
-  body[data-mobile-panel='controls'] #command-dock #control-panel .dock-popover-content {
+  body[data-mobile-panel='controls']
+    #command-dock
+    #location-bar
+    .dock-popover-content,
+  body[data-mobile-panel='controls']
+    #command-dock
+    #control-panel
+    .dock-popover-content {
     right: auto;
     left: auto;
     width: 100%;
@@ -739,7 +778,9 @@
     overflow-y: visible;
   }
 
-  body[data-mobile-panel='controls'] #command-dock .dock-popover-content::after {
+  body[data-mobile-panel='controls']
+    #command-dock
+    .dock-popover-content::after {
     display: none;
   }
 
@@ -893,6 +934,21 @@
 
   body[data-mobile-panel='controls'] #command-dock .map-source-section {
     margin-top: 10px;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .my-location-header,
+  body[data-mobile-panel='controls'] #command-dock .my-location-section {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .my-location-header {
+    flex-wrap: wrap;
+  }
+
+  body[data-mobile-panel='controls'] #command-dock .my-location-recenter {
+    width: 100%;
+    min-height: 40px;
   }
 
   #cesium-credits {
@@ -1123,27 +1179,40 @@
     min-width: calc(100% - 28px);
   }
 
-  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control #gev-voice-button {
+  body[data-mobile-panel='controls']
+    #command-dock
+    > #gev-voice-control
+    #gev-voice-button {
     width: 100%;
     min-width: 0;
   }
 
-  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control .gev-voice-readout {
+  body[data-mobile-panel='controls']
+    #command-dock
+    > #gev-voice-control
+    .gev-voice-readout {
     width: 100%;
     min-width: 0;
   }
 
-  body[data-mobile-panel='controls'] #command-dock > #gev-voice-control #gev-voice-detail {
+  body[data-mobile-panel='controls']
+    #command-dock
+    > #gev-voice-control
+    #gev-voice-detail {
     max-width: 100%;
     white-space: normal;
     overflow-wrap: anywhere;
   }
 
-  #command-dock > #gev-voice-control:not([data-status='idle']) .gev-voice-readout {
+  #command-dock
+    > #gev-voice-control:not([data-status='idle'])
+    .gev-voice-readout {
     text-align: left;
   }
 
-  #command-dock > #gev-voice-control:not([data-status='idle']) #gev-voice-detail {
+  #command-dock
+    > #gev-voice-control:not([data-status='idle'])
+    #gev-voice-detail {
     max-width: none;
     white-space: normal;
   }
