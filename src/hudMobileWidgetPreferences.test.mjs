@@ -88,6 +88,7 @@ test('right HUD telemetry collapse setter syncs the grouped state', () => {
   const calls = [];
   const fakeHud = {
     _rightTelemetryCollapsed: false,
+    _setRightTelemetryCollapsed: IntelHUD.prototype._setRightTelemetryCollapsed,
     _syncRightTelemetryPresentation() {
       calls.push(this._rightTelemetryCollapsed);
     },

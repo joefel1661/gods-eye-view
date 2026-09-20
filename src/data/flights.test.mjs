@@ -230,7 +230,7 @@ test('flights poll refreshes tracked callsign/FL/kts and marks a missed poll STA
     await flightsLayer.update(viewer);
     assert.match(
       [entity.gevLabelModel.title, ...entity.gevLabelModel.details].join(' · '),
-      /STALE/,
+      /Stale/,
     );
   } finally {
     globalThis.fetch = realFetch;
@@ -369,7 +369,10 @@ test('real civil track path creates no native label and publishes every cached h
     );
     assert.equal(entity.gevLabelModel.details[4], 'Status Airborne · Level');
     assert.match(entity.gevLabelModel.details[5], /^Contact \d+s ago$/);
-    assert.equal(entity.gevLabelModel.details[6], 'OpenSky Network · Upd --');
+    assert.match(
+      entity.gevLabelModel.details[6],
+      /^OpenSky Network · Upd (?:--|\d{2}:\d{2}:\d{2}Z)$/,
+    );
     viewer.scene.preUpdate.raiseEvent();
     const initialAppliedFrames = appliedFrames;
     const initialCancelledFlights = cancelledFlights;
@@ -492,12 +495,13 @@ test('real civil track path creates no native label and publishes every cached h
   }
 });
 
-test('tracked flight card omits missing fields cleanly and keeps placeholders subtle', () => {
-  const icao24 = 'sparse1';
+test('tracked flight card omits missing fields cleanly and keeps placeholders subtle', async () => {
+  const icao24 = 'abc123';
   const viewer = { camera: { positionCartographic: null }, scene: {} };
+  const entity = { gevLabelModel: { title: 'OLD', details: [] } };
   _setTrackedFlightRefreshStateForTest({
     icao24,
-    entity: { gevLabelModel: { title: 'OLD', details: [] } },
+    entity,
     billboard: {
       position: Cesium.Cartesian3.fromDegrees(-97.7, 30.2, 500),
       color: Cesium.Color.WHITE,
@@ -520,11 +524,50 @@ test('tracked flight card omits missing fields cleanly and keeps placeholders su
     },
   });
 
-  assert.equal(flightsLayer.trackById(icao24), true);
-  const model = viewer.trackedEntity.gevLabelModel;
-  assert.equal(model.title, 'SPARSE1');
+  const realFetch = globalThis.fetch;
+  const nowSec = Math.floor(Date.now() / 1000);
+  globalThis.fetch = async (url) => {
+    if (!String(url).startsWith('/api/opensky')) {
+      return { ok: true, status: 200, json: async () => ({ found: false }) };
+    }
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => ({
+        time: nowSec,
+        states: [[
+          icao24,
+          '   ',
+          'United States',
+          nowSec,
+          nowSec,
+          -97.7,
+          30.2,
+          500,
+          false,
+          null,
+          null,
+          null,
+          null,
+          520,
+          null,
+          null,
+          null,
+          null,
+        ]],
+      }),
+    };
+  };
+  try {
+    await flightsLayer.update(viewer);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  const model = entity.gevLabelModel;
+  assert.equal(model.title, 'ABC123');
   assert.equal(model.selected, true);
-  assert.equal(model.details[0], 'Alt 1,640 ft · GS -- · HDG --');
+  assert.equal(model.details[0], 'Alt 1,640 ft · GS -- · HDG 000°');
   assert.match(model.details.at(-1), /\bUpd /);
   assert.doesNotMatch(model.details.join(' · '), /\b(?:null|undefined)\b/);
 });

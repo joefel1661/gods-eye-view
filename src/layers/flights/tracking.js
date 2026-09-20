@@ -1335,7 +1335,6 @@ export function createTracking({
     _militaryLayerSuppresses,
     _applyPendingTrackingRestore,
     _cancelPendingTrackingRestore,
-    _trackedLabelText,
     _updateTrackedLabelModel,
     _syncTrackedBillboardImage,
     _refreshTr3bContact,
