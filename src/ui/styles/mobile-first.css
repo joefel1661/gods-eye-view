@@ -981,7 +981,7 @@
   #scene-panel.markup-compact:not(.collapsed) #markup-compact-bar {
     position: fixed;
     right: auto;
-    bottom: var(--mobile-panel-bottom);
+    bottom: calc(var(--mobile-panel-bottom) + env(safe-area-inset-bottom));
     left: 50%;
     z-index: 160;
     display: flex;

@@ -237,6 +237,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const newInlineForm = document.getElementById('markup-new-inline');
   const newInlineName = document.getElementById('markup-new-name');
   const newInlineDescription = document.getElementById('markup-new-description');
+  const newInlineCreateBtn = document.getElementById('markup-new-create-btn');
   const newInlineCancelBtn = document.getElementById('markup-new-cancel-btn');
   const saveBtn = document.getElementById('markup-save-btn');
   const exitBtn = document.getElementById('markup-exit-btn');
@@ -304,6 +305,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   let drawingVertexEntities = [];
   let compactMode = false;
   let isMobileLayout = Boolean(layoutMedia?.matches);
+  let creatingMarkup = false;
   let panelClassObserver = null;
   const undoStacks = new Map();
   const listeners = [];
@@ -601,6 +603,11 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   const setNewMarkupFormVisible = (visible) => {
     if (!newInlineForm) return;
     newInlineForm.hidden = !visible;
+    if (newInlineCreateBtn) newInlineCreateBtn.disabled = false;
+    if (newInlineCancelBtn) newInlineCancelBtn.disabled = false;
+    if (newInlineName) newInlineName.disabled = false;
+    if (newInlineDescription) newInlineDescription.disabled = false;
+    creatingMarkup = false;
     if (visible) {
       if (newInlineName) newInlineName.value = '';
       if (newInlineDescription) newInlineDescription.value = '';
@@ -609,6 +616,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }
     if (newInlineName) newInlineName.value = '';
     if (newInlineDescription) newInlineDescription.value = '';
+  };
+
+  const setNewMarkupSubmitting = (submitting) => {
+    creatingMarkup = Boolean(submitting);
+    if (newInlineCreateBtn) newInlineCreateBtn.disabled = creatingMarkup;
+    if (newInlineCancelBtn) newInlineCancelBtn.disabled = creatingMarkup;
+    if (newInlineName) newInlineName.disabled = creatingMarkup;
+    if (newInlineDescription) newInlineDescription.disabled = creatingMarkup;
   };
 
   const markerDetailsFromForm = () => {
@@ -768,7 +783,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       button.classList.toggle('active', on);
       button.setAttribute('aria-pressed', String(on));
     }
-    hint.textContent = TOOL_HINTS[activeTool || 'none'];
+    hint.textContent = activeTool ? TOOL_HINTS[activeTool] : TOOL_HINTS.none;
     if (isMobileLayout && DRAWING_TOOLS.has(activeTool)) setCompactMode(true);
     else if (!DRAWING_TOOLS.has(activeTool)) setCompactMode(false);
     else syncCompactBar();
@@ -1134,32 +1149,41 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   }
 
   const createNewMarkup = async () => {
+    if (creatingMarkup) return;
     const markupName = sanitizeText(newInlineName?.value);
     if (!markupName) {
       updateStatus('Markup name is required.');
       newInlineName?.focus();
       return;
     }
-    const description = sanitizeText(newInlineDescription?.value);
-    const markup = normalizeMarkup({
-      id: uuid(),
-      name: markupName,
-      description,
-      visible: true,
-      objects: [],
-    });
-    await saveMarkup(markup);
-    currentMarkupId = markup.id;
-    undoStacks.set(markup.id, []);
-    viewer.selectedEntity = null;
-    setMarkerCard(null);
-    setEditMode(true);
-    selectTool(null);
-    setNewMarkupFormVisible(false);
-    renderSavedMarkups();
-    renderMap();
-    refreshLayerPanel();
-    updateStatus(`Created ${markup.name}`);
+    setNewMarkupSubmitting(true);
+    let created = false;
+    try {
+      const description = sanitizeText(newInlineDescription?.value);
+      const markup = normalizeMarkup({
+        id: uuid(),
+        name: markupName,
+        description,
+        visible: true,
+        objects: [],
+      });
+      await saveMarkup(markup);
+      currentMarkupId = markup.id;
+      undoStacks.set(markup.id, []);
+      viewer.selectedEntity = null;
+      setMarkerCard(null);
+      setEditMode(true);
+      selectTool(null);
+      setNewMarkupFormVisible(false);
+      renderSavedMarkups();
+      renderMap();
+      refreshLayerPanel();
+      updateStatus(`Created ${markup.name}`);
+      created = true;
+    } finally {
+      if (created) creatingMarkup = false;
+      else setNewMarkupSubmitting(false);
+    }
   };
 
   const saveCurrentMarkup = async () => {

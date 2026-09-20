@@ -182,8 +182,15 @@
           <button id="markup-new-btn" class="scene-btn">+ NEW MARKUP</button>
           <button id="markup-import-btn" class="scene-btn">IMPORT JSON</button>
         </div>
-        <form id="markup-new-inline" class="markup-new-inline" hidden>
-          <div class="markup-new-inline-title">NEW MARKUP</div>
+        <form
+          id="markup-new-inline"
+          class="markup-new-inline"
+          aria-labelledby="markup-new-inline-title"
+          hidden
+        >
+          <div id="markup-new-inline-title" class="markup-new-inline-title">
+            NEW MARKUP
+          </div>
           <label class="markup-new-inline-field" for="markup-new-name">
             <span>Name</span>
             <input id="markup-new-name" type="text" autocomplete="off" />
