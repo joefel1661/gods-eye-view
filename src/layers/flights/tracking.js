@@ -831,7 +831,9 @@ export function createTracking({
       [
         `Alt ${_formatAltitudeSummary(info)}`,
         `GS ${_formatSpeedSummary(info.velocity)}`,
-        `HDG ${_formatHeadingSummary(info.true_track)}`,
+        `HDG ${_formatHeadingSummary(
+          info.trackKnown === false ? null : info.true_track,
+        )}`,
       ].join(' · '),
     );
     details.push(

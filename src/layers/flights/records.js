@@ -214,6 +214,8 @@ export class FlightRecords {
       wasAirborne: prevMeta?.wasAirborne === true || !onGround,
       velocity: stickyNumber(velocity, prevMeta?.velocity, 0),
       true_track: stickyNumber(true_track, prevMeta?.true_track, 0),
+      trackKnown:
+        Number.isFinite(true_track) || prevMeta?.trackKnown === true,
       category: cat,
       // An adsbdb-enriched type code outranks the coarse OpenSky category.
       klass: classifyAircraft({

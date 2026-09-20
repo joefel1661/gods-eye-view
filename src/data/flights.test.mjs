@@ -567,7 +567,7 @@ test('tracked flight card omits missing fields cleanly and keeps placeholders su
   const model = entity.gevLabelModel;
   assert.equal(model.title, 'ABC123');
   assert.equal(model.selected, true);
-  assert.equal(model.details[0], 'Alt 1,640 ft · GS -- · HDG 000°');
+  assert.equal(model.details[0], 'Alt 1,640 ft · GS -- · HDG --');
   assert.match(model.details.at(-1), /\bUpd /);
   assert.doesNotMatch(model.details.join(' · '), /\b(?:null|undefined)\b/);
 });
