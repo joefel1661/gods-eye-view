@@ -534,6 +534,16 @@
             </div>
           </div>
           <button
+            id="markup-object-minimize-btn"
+            class="scene-btn markup-sheet-header-action"
+            type="button"
+            hidden
+            aria-expanded="true"
+            aria-label="Minimize details"
+          >
+            ˅
+          </button>
+          <button
             id="markup-object-delete-secondary-btn"
             class="scene-btn scene-btn-danger markup-sheet-header-action"
             type="button"
@@ -542,57 +552,70 @@
             DELETE
           </button>
         </div>
-        <div class="markup-object-sheet-body">
-          <label class="markup-sheet-field" for="markup-object-name">
-            <span id="markup-object-name-label">Title *</span>
-            <input id="markup-object-name" type="text" autocomplete="off" />
-          </label>
-          <label class="markup-sheet-field" for="markup-object-category">
-            <span id="markup-object-category-label">Category</span>
-            <select id="markup-object-category"></select>
-          </label>
-          <label class="markup-sheet-field" for="markup-object-description">
-            <span id="markup-object-description-label">Description</span>
-            <input
-              id="markup-object-description"
-              type="text"
-              autocomplete="off"
-            />
-          </label>
-          <button
-            id="markup-object-more-btn"
-            class="scene-btn markup-sheet-more-btn"
-            type="button"
-          >
-            MORE DETAILS
-          </button>
-          <div id="markup-object-more-fields" hidden>
-            <label
-              id="markup-object-custom-wrap"
-              class="markup-sheet-field"
-              for="markup-object-custom-category"
-              hidden
-            >
-              <span>Custom Category</span>
+        <div
+          id="markup-object-sheet-content"
+          class="markup-object-sheet-content"
+        >
+          <div class="markup-object-sheet-body">
+            <label class="markup-sheet-field" for="markup-object-name">
+              <span id="markup-object-name-label">Title *</span>
+              <input id="markup-object-name" type="text" autocomplete="off" />
+            </label>
+            <label class="markup-sheet-field" for="markup-object-category">
+              <span id="markup-object-category-label">Category</span>
+              <select id="markup-object-category"></select>
+            </label>
+            <label class="markup-sheet-field" for="markup-object-description">
+              <span id="markup-object-description-label">Description</span>
               <input
-                id="markup-object-custom-category"
+                id="markup-object-description"
                 type="text"
                 autocomplete="off"
               />
             </label>
-            <label class="markup-sheet-field" for="markup-object-notes">
-              <span>Detailed Notes</span>
-              <textarea id="markup-object-notes" rows="3"></textarea>
-            </label>
+            <button
+              id="markup-object-more-btn"
+              class="scene-btn markup-sheet-more-btn"
+              type="button"
+            >
+              MORE DETAILS
+            </button>
+            <div id="markup-object-more-fields" hidden>
+              <label
+                id="markup-object-custom-wrap"
+                class="markup-sheet-field"
+                for="markup-object-custom-category"
+                hidden
+              >
+                <span>Custom Category</span>
+                <input
+                  id="markup-object-custom-category"
+                  type="text"
+                  autocomplete="off"
+                />
+              </label>
+              <label class="markup-sheet-field" for="markup-object-notes">
+                <span>Detailed Notes</span>
+                <textarea id="markup-object-notes" rows="3"></textarea>
+              </label>
+            </div>
           </div>
-        </div>
-        <div class="markup-sheet-footer markup-sheet-footer-sticky">
-          <button id="markup-object-cancel-btn" class="scene-btn" type="button">
-            CANCEL
-          </button>
-          <button id="markup-object-submit-btn" class="scene-btn" type="submit">
-            ADD
-          </button>
+          <div class="markup-sheet-footer markup-sheet-footer-sticky">
+            <button
+              id="markup-object-cancel-btn"
+              class="scene-btn"
+              type="button"
+            >
+              CANCEL
+            </button>
+            <button
+              id="markup-object-submit-btn"
+              class="scene-btn"
+              type="submit"
+            >
+              ADD
+            </button>
+          </div>
         </div>
       </form>
       <section id="markup-object-card" class="markup-context-card" hidden>
