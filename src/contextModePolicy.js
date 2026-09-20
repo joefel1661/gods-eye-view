@@ -6,7 +6,6 @@ const CONTEXT_DEPENDENCIES = Object.freeze({
     'ais-live-vessels',
     'military-installations',
   ]),
-  'space-missions': new Set(['rocket-launches', 'satellites']),
 });
 const CONTEXT_COMPANIONS = new Set(['radio']);
 /** Return whether an origin represents a direct user choice on this route. */
@@ -115,7 +114,6 @@ export async function settleUserFacingContextAction({
  */
 export const CONTEXT_ENTRY_LAYER_IDS = Object.freeze([
   'military-awareness',
-  'rocket-launches',
 ]);
 
 /**
@@ -418,7 +416,6 @@ export function cockpitEntryAllowed({
  */
 export const CONTEXT_MODE_VOICE_NAMES = Object.freeze({
   flights: 'contacts',
-  'space-missions': 'space-missions',
 });
 
 /**

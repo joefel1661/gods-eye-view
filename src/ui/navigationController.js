@@ -63,7 +63,7 @@ export class NavigationController {
         /* best effort */
       }
       try {
-        satellitesLayer.cancelPendingTrackingRestore?.();
+        satellitesLayer?.cancelPendingTrackingRestore?.();
       } catch {
         /* best effort */
       }
@@ -91,8 +91,9 @@ export class NavigationController {
         );
       }
       if (
+        satellitesLayer &&
         !passivelyClearedShareSelection &&
-        !satellitesLayer.getTrackedInfo?.()
+        !satellitesLayer?.getTrackedInfo?.()
       ) {
         this.getDataManager()?.setLayerParams(
           'satellites',
@@ -158,12 +159,12 @@ export class NavigationController {
       }
     }
     try {
-      satellitesLayer.stopTracking?.({ origin: trackingOrigin });
+      satellitesLayer?.stopTracking?.({ origin: trackingOrigin });
     } catch {
       /* best-effort release */
     }
     try {
-      rocketLaunchesLayer.releaseCameraOwnership?.();
+      rocketLaunchesLayer?.releaseCameraOwnership?.();
     } catch {
       /* best-effort release */
     }

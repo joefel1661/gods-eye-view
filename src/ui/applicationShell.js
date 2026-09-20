@@ -104,9 +104,7 @@ export class StyleManager {
       militaryFlightsLayer,
       isTr3b,
       toggleTr3b,
-      satellitesLayer,
       cctvLayer,
-      bikeshareLayer,
       transitLayer,
       aisLiveVesselsLayer,
       militaryAwarenessLayer,
@@ -173,10 +171,8 @@ export class StyleManager {
       tracking: {
         flightsLayer,
         militaryFlightsLayer,
-        satellitesLayer,
         aisLiveVesselsLayer,
         militaryAwarenessLayer,
-        rocketLaunchesLayer: services.rocketLaunchesLayer,
       },
       searchInput: this._locationSearch,
       interruptCameraMotion: services.interruptCameraMotion,
@@ -584,9 +580,7 @@ export class StyleManager {
         trafficLayer,
         flightsLayer,
         militaryFlightsLayer,
-        satellitesLayer,
         cctvLayer,
-        bikeshareLayer,
         transitLayer,
         aisLiveVesselsLayer,
       ],
@@ -1652,15 +1646,6 @@ export class StyleManager {
             .trim()
             .toLowerCase() || null,
       },
-      satellites: {
-        key: 'selectedSatTrackingId',
-        normalize: (value) => {
-          const candidate = Number(value);
-          return Number.isFinite(candidate) && candidate > 0
-            ? Math.trunc(candidate)
-            : null;
-        },
-      },
     }[layerId];
     if (!config) return;
     const selectedValue = cleared ? null : config.normalize(event?.detail?.id);
@@ -1689,7 +1674,6 @@ export class StyleManager {
     for (const [otherLayerId, otherKey] of [
       ['flights', 'selectedFlightsTrackingId'],
       ['military', 'selectedMilitaryTrackingId'],
-      ['satellites', 'selectedSatTrackingId'],
     ]) {
       if (otherLayerId === layerId) continue;
       this._dataManager.setLayerParams(
@@ -3367,10 +3351,8 @@ export class StyleManager {
       interruptCameraMotion,
       flightsLayer,
       militaryFlightsLayer,
-      satellitesLayer,
       aisLiveVesselsLayer,
       militaryAwarenessLayer,
-      rocketLaunchesLayer,
     } = this.services;
     if (this._globeResetPromise) return this._globeResetPromise;
     this._stampNavigation();
@@ -3398,12 +3380,12 @@ export class StyleManager {
       }
     }
     try {
-      satellitesLayer.stopTracking?.({ origin: 'tool' });
+      this.services.satellitesLayer?.stopTracking?.({ origin: 'tool' });
     } catch {
       /* best-effort release */
     }
     try {
-      rocketLaunchesLayer.releaseCameraOwnership?.();
+      this.services.rocketLaunchesLayer?.releaseCameraOwnership?.();
     } catch {
       /* best-effort release */
     }

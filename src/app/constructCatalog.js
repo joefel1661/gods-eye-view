@@ -7,18 +7,14 @@ import { createApplicationVessels } from './layers/aisLiveVessels.js';
 import { createApplicationCctv } from './layers/cctv.js';
 import { createApplicationRadio } from './layers/radio.js';
 import { createApplicationTraffic } from './layers/traffic.js';
-import { createApplicationBikeshare } from './layers/bikeshare.js';
 import { createApplicationDirections } from './layers/directions.js';
 import { createApplicationTransit } from './layers/transit.js';
 import { createApplicationInstallations } from './layers/militaryInstallations.js';
 import { createApplicationSecurityPoints } from './layers/securityPoints.js';
-import { createApplicationSatellites } from './layers/satellites.js';
-import { createApplicationLaunches } from './layers/rocketLaunches.js';
 import { createApplicationAlpr } from './layers/alprCameras.js';
 import { createApplicationAwareness } from './layers/militaryAwareness.js';
 import { createApplicationFirms } from './layers/firms.js';
 import { createApplicationEarthquakes } from './layers/earthquakes.js';
-import { createApplicationCables } from './layers/submarineCables.js';
 import { createInfrastructureLayers } from '../data/infrastructure.js';
 import { localGeoJsonServices } from './localGeojsonServices.js';
 import { createBhoteKoshiEventLayer } from '../data/bhoteKoshiEvent.js';
@@ -37,15 +33,11 @@ const SOURCE_METHODS = Object.freeze({
     'getFlowSessionStats',
     'resetFlowTileCache',
   ],
-  bikeshare: ['getStations'],
   installations: ['getMappedSites', 'searchNearby'],
   securityPoints: ['fetchViewport', 'enrichRecord'],
-  satellites: ['readGroup'],
-  launches: ['getLaunches', 'getActiveTle'],
   alpr: ['fetch'],
   firms: ['getSnapshot'],
   earthquakes: ['getSnapshot'],
-  cables: ['fetch'],
 });
 
 /** Construct the current catalog without choosing any source provider.
@@ -105,9 +97,6 @@ export function createApplicationCatalog({
       surface,
       source: sources.securityPoints,
     });
-    const satellites = createApplicationSatellites({
-      source: sources.satellites,
-    });
     const catalog = createLayerCatalog(
       [
         createBhoteKoshiEventLayer(),
@@ -118,12 +107,9 @@ export function createApplicationCatalog({
         military,
         createApplicationEarthquakes({ source: sources.earthquakes }),
         createApplicationAlpr({ surface, source: sources.alpr }),
-        satellites,
-        createApplicationLaunches({ source: sources.launches, satellites }),
         createApplicationTraffic({ source: sources.traffic }),
         createApplicationCctv({ surface, source: sources.cctv }),
         createApplicationRadio({ surface, source: sources.radio }),
-        createApplicationBikeshare({ source: sources.bikeshare }),
         createApplicationDirections(),
         createApplicationTransit({ surface, source: sources.transit }),
         vessels,
@@ -136,7 +122,6 @@ export function createApplicationCatalog({
           installations,
         }),
         ...createInfrastructureLayers(localGeoJsonServices),
-        createApplicationCables({ source: sources.cables }),
         createApplicationFirms({
           surface,
           id: 'local-firms',

@@ -49,20 +49,6 @@ export const DATA_CREDITS = [
       '<a href="https://aisstream.io" target="_blank" rel="noopener">AISStream.io</a>',
   },
   {
-    key: 'celestrak',
-    html:
-      'Satellites (TLEs): CelesTrak ' +
-      '(<a href="https://celestrak.org" target="_blank" rel="noopener">celestrak.org</a>), ' +
-      'Dr. T.S. Kelso',
-  },
-  {
-    key: 'launch-library-2',
-    html:
-      'Space mission launch, payload &amp; recovery metadata: ' +
-      '<a href="https://ll.thespacedevs.com/docs/" target="_blank" rel="noopener">Launch Library 2 — The Space Devs</a> ' +
-      '(API documentation and rate limits)',
-  },
-  {
     key: 'usgs',
     html: 'Earthquakes: Data courtesy of the U.S. Geological Survey',
   },
@@ -170,10 +156,6 @@ export const DATA_CREDITS = [
       '<a href="https://data.calgary.ca/stories/s/Open-Calgary-Terms-of-Use/u45n-7awa" target="_blank" rel="noopener">Open Government Licence – City of Calgary</a>',
   },
   {
-    key: 'gbfs',
-    html: 'Bikeshare availability: GBFS operator feeds (e.g. Austin BCycle)',
-  },
-  {
     key: 'osrm-routing',
     // The service asks for its attribution to carry a "fix the map" link, so
     // a reader who spots a wrong turn can go and correct the data it came from.
@@ -257,13 +239,6 @@ export const DATA_CREDITS = [
       'CCTV cameras &amp; frames (New South Wales): ' +
       '<a href="https://www.livetraffic.com/" target="_blank" rel="noopener">Live Traffic NSW</a> — Transport for NSW ' +
       '(<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>)',
-  },
-  {
-    key: 'telegeography',
-    html:
-      'Submarine cables: © TeleGeography — ' +
-      '<a href="https://www.submarinecablemap.com" target="_blank" rel="noopener">submarinecablemap.com</a> ' +
-      '(CC BY-NC-SA 3.0 — NonCommercial)',
   },
 ];
 

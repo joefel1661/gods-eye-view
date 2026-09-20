@@ -7,11 +7,8 @@ import { createCctvSource } from '../layers/cctv/source.js';
 import { createRadioSource } from '../layers/radio/source.js';
 import { createTransitSource } from '../layers/transit/source.js';
 import { createTrafficSource } from '../layers/traffic/source.js';
-import { createBikeshareSource } from '../layers/bikeshare/source.js';
 import { createInstallationSource } from '../layers/installations/source.js';
 import { createSecurityPointSource } from '../layers/securityPoints/source.js';
-import { createSatelliteSource } from '../layers/satellites/source.js';
-import { createLaunchSource } from '../layers/launches/source.js';
 import { createOverpassAlprSource } from '../layers/alpr/source.js';
 import { createFirmsSource } from '../layers/firms/source.js';
 import { createReferenceSources } from '../sources/reference.js';
@@ -30,11 +27,8 @@ export function createStandaloneLayerSources() {
     radio: createRadioSource(),
     traffic: createTrafficSource(),
     transit: createTransitSource(),
-    bikeshare: createBikeshareSource(),
     installations: createInstallationSource(),
     securityPoints: createSecurityPointSource(),
-    satellites: createSatelliteSource(),
-    launches: createLaunchSource(),
     alpr: createOverpassAlprSource(),
     firms: createFirmsSource(),
   };

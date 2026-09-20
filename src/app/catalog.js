@@ -2,15 +2,12 @@ const CONTROL_LAYER_IDS = Object.freeze({
   trafficLayer: 'traffic',
   flightsLayer: 'flights',
   militaryFlightsLayer: 'military',
-  satellitesLayer: 'satellites',
   cctvLayer: 'cctv',
   radioLayer: 'radio',
-  bikeshareLayer: 'bikeshare',
   transitLayer: 'transit',
   aisLiveVesselsLayer: 'ais-live-vessels',
   militaryAwarenessLayer: 'military-awareness',
   militaryInstallationsLayer: 'military-installations',
-  rocketLaunchesLayer: 'rocket-launches',
 });
 
 /** Capture the ordered application instances and their serialization metadata. */
