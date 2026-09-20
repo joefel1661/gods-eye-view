@@ -927,8 +927,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  #scene-panel :is(.markup-home-actions, .markup-tool-grid, .markup-editor-actions) .scene-btn,
-  #scene-panel .markup-marker-form :is(input, select, textarea) {
+  #scene-panel :is(.markup-home-actions, .markup-tool-grid, .markup-editor-actions) .scene-btn {
     width: 100%;
     min-height: 42px;
     white-space: nowrap;

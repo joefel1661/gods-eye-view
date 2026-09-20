@@ -522,10 +522,15 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     };
   };
 
-  const showMarkerForm = ({ point = null, seed = null, submitLabel } = {}) => {
+  const showMarkerForm = ({
+    point = null,
+    seed = null,
+    submitLabel,
+    editTarget = null,
+  } = {}) => {
     if (!markerForm) return;
     pendingMarkerPoint = point || null;
-    pendingMarkerEditTarget = null;
+    pendingMarkerEditTarget = editTarget || null;
     markerForm.hidden = false;
     if (markerTitleInput) markerTitleInput.value = seed?.title || '';
     const seedCategory = sanitizeText(seed?.category);
@@ -1023,13 +1028,13 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   };
 
   const submitMarkerForm = async () => {
-    if (!editing || activeTool !== 'marker') return;
+    if (!editing) return;
     const details = markerDetailsFromForm();
     if (!pendingMarkerPoint && !pendingMarkerEditTarget) return;
     if (pendingMarkerEditTarget) {
-      const { markup, objectId } = pendingMarkerEditTarget;
-      const { object } = findMarkupObject(markup.id, objectId);
-      if (!object || object.type !== 'marker') return;
+      const { markupId, objectId } = pendingMarkerEditTarget;
+      const { markup, object } = findMarkupObject(markupId, objectId);
+      if (!markup || !object || object.type !== 'marker') return;
       object.title = details.title;
       object.category = details.category;
       object.description = details.description;
@@ -1037,11 +1042,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       object.updatedAt = nowIso();
       await saveMarkup(markup);
       renderMap();
-      setMarkerCard(object, markup.id);
+      setMarkerCard(object, markupId);
       hideMarkerForm();
       updateStatus('Marker updated.');
       return;
     }
+    if (activeTool !== 'marker') return;
     const object = ensureMarkupObject({
       id: uuid(),
       type: 'marker',
@@ -1249,8 +1255,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     syncMarkerCustomCategoryVisibility();
   });
   listen(markerCancelBtn, 'click', () => {
+    const wasEditing = Boolean(pendingMarkerEditTarget);
     hideMarkerForm();
-    updateStatus('Marker creation cancelled.');
+    updateStatus(wasEditing ? 'Marker edit cancelled.' : 'Marker creation cancelled.');
   });
   listen(markerForm, 'submit', (event) => {
     event.preventDefault();
@@ -1292,19 +1299,19 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       !selectedMarkerObjectId
     )
       return;
-    const { markup, object } = findMarkupObject(
+    const { object } = findMarkupObject(
       selectedMarkerMarkupId,
       selectedMarkerObjectId,
     );
-    if (!markup || !object || object.type !== 'marker') return;
+    if (!object || object.type !== 'marker') return;
     showMarkerForm({
       seed: object,
       submitLabel: 'SAVE MARKER',
+      editTarget: {
+        markupId: selectedMarkerMarkupId,
+        objectId: selectedMarkerObjectId,
+      },
     });
-    pendingMarkerEditTarget = {
-      markup,
-      objectId: selectedMarkerObjectId,
-    };
     updateStatus('Update marker details and save.');
   });
 
