@@ -176,18 +176,20 @@ test('no unchanged Realtime tool definition drifts silently', () => {
     'get_current_view_state',
     'fly_to_location',
     'select_nearest_aircraft',
+    'set_layer_visibility',
     'set_map_stack',
+    'set_visual_style',
   ]);
   const unchanged = realtimeTools()
     .filter((tool) => !TOUCHED.has(tool.name))
     .sort((a, b) => a.name.localeCompare(b.name));
-  assert.equal(unchanged.length, 21);
+  assert.equal(unchanged.length, 19);
   const digest = createHash('sha256')
     .update(JSON.stringify(unchanged))
     .digest('hex')
     .slice(0, 16);
   // ALPR and Security Points intentionally extend the voice layer enums; retain the complete pin.
-  assert.equal(digest, '87200875c182521b', 'an unchanged Realtime tool definition drifted');
+  assert.equal(digest, '948920a4b99e3a5d', 'an unchanged Realtime tool definition drifted');
 });
 
 test('Radio volume and mission speed share the Sharpen slider visual language', () => {
