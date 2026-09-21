@@ -75,13 +75,31 @@ function sanitizeText(value) {
   return String(value || '').trim();
 }
 
-function coordFromWorld(world) {
-  if (!world) return null;
+function normalizeCoordinate(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const lon = Number.isFinite(raw.lon)
+    ? raw.lon
+    : Number.isFinite(raw.longitude)
+      ? raw.longitude
+      : Number.isFinite(raw.lng)
+        ? raw.lng
+        : Number.NaN;
+  const lat = Number.isFinite(raw.lat)
+    ? raw.lat
+    : Number.isFinite(raw.latitude)
+      ? raw.latitude
+      : Number.NaN;
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+  if (Math.abs(lon) > 180 || Math.abs(lat) > 90) return null;
   return {
-    lon: world.lon,
-    lat: world.lat,
-    height: Number.isFinite(world.height) ? world.height : 0,
+    lon,
+    lat,
+    height: Number.isFinite(raw.height) ? raw.height : 0,
   };
+}
+
+function coordFromWorld(world) {
+  return normalizeCoordinate(world);
 }
 
 function distanceMeters(a, b) {
@@ -103,13 +121,33 @@ function normalizeCategory(input, options = DEFAULT_CATEGORIES) {
 }
 
 function isValidCoordinate(value) {
-  return (
-    value &&
-    Number.isFinite(value.lon) &&
-    Number.isFinite(value.lat) &&
-    Math.abs(value.lon) <= 180 &&
-    Math.abs(value.lat) <= 90
-  );
+  return Boolean(normalizeCoordinate(value));
+}
+
+function normalizePointList(points) {
+  if (!Array.isArray(points)) return null;
+  const normalized = points.map(normalizeCoordinate);
+  return normalized.every(Boolean) ? normalized : null;
+}
+
+function normalizeGeometry(type, geometry) {
+  if (!geometry || typeof geometry !== 'object') return null;
+  if (type === 'marker') {
+    const position = normalizeCoordinate(geometry.position);
+    return position ? { position } : null;
+  }
+  if (type === 'line' || type === 'polygon') {
+    const points = normalizePointList(geometry.points);
+    return points ? { points } : null;
+  }
+  if (type === 'circle') {
+    const center = normalizeCoordinate(geometry.center);
+    const radiusMeters = Number(geometry.radiusMeters);
+    if (!center || !Number.isFinite(radiusMeters) || radiusMeters <= 0)
+      return null;
+    return { center, radiusMeters };
+  }
+  return null;
 }
 
 function validateMarkupObject(object) {
@@ -160,7 +198,7 @@ function ensureMarkupObject(raw) {
     title: sanitizeText(raw?.title),
     description: sanitizeText(raw?.description),
     notes: sanitizeText(raw?.notes),
-    geometry: raw?.geometry,
+    geometry: normalizeGeometry(type, raw?.geometry),
     createdAt: sanitizeText(raw?.createdAt) || timestamp,
     updatedAt: sanitizeText(raw?.updatedAt) || timestamp,
   };
@@ -241,10 +279,18 @@ function valueFromEntityProperty(entity, key) {
   return value;
 }
 
-function toCesiumPositions(points = []) {
-  return points.map((point) =>
-    Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.height || 0),
+function cartesianFromCoordinate(coordinate) {
+  const normalized = normalizeCoordinate(coordinate);
+  if (!normalized) return null;
+  return Cesium.Cartesian3.fromDegrees(
+    normalized.lon,
+    normalized.lat,
+    normalized.height || 0,
   );
+}
+
+function toCesiumPositions(points = []) {
+  return points.map(cartesianFromCoordinate).filter(Boolean);
 }
 
 function flattenRouteSegments(segments = []) {
@@ -791,14 +837,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
           },
         };
         if (object.type === 'marker') {
+          const position = cartesianFromCoordinate(object.geometry.position);
+          if (!position) continue;
           dataSource.entities.add({
             ...entityBase,
             id: `markup-${markup.id}-${object.id}`,
-            position: Cesium.Cartesian3.fromDegrees(
-              object.geometry.position.lon,
-              object.geometry.position.lat,
-              object.geometry.position.height || 0,
-            ),
+            position,
             point: {
               pixelSize: 10,
               color: Cesium.Color.CYAN.withAlpha(0.95),
@@ -907,12 +951,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     clearPreviewEntities();
     if (!editing) return;
     if (activeTool === 'marker' && pendingMarkerPosition) {
+      const position = cartesianFromCoordinate(pendingMarkerPosition);
+      if (!position) return;
       pointPreviewEntity = dataSource.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(
-          pendingMarkerPosition.lon,
-          pendingMarkerPosition.lat,
-          pendingMarkerPosition.height || 0,
-        ),
+        position,
         point: {
           pixelSize: 12,
           color: Cesium.Color.CYAN.withAlpha(0.95),

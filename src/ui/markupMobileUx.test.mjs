@@ -72,6 +72,10 @@ test('mobile markup sheets and cards stay above the attribution-safe corridor', 
   );
   assert.match(
     mobileCss,
+    /#scene-panel\.markup-mobile-mode \.markup-mobile-overlay \{[\s\S]*?pointer-events: none;/,
+  );
+  assert.match(
+    mobileCss,
     /#scene-panel\.markup-mobile-mode \.markup-object-sheet \{[\s\S]*?overflow: hidden;/,
   );
 });
@@ -82,6 +86,14 @@ test('markup styles include active route-mode and mobile card surfaces', () => {
   assert.match(scenesCss, /\.markup-context-card \{/);
   assert.match(scenesCss, /\.markup-bottom-sheet \{/);
   assert.match(scenesCss, /\.markup-object-sheet-content \{/);
+  assert.match(
+    scenesCss,
+    /\.markup-mobile-overlay,[\s\S]*?\.markup-drawing-status-copy \{[\s\S]*?pointer-events: none;/,
+  );
+  assert.match(
+    scenesCss,
+    /\.markup-active-control,[\s\S]*?\.markup-drawing-status-actions \.scene-btn \{[\s\S]*?pointer-events: auto;/,
+  );
   assert.match(
     scenesCss,
     /\.markup-object-sheet\.markup-object-sheet-minimized/,
