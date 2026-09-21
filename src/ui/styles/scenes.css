@@ -307,6 +307,12 @@
   display: none;
 }
 
+.markup-mobile-overlay[hidden],
+.markup-bottom-sheet[hidden],
+.markup-context-card[hidden] {
+  display: none !important;
+}
+
 .markup-mobile-overlay:not([hidden]) {
   display: flex;
 }

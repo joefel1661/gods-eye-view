@@ -585,13 +585,83 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     return 'drawing';
   }
 
+  function normalizeFormMode(mode) {
+    if (mode === 'edit') return 'edit';
+    if (mode === 'create') return 'create';
+    return null;
+  }
+
+  function hasPersistedObject(markupId, objectId) {
+    if (!markupId || !objectId) return false;
+    const { markup, object } = findMarkupObject(markupId, objectId);
+    return Boolean(markup && object);
+  }
+
+  function currentObjectSheetState(kind = pendingObjectContext?.kind) {
+    const mode = normalizeFormMode(formMode);
+    const config = kind ? objectSheetOptions(kind) : null;
+    return {
+      mode,
+      kind,
+      title:
+        mode === 'edit'
+          ? `EDIT ${DRAWING_LABELS[kind] || 'OBJECT'}`
+          : mode === 'create'
+            ? config?.title || ''
+            : '',
+      primaryAction:
+        mode === 'edit'
+          ? 'SAVE CHANGES'
+          : mode === 'create'
+            ? config?.submit || ''
+            : '',
+      canDelete: mode === 'edit',
+      canMinimize: mode === 'create',
+    };
+  }
+
+  function assertObjectSheetState(kind = pendingObjectContext?.kind) {
+    const state = currentObjectSheetState(kind);
+    if (!state.mode) return state;
+    console.assert(
+      normalizeFormMode(pendingObjectContext?.mode) === state.mode,
+      'GEV Markup: pending object context mode must match formMode.',
+    );
+    console.assert(
+      !(state.title === 'NEW MARKER' && state.mode !== 'create'),
+      'GEV Markup: NEW MARKER must use formMode=create.',
+    );
+    if (state.mode === 'create') {
+      console.assert(
+        state.primaryAction === objectSheetOptions(kind).submit,
+        'GEV Markup: create mode must render the add action.',
+      );
+      console.assert(
+        !state.canDelete,
+        'GEV Markup: create mode must not expose delete.',
+      );
+    }
+    if (state.mode === 'edit') {
+      console.assert(
+        state.primaryAction === 'SAVE CHANGES',
+        'GEV Markup: edit mode must render SAVE CHANGES.',
+      );
+      console.assert(
+        hasPersistedObject(
+          pendingObjectContext?.markupId,
+          pendingObjectContext?.objectId,
+        ),
+        'GEV Markup: edit mode requires a persisted object selection.',
+      );
+    }
+    return state;
+  }
+
   function syncObjectSheetPresentation() {
     if (!objectSheet || !objectSheetTitle) return;
-    const titleBase =
-      pendingObjectContext?.mode === 'edit'
-        ? `EDIT ${DRAWING_LABELS[pendingObjectContext?.kind] || 'OBJECT'}`
-        : objectSheetOptions(pendingObjectContext?.kind).title;
-    const canMinimize = pendingObjectContext?.mode === 'create';
+    const state = assertObjectSheetState();
+    const titleBase = state.title;
+    const canMinimize = state.canMinimize;
     objectSheet.classList.toggle(
       'markup-object-sheet-minimized',
       Boolean(canMinimize && objectSheetMinimized),
@@ -613,6 +683,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         'aria-expanded',
         String(!objectSheetMinimized),
       );
+    }
+    if (objectSubmitBtn)
+      objectSubmitBtn.textContent = state.primaryAction || 'ADD';
+    if (objectDeleteSecondaryBtn) {
+      objectDeleteSecondaryBtn.hidden = !state.canDelete;
+      objectDeleteSecondaryBtn.textContent = `DELETE ${DRAWING_LABELS[state.kind] || 'OBJECT'}`;
     }
   }
 
@@ -1441,27 +1517,33 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     markupId = null,
     objectId = null,
   } = {}) {
+    const nextMode = normalizeFormMode(mode) || 'create';
+    if (nextMode === 'edit' && !hasPersistedObject(markupId, objectId)) {
+      console.assert(
+        false,
+        'GEV Markup: attempted to open edit mode without a persisted object.',
+      );
+      return;
+    }
     const config = objectSheetOptions(kind);
     const seed =
-      mode === 'edit' && markupId && objectId
+      nextMode === 'edit' && markupId && objectId
         ? findMarkupObject(markupId, objectId).object
         : null;
     pendingObjectContext = {
-      mode,
+      mode: nextMode,
       kind,
       geometry,
       markupId,
       objectId,
     };
-    formMode = mode;
+    formMode = nextMode;
     interactionState = 'details';
     objectSheetMinimized = false;
-    objectSubmitBtn.textContent =
-      mode === 'edit' ? 'SAVE CHANGES' : config.submit;
-    if (objectDeleteSecondaryBtn) {
-      objectDeleteSecondaryBtn.hidden = mode !== 'edit';
-      objectDeleteSecondaryBtn.textContent = `DELETE ${DRAWING_LABELS[kind] || 'OBJECT'}`;
-    }
+    selectedObjectRef =
+      nextMode === 'edit' && markupId && objectId
+        ? { markupId, objectId }
+        : null;
     objectNameLabel.textContent =
       kind === 'polygon' || kind === 'line' || kind === 'circle'
         ? 'Name *'
@@ -1533,7 +1615,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   }
 
   function syncSelectedEntityCard() {
-    if (!editing || activeTool) {
+    if (!editing || activeTool || formMode === 'create') {
       hideObjectCard();
       return;
     }
@@ -1758,6 +1840,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       if (activeTool === 'marker') {
         if (!coordinate || !currentMarkupId) return;
         pendingMarkerPosition = structuredClone(coordinate);
+        selectedObjectRef = null;
+        viewer.selectedEntity = null;
         syncPreviewEntities();
         openObjectSheet({
           mode: 'create',
@@ -1869,7 +1953,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         event.preventDefault();
         if (activeSheet) {
           if (activeSheet === 'object') {
-            if (pendingObjectContext?.mode === 'create') {
+            if (formMode === 'create') {
               activeTool = null;
               clearTransientGeometry();
               syncToolButtons();
@@ -2053,6 +2137,13 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       objectNameInput.focus();
       return;
     }
+    const geometry =
+      context.geometry ||
+      findMarkupObject(context.markupId, context.objectId).object?.geometry;
+    if (context.kind === 'marker' && !isValidCoordinate(geometry?.position)) {
+      updateStatus('Tap the map to place the marker first.');
+      return;
+    }
     const payload = {
       id: context.objectId || uuid(),
       type: context.kind,
@@ -2061,16 +2152,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       title,
       description: sanitizeText(objectDescriptionInput.value),
       notes: sanitizeText(objectNotesInput.value),
-      geometry:
-        context.geometry ||
-        findMarkupObject(context.markupId, context.objectId).object?.geometry,
+      geometry,
     };
     const object = ensureMarkupObject(payload);
     if (!object) {
       updateStatus('Markup object failed validation.');
       return;
     }
-    if (context.mode === 'edit' && context.markupId && context.objectId) {
+    if (formMode === 'edit' && context.markupId && context.objectId) {
       await updateObject(context.markupId, context.objectId, (entry) => {
         entry.title = object.title;
         entry.category = object.category;
@@ -2280,12 +2369,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     syncObjectCustomField();
   });
   listen(objectMinimizeBtn, 'click', () => {
-    if (pendingObjectContext?.mode !== 'create') return;
+    if (formMode !== 'create') return;
     objectSheetMinimized = !objectSheetMinimized;
     syncObjectSheetPresentation();
   });
   listen(objectCancelBtn, 'click', () => {
-    if (pendingObjectContext?.mode === 'create') {
+    if (formMode === 'create') {
       activeTool = null;
       clearTransientGeometry();
       syncToolButtons();
@@ -2318,7 +2407,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     });
   });
   listen(objectDeleteSecondaryBtn, 'click', () => {
-    if (pendingObjectContext?.mode !== 'edit') return;
+    if (formMode !== 'edit') return;
     const { markupId, objectId } = pendingObjectContext;
     const { object } = findMarkupObject(markupId, objectId);
     if (!object) return;
