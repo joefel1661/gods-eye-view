@@ -1799,21 +1799,24 @@ export function createAnnotationResolver({
     }
     if (
       !isPickedWorldPosition(cart) &&
-      typeof viewer.camera.pickEllipsoid === 'function'
-    ) {
-      try {
-        cart = viewer.camera.pickEllipsoid(pos, Cesium.Ellipsoid.WGS84);
-      } catch {
-        cart = null;
-      }
-    }
-    if (
-      !isPickedWorldPosition(cart) &&
       typeof viewer.camera.getPickRay === 'function'
     ) {
       try {
         const ray = viewer.camera.getPickRay(pos);
         cart = ray ? scene.globe?.pick(ray, scene) || null : null;
+      } catch {
+        cart = null;
+      }
+    }
+    // The ellipsoid is last-resort only. It answers with sea level beneath the
+    // pixel, which can be materially displaced from the rendered terrain/mesh in
+    // oblique terrain and 3D views.
+    if (
+      !isPickedWorldPosition(cart) &&
+      typeof viewer.camera.pickEllipsoid === 'function'
+    ) {
+      try {
+        cart = viewer.camera.pickEllipsoid(pos, Cesium.Ellipsoid.WGS84);
       } catch {
         cart = null;
       }

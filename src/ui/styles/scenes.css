@@ -321,6 +321,24 @@
   display: flex;
 }
 
+.markup-mobile-overlay,
+.markup-mobile-overlay-top,
+.markup-mobile-floating,
+.markup-drawing-status,
+.markup-drawing-status-copy {
+  pointer-events: none;
+}
+
+.markup-active-control,
+.markup-mobile-done-btn,
+.markup-mobile-tool,
+.markup-route-mode-row,
+.markup-route-mode-btn,
+.markup-drawing-status-actions,
+.markup-drawing-status-actions .scene-btn {
+  pointer-events: auto;
+}
+
 .markup-bottom-sheet:not([hidden]),
 .markup-context-card:not([hidden]) {
   display: block;
