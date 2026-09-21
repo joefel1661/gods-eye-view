@@ -39,12 +39,12 @@
     display: none;
   }
 
-  #title-bar h1 {
+  #title-bar .brand-heading {
     font-size: 16px;
-    letter-spacing: 4px;
+    letter-spacing: 0.28em;
   }
 
-  #title-bar h1 {
+  #title-bar .brand-heading {
     gap: 8px;
   }
 
@@ -224,7 +224,6 @@
     left: 16px;
   }
 
-  #title-bar h1 > span:last-child,
   #title-bar .subtitle {
     display: none;
   }

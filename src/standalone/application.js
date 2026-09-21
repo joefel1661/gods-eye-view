@@ -22,7 +22,9 @@ export function createStandaloneApplication({
     throw new Error('The standalone application already owns this page');
   constructed = true;
   const loadingScreen = document.getElementById('loading-screen');
-  const loaderStatus = loadingScreen.querySelector('.loader-status');
+  const loaderStatus = loadingScreen.querySelector(
+    '.loader-status-detail, .loader-status',
+  );
   let placeSearch;
   let catalog;
   return createApplication({
