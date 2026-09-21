@@ -89,6 +89,10 @@ test('markup styles include active route-mode and mobile card surfaces', () => {
     scenesCss,
     /\.markup-sheet-footer-sticky \{[\s\S]*?position: sticky;[\s\S]*?bottom: 0;/,
   );
+  assert.match(
+    scenesCss,
+    /\.markup-mobile-overlay\[hidden\],[\s\S]*?\.markup-bottom-sheet\[hidden\],[\s\S]*?\.markup-context-card\[hidden\] \{[\s\S]*?display: none !important;/,
+  );
 });
 
 test('markup source preserves hidden-object rendering gates and mobile return-to-map flow', () => {
@@ -108,11 +112,19 @@ test('markup source preserves hidden-object rendering gates and mobile return-to
   );
   assert.match(
     markupPanel,
-    /objectSubmitBtn\.textContent =\s*mode === 'edit' \? 'SAVE CHANGES' : config\.submit;/,
+    /function currentObjectSheetState\([\s\S]*?function assertObjectSheetState\(/s,
   );
   assert.match(
     markupPanel,
-    /const titleBase =[\s\S]*?objectSheetOptions\(pendingObjectContext\?\.kind\)\.title[\s\S]*?objectSheetTitle\.textContent =[\s\S]*?objectMinimizeBtn\.textContent = objectSheetMinimized \? 'EXPAND' : '˅';/s,
+    /console\.assert\(\s*!\(state\.title === 'NEW MARKER' && state\.mode !== 'create'\)/,
+  );
+  assert.match(
+    markupPanel,
+    /const state = assertObjectSheetState\(\);[\s\S]*?objectSheetTitle\.textContent =[\s\S]*?objectSubmitBtn\.textContent = state\.primaryAction \|\| 'ADD';[\s\S]*?objectDeleteSecondaryBtn\.hidden = !state\.canDelete;/s,
+  );
+  assert.doesNotMatch(
+    markupPanel,
+    /objectSubmitBtn\.textContent =\s*mode === 'edit' \? 'SAVE CHANGES' : config\.submit;/,
   );
   assert.match(
     markupPanel,
@@ -124,11 +136,11 @@ test('markup source preserves hidden-object rendering gates and mobile return-to
   );
   assert.match(
     markupPanel,
-    /listen\(objectDeleteSecondaryBtn, 'click',[\s\S]*?preserveSheet: 'object'/s,
+    /listen\(objectDeleteSecondaryBtn, 'click',[\s\S]*?if \(formMode !== 'edit'\) return;[\s\S]*?preserveSheet: 'object'/s,
   );
   assert.match(
     markupPanel,
-    /listen\(objectMinimizeBtn, 'click', \(\) => \{[\s\S]*?pendingObjectContext\?\.mode !== 'create'[\s\S]*?objectSheetMinimized = !objectSheetMinimized;[\s\S]*?syncObjectSheetPresentation\(\);/s,
+    /listen\(objectMinimizeBtn, 'click', \(\) => \{[\s\S]*?formMode !== 'create'[\s\S]*?objectSheetMinimized = !objectSheetMinimized;[\s\S]*?syncObjectSheetPresentation\(\);/s,
   );
   assert.match(
     markupPanel,
@@ -148,7 +160,11 @@ test('markup source preserves hidden-object rendering gates and mobile return-to
   );
   assert.match(
     markupPanel,
-    /function syncSelectedEntityCard\(\) \{[\s\S]*?selectedObjectRef = \{ markupId, objectId \};[\s\S]*?openObjectSheet\(\{[\s\S]*?mode: 'edit'/s,
+    /if \(activeTool === 'marker'\) \{[\s\S]*?selectedObjectRef = null;[\s\S]*?viewer\.selectedEntity = null;[\s\S]*?syncPreviewEntities\(\);/s,
+  );
+  assert.match(
+    markupPanel,
+    /function syncSelectedEntityCard\(\) \{[\s\S]*?if \(!editing \|\| activeTool \|\| formMode === 'create'\) \{[\s\S]*?selectedObjectRef = \{ markupId, objectId \};[\s\S]*?openObjectSheet\(\{[\s\S]*?mode: 'edit'/s,
   );
   assert.match(
     markupPanel,
@@ -156,6 +172,6 @@ test('markup source preserves hidden-object rendering gates and mobile return-to
   );
   assert.match(
     markupPanel,
-    /listen\(objectCancelBtn, 'click', \(\) => \{[\s\S]*?pendingObjectContext\?\.mode === 'create'[\s\S]*?activeTool = null;[\s\S]*?clearTransientGeometry\(\);[\s\S]*?bindEditingHandler\(\);[\s\S]*?returnToMarkupMap\(\);/s,
+    /listen\(objectCancelBtn, 'click', \(\) => \{[\s\S]*?if \(formMode === 'create'\) \{[\s\S]*?activeTool = null;[\s\S]*?clearTransientGeometry\(\);[\s\S]*?bindEditingHandler\(\);[\s\S]*?returnToMarkupMap\(\);/s,
   );
 });
