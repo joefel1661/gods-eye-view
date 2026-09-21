@@ -40,7 +40,7 @@ export function createCompactBrandLockup(documentRef = document) {
   const lockup = documentRef.createElement('div');
   lockup.className = 'brand-lockup brand-lockup-compact';
 
-  const heading = documentRef.createElement('h1');
+  const heading = documentRef.createElement('div');
   heading.className = 'brand-heading';
   heading.append(
     createMark(documentRef, 'brand-mark title-logo'),
