@@ -44,11 +44,17 @@ const ROUTE_TYPE_OPTIONS = Object.freeze([
 const DRAWING_TOOLS = new Set(['marker', 'line', 'polygon', 'circle']);
 const DRAWING_LABELS = Object.freeze({
   marker: 'MARKER',
-  line: 'ROUTE',
-  polygon: 'AREA',
-  circle: 'RADIUS',
+  route: 'ROUTE',
+  area: 'AREA',
+  radius: 'RADIUS',
   delete: 'DELETE',
 });
+function drawingLabelForKind(kind) {
+  if (kind === 'line') return DRAWING_LABELS.route;
+  if (kind === 'polygon') return DRAWING_LABELS.area;
+  if (kind === 'circle') return DRAWING_LABELS.radius;
+  return DRAWING_LABELS[kind] || 'OBJECT';
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -439,12 +445,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   let activeTool = null;
   let interactionState = 'idle';
   let formMode = null;
-  let routeMode = 'free';
+  let routeMode = 'freeDraw';
   let drawPoints = [];
   let freeDrawSegments = [];
   let currentFreeDrawSegment = null;
   let isFreeDrawing = false;
   let pendingMarkerPosition = null;
+  let markerTapCandidate = null;
+  let lastMarkerPlacement = null;
   let circleCenter = null;
   let circleRadiusMeters = 0;
   let lease = null;
@@ -605,7 +613,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       kind,
       title:
         mode === 'edit'
-          ? `EDIT ${DRAWING_LABELS[kind] || 'OBJECT'}`
+          ? `EDIT ${drawingLabelForKind(kind)}`
           : mode === 'create'
             ? config?.title || ''
             : '',
@@ -688,7 +696,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       objectSubmitBtn.textContent = state.primaryAction || 'ADD';
     if (objectDeleteSecondaryBtn) {
       objectDeleteSecondaryBtn.hidden = !state.canDelete;
-      objectDeleteSecondaryBtn.textContent = `DELETE ${DRAWING_LABELS[state.kind] || 'OBJECT'}`;
+      objectDeleteSecondaryBtn.textContent = `DELETE ${drawingLabelForKind(state.kind)}`;
     }
   }
 
@@ -912,7 +920,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       requestRender();
       return;
     }
-    if (activeTool === 'line') {
+    if (activeTool === 'route') {
       const points = previewRoutePoints();
       if (points.length === 1) {
         pointPreviewEntity = dataSource.entities.add({
@@ -943,7 +951,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       requestRender();
       return;
     }
-    if (activeTool === 'polygon') {
+    if (activeTool === 'area') {
       if (drawPoints.length === 1) {
         pointPreviewEntity = dataSource.entities.add({
           position: Cesium.Cartesian3.fromDegrees(
@@ -986,7 +994,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       requestRender();
       return;
     }
-    if (activeTool === 'circle' && circleCenter) {
+    if (activeTool === 'radius' && circleCenter) {
       circlePreviewEntity = dataSource.entities.add({
         position: Cesium.Cartesian3.fromDegrees(
           circleCenter.lon,
@@ -1012,6 +1020,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     currentFreeDrawSegment = null;
     isFreeDrawing = false;
     pendingMarkerPosition = null;
+    markerTapCandidate = null;
+    lastMarkerPlacement = null;
     circleCenter = null;
     circleRadiusMeters = 0;
     restoreCameraControls();
@@ -1019,11 +1029,13 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   }
 
   function syncRouteModeButtons() {
-    routeModeRow.hidden = activeTool !== 'line';
+    routeModeRow.hidden = activeTool !== 'route';
     if (mobileRouteModeRow)
-      mobileRouteModeRow.hidden = !(isMobileLayout && activeTool === 'line');
+      mobileRouteModeRow.hidden = !(isMobileLayout && activeTool === 'route');
     for (const button of routeModeButtons) {
-      const on = button.dataset.routeMode === routeMode;
+      const buttonMode =
+        button.dataset.routeMode === 'points' ? 'points' : 'freeDraw';
+      const on = buttonMode === routeMode;
       button.classList.toggle('active', on);
       button.setAttribute('aria-pressed', String(on));
     }
@@ -1048,15 +1060,15 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       else if (!activeTool)
         hint.textContent = 'Choose a tool and draw directly on the map.';
       else if (activeTool === 'marker') hint.textContent = 'Tap map to place.';
-      else if (activeTool === 'polygon')
+      else if (activeTool === 'area')
         hint.textContent = 'Tap points to draw an area.';
-      else if (activeTool === 'circle')
+      else if (activeTool === 'radius')
         hint.textContent = circleCenter
           ? 'Drag or release to set radius.'
           : 'Tap center, then drag to set radius.';
       else if (activeTool === 'delete')
         hint.textContent = 'Tap an object to delete it.';
-      else if (routeMode === 'free')
+      else if (activeTool === 'route' && routeMode === 'freeDraw')
         hint.textContent = 'Drag on the map to draw a route.';
       else hint.textContent = 'Tap points to draw a route.';
     }
@@ -1082,18 +1094,18 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     let showCancel = true;
     if (activeTool === 'marker') {
       detail = 'Tap map to place';
-    } else if (activeTool === 'polygon') {
+    } else if (activeTool === 'area') {
       detail = `Tap points to draw\n${drawPoints.length} point${drawPoints.length === 1 ? '' : 's'}`;
       showUndo = drawPoints.length > 0;
       showFinish = drawPoints.length >= 3;
-    } else if (activeTool === 'circle') {
+    } else if (activeTool === 'radius') {
       detail = circleCenter
         ? `Drag to set radius${circleRadiusMeters ? `\n${Math.round(circleRadiusMeters)} m` : ''}`
         : 'Tap center, then drag';
     } else if (activeTool === 'delete') {
       detail = 'Tap object to delete';
       showCancel = true;
-    } else if (routeMode === 'free') {
+    } else if (activeTool === 'route' && routeMode === 'freeDraw') {
       const count = previewRoutePoints().length;
       detail = isFreeDrawing
         ? 'Free Draw\nRelease to stop'
@@ -1139,10 +1151,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     objectCard.hidden = false;
     if (objectCardTitle) {
       objectCardTitle.textContent =
-        object.title ||
-        object.category ||
-        DRAWING_LABELS[object.type] ||
-        'Object';
+        object.title || object.category || drawingLabelForKind(object.type);
     }
     if (objectCardSubtitle) {
       objectCardSubtitle.textContent =
@@ -1637,9 +1646,17 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     });
   }
 
+  function normalizeToolId(tool) {
+    if (tool === 'marker' || tool === 'delete') return tool;
+    if (tool === 'route' || tool === 'line') return 'route';
+    if (tool === 'area' || tool === 'polygon') return 'area';
+    if (tool === 'radius' || tool === 'circle') return 'radius';
+    return null;
+  }
+
   function selectTool(tool) {
-    activeTool = tool || null;
-    interactionState = nextDrawingState(tool);
+    activeTool = normalizeToolId(tool);
+    interactionState = nextDrawingState(activeTool);
     formMode = null;
     clearTransientGeometry();
     closeAllSheets();
@@ -1656,6 +1673,67 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     const width = canvas.clientWidth || canvas.width || 1;
     const height = canvas.clientHeight || canvas.height || 1;
     return pickWorldFromScreen(viewer, position.x / width, position.y / height);
+  }
+
+  function isMarkerPlacementActive() {
+    return (
+      editing &&
+      activeTool === 'marker' &&
+      interactionState === 'placing' &&
+      formMode !== 'create'
+    );
+  }
+
+  function rememberMarkerTapCandidate(position) {
+    if (!position) return;
+    markerTapCandidate = {
+      position: { x: position.x, y: position.y },
+      time: Date.now(),
+    };
+  }
+
+  function consumeMarkerTapCandidate(position) {
+    const candidate = markerTapCandidate;
+    markerTapCandidate = null;
+    if (!candidate || !position) return false;
+    const dx = Math.abs(candidate.position.x - position.x);
+    const dy = Math.abs(candidate.position.y - position.y);
+    const elapsed = Date.now() - candidate.time;
+    return dx <= 12 && dy <= 12 && elapsed <= 650;
+  }
+
+  function wasRecentMarkerPlacement(position) {
+    if (!lastMarkerPlacement || !position) return false;
+    const elapsed = Date.now() - lastMarkerPlacement.time;
+    if (elapsed > 350) return false;
+    return (
+      Math.abs(lastMarkerPlacement.position.x - position.x) <= 2 &&
+      Math.abs(lastMarkerPlacement.position.y - position.y) <= 2
+    );
+  }
+
+  function setMarkerPlacement(position) {
+    if (!isMarkerPlacementActive() || activeSheet === 'object') return false;
+    if (!position || !currentMarkupId || wasRecentMarkerPlacement(position))
+      return false;
+    const world = worldAt(position);
+    const coordinate = coordFromWorld(world);
+    if (!coordinate) return false;
+    pendingMarkerPosition = structuredClone(coordinate);
+    selectedObjectRef = null;
+    viewer.selectedEntity = null;
+    syncPreviewEntities();
+    lastMarkerPlacement = {
+      position: { x: position.x, y: position.y },
+      time: Date.now(),
+    };
+    openObjectSheet({
+      mode: 'create',
+      kind: 'marker',
+      geometry: { position: structuredClone(pendingMarkerPosition) },
+      markupId: currentMarkupId,
+    });
+    return true;
   }
 
   function beginFreeDraw(coordinate) {
@@ -1690,7 +1768,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   }
 
   function finishRoutePoints() {
-    if (routeMode === 'free') {
+    if (routeMode === 'freeDraw') {
       const points = simplifyRoutePoints(previewRoutePoints());
       if (points.length < 2) return false;
       openObjectSheet({
@@ -1740,8 +1818,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   }
 
   function undoDrawingPoint() {
-    if (activeTool === 'line') {
-      if (routeMode === 'free') {
+    if (activeTool === 'route') {
+      if (routeMode === 'freeDraw') {
         if (isFreeDrawing) {
           if (currentFreeDrawSegment?.length > 1) currentFreeDrawSegment.pop();
           else currentFreeDrawSegment = [];
@@ -1760,7 +1838,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       updateStatus('Removed last drawing step.');
       return;
     }
-    if (activeTool === 'polygon') {
+    if (activeTool === 'area') {
       if (!drawPoints.length) return;
       drawPoints.pop();
       syncPreviewEntities();
@@ -1768,7 +1846,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       updateStatus('Removed last drawing step.');
       return;
     }
-    if (activeTool === 'circle' && circleCenter) {
+    if (activeTool === 'radius' && circleCenter) {
       circleCenter = null;
       circleRadiusMeters = 0;
       syncPreviewEntities();
@@ -1779,8 +1857,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
 
   async function finishActiveGeometry() {
     if (!editing || !activeTool) return false;
-    if (activeTool === 'line') return finishRoutePoints();
-    if (activeTool === 'polygon') return finishPolygon();
+    if (activeTool === 'route') return finishRoutePoints();
+    if (activeTool === 'area') return finishPolygon();
     return false;
   }
 
@@ -1834,31 +1912,18 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     editHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 
     editHandler.setInputAction(async (event) => {
+      if (setMarkerPlacement(event.position)) return;
       if (activeSheet === 'object') return;
       const world = worldAt(event.position);
       const coordinate = coordFromWorld(world);
-      if (activeTool === 'marker') {
-        if (!coordinate || !currentMarkupId) return;
-        pendingMarkerPosition = structuredClone(coordinate);
-        selectedObjectRef = null;
-        viewer.selectedEntity = null;
-        syncPreviewEntities();
-        openObjectSheet({
-          mode: 'create',
-          kind: 'marker',
-          geometry: { position: structuredClone(pendingMarkerPosition) },
-          markupId: currentMarkupId,
-        });
-        return;
-      }
-      if (activeTool === 'line' && routeMode === 'points') {
+      if (activeTool === 'route' && routeMode === 'points') {
         if (!coordinate) return;
         drawPoints.push(coordinate);
         syncPreviewEntities();
         syncStatusCopy();
         return;
       }
-      if (activeTool === 'polygon') {
+      if (activeTool === 'area') {
         if (!coordinate) return;
         drawPoints.push(coordinate);
         syncPreviewEntities();
@@ -1886,21 +1951,22 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
     editHandler.setInputAction(async () => {
-      if (activeTool === 'line' && routeMode === 'points') {
+      if (activeTool === 'route' && routeMode === 'points') {
         await finishActiveGeometry();
       }
-      if (activeTool === 'polygon') await finishActiveGeometry();
+      if (activeTool === 'area') await finishActiveGeometry();
     }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
     editHandler.setInputAction((event) => {
+      if (isMarkerPlacementActive()) rememberMarkerTapCandidate(event.position);
       const world = worldAt(event.position);
       const coordinate = coordFromWorld(world);
-      if (activeTool === 'line' && routeMode === 'free') {
+      if (activeTool === 'route' && routeMode === 'freeDraw') {
         if (!coordinate) return;
         beginFreeDraw(coordinate);
         return;
       }
-      if (activeTool === 'circle') {
+      if (activeTool === 'radius') {
         if (!coordinate) return;
         circleCenter = coordinate;
         circleRadiusMeters = 1;
@@ -1911,12 +1977,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
 
     editHandler.setInputAction((event) => {
-      const coordinate = coordFromWorld(worldAt(event.endPosition));
-      if (activeTool === 'line' && routeMode === 'free') {
+      const coordinate = coordFromWorld(worldAt(event.position));
+      if (activeTool === 'route' && routeMode === 'freeDraw') {
         pushFreeDrawPoint(coordinate);
         return;
       }
-      if (activeTool === 'circle' && circleCenter && coordinate) {
+      if (activeTool === 'radius' && circleCenter && coordinate) {
         circleRadiusMeters = Math.max(
           1,
           distanceMeters(circleCenter, coordinate),
@@ -1926,12 +1992,15 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-    editHandler.setInputAction(() => {
-      if (activeTool === 'line' && routeMode === 'free') {
+    editHandler.setInputAction((event) => {
+      if (isMarkerPlacementActive() && consumeMarkerTapCandidate(event.position)) {
+        if (setMarkerPlacement(event.position)) return;
+      }
+      if (activeTool === 'route' && routeMode === 'freeDraw') {
         finishFreeDrawSegment();
         return;
       }
-      if (activeTool === 'circle' && circleCenter) {
+      if (activeTool === 'radius' && circleCenter) {
         restoreCameraControls();
         if (circleRadiusMeters > 0) {
           openObjectSheet({
@@ -1954,10 +2023,19 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
         if (activeSheet) {
           if (activeSheet === 'object') {
             if (formMode === 'create') {
-              activeTool = null;
-              clearTransientGeometry();
-              syncToolButtons();
-              bindEditingHandler();
+              if (
+                pendingObjectContext?.kind === 'marker' &&
+                activeTool === 'marker'
+              ) {
+                pendingMarkerPosition = null;
+                syncPreviewEntities();
+                syncStatusCopy();
+              } else {
+                activeTool = null;
+                clearTransientGeometry();
+                syncToolButtons();
+                bindEditingHandler();
+              }
             }
             returnToMarkupMap();
             return;
@@ -1975,8 +2053,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       if (
         event.key === 'Enter' &&
         activeTool &&
-        ((activeTool === 'line' && routeMode === 'points') ||
-          activeTool === 'polygon')
+        ((activeTool === 'route' && routeMode === 'points') ||
+          activeTool === 'area')
       ) {
         event.preventDefault();
         await finishActiveGeometry();
@@ -2177,10 +2255,17 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       object,
       `✓ Saved`,
     );
-    activeTool = null;
-    clearTransientGeometry();
-    syncToolButtons();
-    bindEditingHandler();
+    if (context.kind === 'marker' && activeTool === 'marker') {
+      pendingMarkerPosition = null;
+      interactionState = nextDrawingState();
+      syncPreviewEntities();
+      syncStatusCopy();
+    } else {
+      activeTool = null;
+      clearTransientGeometry();
+      syncToolButtons();
+      bindEditingHandler();
+    }
     returnToMarkupMap();
   }
 
@@ -2230,9 +2315,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   async function undo() {
     if (editing && activeTool) {
       if (
-        activeTool === 'line' ||
-        activeTool === 'polygon' ||
-        (activeTool === 'circle' && circleCenter)
+        activeTool === 'route' ||
+        activeTool === 'area' ||
+        (activeTool === 'radius' && circleCenter)
       ) {
         undoDrawingPoint();
         return;
@@ -2377,10 +2462,16 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   });
   listen(objectCancelBtn, 'click', () => {
     if (formMode === 'create') {
-      activeTool = null;
-      clearTransientGeometry();
-      syncToolButtons();
-      bindEditingHandler();
+      if (pendingObjectContext?.kind === 'marker' && activeTool === 'marker') {
+        pendingMarkerPosition = null;
+        syncPreviewEntities();
+        syncStatusCopy();
+      } else {
+        activeTool = null;
+        clearTransientGeometry();
+        syncToolButtons();
+        bindEditingHandler();
+      }
     }
     returnToMarkupMap();
   });
@@ -2477,8 +2568,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
 
   for (const button of routeModeButtons) {
     listen(button, 'click', () => {
-      if (routeMode === button.dataset.routeMode) return;
-      routeMode = button.dataset.routeMode === 'points' ? 'points' : 'free';
+      const nextMode =
+        button.dataset.routeMode === 'points' ? 'points' : 'freeDraw';
+      if (routeMode === nextMode) return;
+      routeMode = nextMode;
       clearTransientGeometry();
       syncRouteModeButtons();
       syncStatusCopy();
