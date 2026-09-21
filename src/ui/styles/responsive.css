@@ -27,6 +27,7 @@
     top: max(12px, env(safe-area-inset-top));
     left: 16px;
     right: 16px;
+    width: auto;
   }
 
   #style-indicator {

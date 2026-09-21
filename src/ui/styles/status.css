@@ -38,7 +38,7 @@
 }
 
 #top-center-actions button:active {
-  transform: scale(0.96);
+  transform: translateY(-1px) scale(0.96);
 }
 
 #top-center-actions button:disabled {
