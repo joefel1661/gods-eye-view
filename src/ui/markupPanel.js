@@ -142,9 +142,9 @@ function normalizeGeometry(type, geometry) {
   }
   if (type === 'circle') {
     const center = normalizeCoordinate(geometry.center);
-    const radiusMeters = Number(
-      Number.isFinite(geometry.radiusMeters) ? geometry.radiusMeters : geometry.radius,
-    );
+    const radiusCandidate =
+      geometry.radiusMeters ?? geometry.radius;
+    const radiusMeters = Number(radiusCandidate);
     if (!center || !Number.isFinite(radiusMeters) || radiusMeters <= 0)
       return null;
     return { center, radiusMeters };
