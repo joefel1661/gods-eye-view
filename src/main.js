@@ -15,6 +15,7 @@ application.start().catch((error) => {
   const loaderStatus = document.querySelector(
     '#loading-screen .loader-status-detail, #loading-screen .loader-status',
   );
+  if (!loaderStatus) return;
   loaderStatus.textContent = `Error: ${describeError(error)}`;
   loaderStatus.style.color = '#ff4444';
 });

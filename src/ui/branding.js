@@ -66,7 +66,10 @@ export function createStackedBrandLockup(documentRef = document) {
 
   const byline = documentRef.createElement('p');
   byline.className = 'brand-byline';
-  byline.innerHTML = 'by <strong>Saugment</strong>';
+  byline.append('by ');
+  const brandName = documentRef.createElement('strong');
+  brandName.textContent = BRAND_BYLINE;
+  byline.append(brandName);
 
   lockup.append(mark, heading, subhead, byline);
   return lockup;
