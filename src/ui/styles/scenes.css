@@ -530,8 +530,16 @@
   padding-bottom: 0;
 }
 
+.markup-object-sheet-content {
+  min-height: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
 .markup-object-sheet-body {
   min-height: 0;
+  flex: 1 1 auto;
   overflow-x: hidden;
   overflow-y: auto;
   margin-right: -12px;
@@ -556,6 +564,25 @@
     rgba(8, 20, 30, 0.98) 100%
   );
   border-top: 1px solid rgba(123, 189, 211, 0.18);
+}
+
+.markup-object-sheet.markup-object-sheet-minimized {
+  width: min(22rem, calc(100vw - 24px));
+}
+
+.markup-object-sheet.markup-object-sheet-minimized .markup-sheet-header {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.markup-object-sheet.markup-object-sheet-minimized .markup-sheet-handle {
+  margin-bottom: 8px;
+}
+
+.markup-object-sheet.markup-object-sheet-minimized .markup-sheet-header-copy {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
 }
 
 .markup-manager-list {

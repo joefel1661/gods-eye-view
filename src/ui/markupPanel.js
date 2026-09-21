@@ -366,7 +366,13 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     'markup-metadata-submit-btn',
   );
   const objectSheet = document.getElementById('markup-object-sheet');
+  const objectSheetContent = document.getElementById(
+    'markup-object-sheet-content',
+  );
   const objectSheetTitle = document.getElementById('markup-object-sheet-title');
+  const objectMinimizeBtn = document.getElementById(
+    'markup-object-minimize-btn',
+  );
   const objectNameLabel = document.getElementById('markup-object-name-label');
   const objectNameInput = document.getElementById('markup-object-name');
   const objectCategoryLabel = document.getElementById(
@@ -431,11 +437,14 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   let currentMarkupId = null;
   let editing = false;
   let activeTool = null;
+  let interactionState = 'idle';
+  let formMode = null;
   let routeMode = 'free';
   let drawPoints = [];
   let freeDrawSegments = [];
   let currentFreeDrawSegment = null;
   let isFreeDrawing = false;
+  let pendingMarkerPosition = null;
   let circleCenter = null;
   let circleRadiusMeters = 0;
   let lease = null;
@@ -456,6 +465,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   let confirmResumeSheet = null;
   let selectedObjectRef = null;
   let pendingObjectContext = null;
+  let objectSheetMinimized = false;
   let metadataMode = 'create';
   let metadataTargetMarkupId = null;
   let objectDetailsExpanded = false;
@@ -569,11 +579,50 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     objectCustomWrap.hidden = !objectDetailsExpanded || !isOther;
   }
 
+  function nextDrawingState(tool = activeTool) {
+    if (!editing || !tool) return 'idle';
+    if (tool === 'marker' || tool === 'delete') return 'placing';
+    return 'drawing';
+  }
+
+  function syncObjectSheetPresentation() {
+    if (!objectSheet || !objectSheetTitle) return;
+    const titleBase =
+      pendingObjectContext?.mode === 'edit'
+        ? `EDIT ${DRAWING_LABELS[pendingObjectContext?.kind] || 'OBJECT'}`
+        : objectSheetOptions(pendingObjectContext?.kind).title;
+    const canMinimize = pendingObjectContext?.mode === 'create';
+    objectSheet.classList.toggle(
+      'markup-object-sheet-minimized',
+      Boolean(canMinimize && objectSheetMinimized),
+    );
+    objectSheetTitle.textContent =
+      canMinimize && objectSheetMinimized
+        ? `${titleBase} • unsaved`
+        : titleBase;
+    if (objectSheetContent)
+      objectSheetContent.hidden = !canMinimize ? false : objectSheetMinimized;
+    if (objectMinimizeBtn) {
+      objectMinimizeBtn.hidden = !canMinimize;
+      objectMinimizeBtn.textContent = objectSheetMinimized ? 'EXPAND' : '˅';
+      objectMinimizeBtn.setAttribute(
+        'aria-label',
+        objectSheetMinimized ? 'Expand details' : 'Minimize details',
+      );
+      objectMinimizeBtn.setAttribute(
+        'aria-expanded',
+        String(!objectSheetMinimized),
+      );
+    }
+  }
+
   function returnToMarkupMap({ clearSelection = true } = {}) {
     hideObjectCard();
     clearPendingObjectDraft();
     closeAllSheets();
     if (clearSelection) viewer.selectedEntity = null;
+    formMode = null;
+    interactionState = nextDrawingState();
     syncStatusCopy();
   }
 
@@ -589,9 +638,13 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }
     if (name === 'object') {
       pendingObjectContext = null;
+      formMode = null;
+      interactionState = nextDrawingState();
+      objectSheetMinimized = false;
       objectDetailsExpanded = false;
       if (objectMoreFields) objectMoreFields.hidden = true;
       syncObjectCustomField();
+      syncObjectSheetPresentation();
     }
     if (name === 'confirm') {
       confirmAction = null;
@@ -765,6 +818,24 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   function syncPreviewEntities() {
     clearPreviewEntities();
     if (!editing) return;
+    if (activeTool === 'marker' && pendingMarkerPosition) {
+      pointPreviewEntity = dataSource.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(
+          pendingMarkerPosition.lon,
+          pendingMarkerPosition.lat,
+          pendingMarkerPosition.height || 0,
+        ),
+        point: {
+          pixelSize: 12,
+          color: Cesium.Color.CYAN.withAlpha(0.95),
+          outlineColor: Cesium.Color.BLACK.withAlpha(0.75),
+          outlineWidth: 2,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      });
+      requestRender();
+      return;
+    }
     if (activeTool === 'line') {
       const points = previewRoutePoints();
       if (points.length === 1) {
@@ -864,6 +935,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     freeDrawSegments = [];
     currentFreeDrawSegment = null;
     isFreeDrawing = false;
+    pendingMarkerPosition = null;
     circleCenter = null;
     circleRadiusMeters = 0;
     restoreCameraControls();
@@ -893,6 +965,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     const drawingLabel = activeTool ? DRAWING_LABELS[activeTool] : 'MARKUP';
     if (hint) {
       if (!editing) hint.textContent = 'Select a markup to begin.';
+      else if (interactionState === 'details' && formMode === 'edit')
+        hint.textContent = 'Update details, then save or cancel.';
+      else if (interactionState === 'details')
+        hint.textContent = 'Add details, then save or cancel.';
       else if (!activeTool)
         hint.textContent = 'Choose a tool and draw directly on the map.';
       else if (activeTool === 'marker') hint.textContent = 'Tap map to place.';
@@ -909,7 +985,11 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       else hint.textContent = 'Tap points to draw a route.';
     }
     if (!drawingStatus) return;
-    if (!editing || !isMobileMarkupPresentationActive()) {
+    if (
+      !editing ||
+      !isMobileMarkupPresentationActive() ||
+      interactionState === 'details'
+    ) {
       drawingStatus.hidden = true;
       return;
     }
@@ -1003,6 +1083,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     if (editor) editor.hidden = !editing;
     if (home) home.hidden = editing;
     if (!editing) {
+      interactionState = 'idle';
+      formMode = null;
       closeAllSheets();
       hideObjectCard();
       clearTransientGeometry();
@@ -1371,10 +1453,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       markupId,
       objectId,
     };
-    objectSheetTitle.textContent =
-      mode === 'edit'
-        ? `EDIT ${DRAWING_LABELS[kind] || 'OBJECT'}`
-        : config.title;
+    formMode = mode;
+    interactionState = 'details';
+    objectSheetMinimized = false;
     objectSubmitBtn.textContent =
       mode === 'edit' ? 'SAVE CHANGES' : config.submit;
     if (objectDeleteSecondaryBtn) {
@@ -1412,15 +1493,20 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       ? 'LESS DETAILS'
       : 'MORE DETAILS';
     syncObjectCustomField();
+    syncObjectSheetPresentation();
     openSheet('object');
+    syncStatusCopy();
     objectNameInput.focus();
   }
 
   function clearPendingObjectDraft() {
     pendingObjectContext = null;
+    formMode = null;
+    objectSheetMinimized = false;
     objectDetailsExpanded = false;
     if (objectMoreFields) objectMoreFields.hidden = true;
     syncObjectCustomField();
+    syncObjectSheetPresentation();
   }
 
   function showConfirm({
@@ -1460,14 +1546,23 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }
     currentMarkupId = markupId;
     syncActiveMarkupLabel();
-    setObjectCard(markupId, objectId);
+    selectedObjectRef = { markupId, objectId };
+    openObjectSheet({
+      mode: 'edit',
+      kind: findMarkupObject(markupId, objectId).object.type,
+      markupId,
+      objectId,
+    });
   }
 
   function selectTool(tool) {
     activeTool = tool || null;
+    interactionState = nextDrawingState(tool);
+    formMode = null;
     clearTransientGeometry();
     closeAllSheets();
     hideObjectCard();
+    viewer.selectedEntity = null;
     syncToolButtons();
     syncRouteModeButtons();
     syncStatusCopy();
@@ -1548,6 +1643,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   function cancelDrawing({ clearTool = true } = {}) {
     clearTransientGeometry();
     if (clearTool) activeTool = null;
+    interactionState = nextDrawingState(clearTool ? null : activeTool);
+    formMode = null;
     syncToolButtons();
     syncStatusCopy();
     bindEditingHandler();
@@ -1637,6 +1734,8 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     if (!lease) {
       updateStatus(`${pointerOwner()} is using the pointer — close it first.`);
       activeTool = null;
+      interactionState = 'idle';
+      formMode = null;
       syncToolButtons();
       syncStatusCopy();
       return;
@@ -1658,10 +1757,12 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       const coordinate = coordFromWorld(world);
       if (activeTool === 'marker') {
         if (!coordinate || !currentMarkupId) return;
+        pendingMarkerPosition = structuredClone(coordinate);
+        syncPreviewEntities();
         openObjectSheet({
           mode: 'create',
           kind: 'marker',
-          geometry: { position: coordinate },
+          geometry: { position: structuredClone(pendingMarkerPosition) },
           markupId: currentMarkupId,
         });
         return;
@@ -1767,11 +1868,15 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       if (event.key === 'Escape') {
         event.preventDefault();
         if (activeSheet) {
-          if (
-            activeSheet === 'object' &&
-            pendingObjectContext?.mode === 'create'
-          ) {
-            clearTransientGeometry();
+          if (activeSheet === 'object') {
+            if (pendingObjectContext?.mode === 'create') {
+              activeTool = null;
+              clearTransientGeometry();
+              syncToolButtons();
+              bindEditingHandler();
+            }
+            returnToMarkupMap();
+            return;
           }
           closeSheet(activeSheet);
           syncStatusCopy();
@@ -1981,7 +2086,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       object,
       `✓ Saved`,
     );
+    activeTool = null;
     clearTransientGeometry();
+    syncToolButtons();
+    bindEditingHandler();
     returnToMarkupMap();
   }
 
@@ -2171,8 +2279,18 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       : 'MORE DETAILS';
     syncObjectCustomField();
   });
+  listen(objectMinimizeBtn, 'click', () => {
+    if (pendingObjectContext?.mode !== 'create') return;
+    objectSheetMinimized = !objectSheetMinimized;
+    syncObjectSheetPresentation();
+  });
   listen(objectCancelBtn, 'click', () => {
-    if (pendingObjectContext?.mode === 'create') clearTransientGeometry();
+    if (pendingObjectContext?.mode === 'create') {
+      activeTool = null;
+      clearTransientGeometry();
+      syncToolButtons();
+      bindEditingHandler();
+    }
     returnToMarkupMap();
   });
   listen(objectSheet, 'submit', (event) => {
