@@ -41,7 +41,6 @@ const ROUTE_TYPE_OPTIONS = Object.freeze([
   'Patrol Route',
   'Other',
 ]);
-const DRAWING_TOOLS = new Set(['marker', 'line', 'polygon', 'circle']);
 const DRAWING_LABELS = Object.freeze({
   marker: 'MARKER',
   route: 'ROUTE',
@@ -49,6 +48,11 @@ const DRAWING_LABELS = Object.freeze({
   radius: 'RADIUS',
   delete: 'DELETE',
 });
+const MARKER_TAP_MOVE_TOLERANCE_PX = 12;
+const MARKER_TAP_MAX_DURATION_MS = 650;
+const MARKER_DUPLICATE_WINDOW_MS = 350;
+const MARKER_DUPLICATE_DISTANCE_PX = 2;
+
 function drawingLabelForKind(kind) {
   if (kind === 'line') return DRAWING_LABELS.route;
   if (kind === 'polygon') return DRAWING_LABELS.area;
@@ -1699,16 +1703,22 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     const dx = Math.abs(candidate.position.x - position.x);
     const dy = Math.abs(candidate.position.y - position.y);
     const elapsed = Date.now() - candidate.time;
-    return dx <= 12 && dy <= 12 && elapsed <= 650;
+    return (
+      dx <= MARKER_TAP_MOVE_TOLERANCE_PX &&
+      dy <= MARKER_TAP_MOVE_TOLERANCE_PX &&
+      elapsed <= MARKER_TAP_MAX_DURATION_MS
+    );
   }
 
   function wasRecentMarkerPlacement(position) {
     if (!lastMarkerPlacement || !position) return false;
     const elapsed = Date.now() - lastMarkerPlacement.time;
-    if (elapsed > 350) return false;
+    if (elapsed > MARKER_DUPLICATE_WINDOW_MS) return false;
     return (
-      Math.abs(lastMarkerPlacement.position.x - position.x) <= 2 &&
-      Math.abs(lastMarkerPlacement.position.y - position.y) <= 2
+      Math.abs(lastMarkerPlacement.position.x - position.x) <=
+        MARKER_DUPLICATE_DISTANCE_PX &&
+      Math.abs(lastMarkerPlacement.position.y - position.y) <=
+        MARKER_DUPLICATE_DISTANCE_PX
     );
   }
 
@@ -1977,7 +1987,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
 
     editHandler.setInputAction((event) => {
-      const coordinate = coordFromWorld(worldAt(event.position));
+      const coordinate = coordFromWorld(worldAt(event.endPosition));
       if (activeTool === 'route' && routeMode === 'freeDraw') {
         pushFreeDrawPoint(coordinate);
         return;
@@ -2257,7 +2267,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     );
     if (context.kind === 'marker' && activeTool === 'marker') {
       pendingMarkerPosition = null;
-      interactionState = nextDrawingState();
+      interactionState = nextDrawingState(activeTool);
       syncPreviewEntities();
       syncStatusCopy();
     } else {

@@ -169,7 +169,7 @@ test('markup source preserves hidden-object rendering gates and mobile return-to
   );
   assert.match(
     markupPanel,
-    /await addObjectToMarkup\([\s\S]*?if \(context\.kind === 'marker' && activeTool === 'marker'\) \{[\s\S]*?pendingMarkerPosition = null;[\s\S]*?interactionState = nextDrawingState\(\);[\s\S]*?\} else \{[\s\S]*?activeTool = null;[\s\S]*?clearTransientGeometry\(\);[\s\S]*?syncToolButtons\(\);[\s\S]*?bindEditingHandler\(\);[\s\S]*?\}[\s\S]*?returnToMarkupMap\(\);/s,
+    /await addObjectToMarkup\([\s\S]*?if \(context\.kind === 'marker' && activeTool === 'marker'\) \{[\s\S]*?pendingMarkerPosition = null;[\s\S]*?interactionState = nextDrawingState\(activeTool\);[\s\S]*?\} else \{[\s\S]*?activeTool = null;[\s\S]*?clearTransientGeometry\(\);[\s\S]*?syncToolButtons\(\);[\s\S]*?bindEditingHandler\(\);[\s\S]*?\}[\s\S]*?returnToMarkupMap\(\);/s,
   );
   assert.match(
     markupPanel,
