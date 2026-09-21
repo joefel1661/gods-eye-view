@@ -2138,7 +2138,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       return;
     }
     const geometry =
-      context.geometry ||
+      context.geometry ??
       findMarkupObject(context.markupId, context.objectId).object?.geometry;
     if (context.kind === 'marker' && !isValidCoordinate(geometry?.position)) {
       updateStatus('Tap the map to place the marker first.');
