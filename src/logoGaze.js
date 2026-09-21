@@ -6,7 +6,7 @@ export const LOGO_PART_SELECTORS = ['#upper-ribbon', '#lower-ribbon'];
 
 /**
  * Convert a viewport pointer position into a bounded SVG-space logo offset.
- * The response ramps up near the mark, then caps so the central ribbon stays in ring.
+ * The response ramps up near the mark, then caps so the central ribbon stays within the ring.
  *
  * @param {number} clientX - Pointer x coordinate in CSS pixels.
  * @param {number} clientY - Pointer y coordinate in CSS pixels.
@@ -132,6 +132,11 @@ export function initLogoGaze(root = document) {
         svg.setAttribute('aria-hidden', 'true');
         svg.setAttribute('focusable', 'false');
         svg.querySelector('title')?.remove();
+        state.currentX = 0;
+        state.currentY = 0;
+        state.targetX = 0;
+        state.targetY = 0;
+        applyTransform(state);
         state.element.replaceChildren(svg);
         state.parts = LOGO_PART_SELECTORS.map((selector) =>
           svg.querySelector(selector),
