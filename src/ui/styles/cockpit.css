@@ -1949,7 +1949,6 @@ body.cockpit-mode
 body.cockpit-mode
   :is(
     #clear-selected-layers,
-    #share-btn,
     #tilt-map-view,
     #north-up-view,
     #reset-globe-view

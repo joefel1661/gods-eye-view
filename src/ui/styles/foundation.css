@@ -496,9 +496,36 @@ body:has(.data-toggle-row[data-layer-id='alpr-cameras'] .data-toggle-btn.active)
   position: fixed;
   top: 32px;
   left: 36px;
+  right: 36px;
   z-index: 100;
   pointer-events: none;
   user-select: none;
+}
+
+#title-bar .title-bar-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: min(100%, 780px);
+  padding: 10px 12px;
+  border: 1px solid rgba(123, 189, 211, 0.2);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(31, 41, 55, 0.82), rgba(10, 15, 26, 0.72));
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(22px) saturate(1.15);
+  -webkit-backdrop-filter: blur(22px) saturate(1.15);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+#title-bar [data-brand-surface='compact'] {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 #title-bar .title-glow {
@@ -513,13 +540,10 @@ body:has(.data-toggle-row[data-layer-id='alpr-cameras'] .data-toggle-btn.active)
 }
 
 #title-bar .brand-heading {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   font-family: var(--font-brand);
   font-size: 24px;
   font-weight: 700;
-  letter-spacing: 0.42em;
+  letter-spacing: 0.36em;
   color: var(--text-primary);
   text-shadow: 0 0 24px var(--accent-glow);
   position: relative;
@@ -527,8 +551,11 @@ body:has(.data-toggle-row[data-layer-id='alpr-cameras'] .data-toggle-btn.active)
 }
 
 #title-bar .brand-lockup-compact {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 #title-bar .title-logo {
@@ -613,12 +640,18 @@ body:has(.data-toggle-row[data-layer-id='alpr-cameras'] .data-toggle-btn.active)
 }
 
 .brand-lockup-compact {
-  grid-auto-flow: column;
-  gap: 0.75rem;
+  justify-items: stretch;
+  gap: 0.65rem;
 }
 
 .brand-mark {
   display: block;
+}
+
+.brand-copy {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
 }
 
 .brand-wordmark {
@@ -640,8 +673,9 @@ body:has(.data-toggle-row[data-layer-id='alpr-cameras'] .data-toggle-btn.active)
 }
 
 .brand-wordmark-compact {
-  font-size: 1em;
-  letter-spacing: 0.36em;
+  font-size: 0.96em;
+  letter-spacing: 0.28em;
+  white-space: nowrap;
 }
 
 .brand-wordmark-stacked {
@@ -664,6 +698,20 @@ body:has(.data-toggle-row[data-layer-id='alpr-cameras'] .data-toggle-btn.active)
   font-weight: 500;
   letter-spacing: 0.18em;
   color: rgba(229, 231, 235, 0.6);
+}
+
+.brand-subhead-compact {
+  font-size: 0.5rem;
+  letter-spacing: 0.3em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.brand-byline-compact {
+  font-size: 0.45rem;
+  letter-spacing: 0.22em;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 .brand-byline strong {

@@ -611,7 +611,6 @@ export class StyleManager {
     this._initCctvPanel();
     this._initGlobalContextPanel();
     this._initLocationBar();
-    this._initShareButton();
     this._initCameraOrientationControls();
     this._initClearSelectedLayersButton();
     this._initHUDToggle();
@@ -3449,19 +3448,6 @@ export class StyleManager {
     });
     if (!target) finish(true);
     return resetPromise;
-  }
-
-  // ── Share Button ─────────────────────────────
-
-  /**
-   * Wires the share button click to copy the current share link to the clipboard.
-   * @returns {void}
-   */
-  _initShareButton() {
-    this._lifetime.listen(this._shareBtn, 'click', async () => {
-      const success = await this.shareLinkManager.copyLink();
-      this._showToast(success ? 'Link copied!' : 'Copy failed');
-    });
   }
 
   /**
