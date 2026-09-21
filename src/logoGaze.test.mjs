@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateLogoGaze, initLogoGaze } from './logoGaze.js';
+import {
+  calculateLogoGaze,
+  initLogoGaze,
+  LOGO_PART_SELECTORS,
+} from './logoGaze.js';
 
 const rect = { left: 100, top: 50, width: 80, height: 40 };
 
@@ -62,8 +66,8 @@ test('logo gaze initializes the current SAUGOPS ribbon selectors', async () => {
     setAttribute() {},
     querySelector(selector) {
       if (selector === 'title') return { remove() {} };
-      if (selector === '#upper-ribbon') return upperRibbon;
-      if (selector === '#lower-ribbon') return lowerRibbon;
+      if (selector === LOGO_PART_SELECTORS[0]) return upperRibbon;
+      if (selector === LOGO_PART_SELECTORS[1]) return lowerRibbon;
       return null;
     },
     cloneNode() {
@@ -96,7 +100,7 @@ test('logo gaze initializes the current SAUGOPS ribbon selectors', async () => {
     fetch: async () => ({
       ok: true,
       text: async () =>
-        '<svg><title>SAUGOPS</title><path id="upper-ribbon"/><path id="lower-ribbon"/></svg>',
+        `<svg><title>SAUGOPS</title><path id="${LOGO_PART_SELECTORS[0].slice(1)}"/><path id="${LOGO_PART_SELECTORS[1].slice(1)}"/></svg>`,
     }),
     matchMedia: () => ({ matches: false }),
     addEventListener(type, handler) {

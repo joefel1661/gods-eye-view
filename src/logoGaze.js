@@ -2,6 +2,7 @@ const MAX_GAZE_SVG_UNITS = 34;
 const FULL_GAZE_DISTANCE_PX = 320;
 const GAZE_EASING = 0.2;
 const GAZE_EPSILON = 0.08;
+export const LOGO_PART_SELECTORS = ['#upper-ribbon', '#lower-ribbon'];
 
 /**
  * Convert a viewport pointer position into a bounded SVG-space logo offset.
@@ -132,10 +133,9 @@ export function initLogoGaze(root = document) {
         svg.setAttribute('focusable', 'false');
         svg.querySelector('title')?.remove();
         state.element.replaceChildren(svg);
-        state.parts = [
-          svg.querySelector('#upper-ribbon'),
-          svg.querySelector('#lower-ribbon'),
-        ].filter(Boolean);
+        state.parts = LOGO_PART_SELECTORS.map((selector) =>
+          svg.querySelector(selector),
+        ).filter(Boolean);
         applyTransform(state);
       }
     } catch {
