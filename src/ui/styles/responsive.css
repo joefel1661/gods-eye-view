@@ -24,19 +24,20 @@
   }
 
   #title-bar {
-    top: 20px;
-    left: 20px;
-  }
-
-  #top-center-actions {
     top: max(12px, env(safe-area-inset-top));
+    left: 16px;
     right: 16px;
-    left: auto;
-    transform: none;
+    width: auto;
   }
 
   #style-indicator {
     display: none;
+  }
+
+  #title-bar .title-bar-shell {
+    width: min(100%, 680px);
+    gap: 14px;
+    padding: 9px 11px;
   }
 
   #title-bar .brand-heading {
@@ -44,12 +45,19 @@
     letter-spacing: 0.28em;
   }
 
-  #title-bar .brand-heading {
-    gap: 8px;
-  }
-
   #title-bar .title-logo {
     width: 36px;
+    height: 36px;
+  }
+
+  #top-center-actions {
+    gap: 7px;
+  }
+
+  #top-center-actions button {
+    width: 38px;
+    height: 38px;
+    border-radius: 13px;
   }
 
   #title-bar .frame-rate-readout {

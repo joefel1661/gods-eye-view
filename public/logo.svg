@@ -1,24 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="logo-title">
   <title id="logo-title">SAUGOPS</title>
   <defs>
-    <linearGradient id="ring-gradient" x1="28" y1="28" x2="132" y2="132" gradientUnits="userSpaceOnUse">
+    <linearGradient id="ring-gradient" x1="30" y1="26" x2="130" y2="134" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#3B82F6"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
-    <linearGradient id="upper-ribbon" x1="38" y1="38" x2="112" y2="96" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#9AA7B8"/>
+    <linearGradient id="upper-ribbon-gradient" x1="46" y1="42" x2="102" y2="82" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#94A3B8"/>
     </linearGradient>
-    <linearGradient id="lower-ribbon" x1="48" y1="118" x2="122" y2="62" gradientUnits="userSpaceOnUse">
+    <linearGradient id="lower-ribbon-gradient" x1="56" y1="116" x2="118" y2="72" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#3B82F6"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
   </defs>
-  <circle cx="80" cy="80" r="54" fill="none" stroke="url(#ring-gradient)" stroke-width="4"/>
-  <path d="M80 15v9" fill="none" stroke="#22D3EE" stroke-width="4" stroke-linecap="round"/>
-  <path d="M80 136v9" fill="none" stroke="#22D3EE" stroke-width="4" stroke-linecap="round"/>
-  <path d="M15 80h9" fill="none" stroke="#22D3EE" stroke-width="4" stroke-linecap="round"/>
-  <path d="M136 80h9" fill="none" stroke="#22D3EE" stroke-width="4" stroke-linecap="round"/>
-  <path id="globe" d="M116 34H58L38 54h48c15.6 0 27 9 27 21 0 9.8-6.6 17.7-18.9 21.4l-14.8 4.4 8.9-17.4 1.7-.5c9.3-2.6 14.1-7 14.1-12.8 0-6.7-6.1-10.8-16.2-10.8H48.6L69.2 34H116Z" fill="url(#upper-ribbon)"/>
-  <path id="globe_cage" d="M44 126h58l20-20H74c-15.6 0-27-9-27-21 0-9.8 6.6-17.7 18.9-21.4l14.8-4.4-8.9 17.4-1.7.5C60.8 79.3 56 83.7 56 89.5c0 6.7 6.1 10.8 16.2 10.8h40.1L90.8 126H44Z" fill="url(#lower-ribbon)"/>
+  <circle cx="80" cy="80" r="54" fill="none" stroke="url(#ring-gradient)" stroke-width="3.5"/>
+  <path d="M80 17v8" fill="none" stroke="#8BE8F6" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+  <path d="M80 135v8" fill="none" stroke="#8BE8F6" stroke-width="3" stroke-linecap="round" opacity="0.78"/>
+  <path d="M17 80h8" fill="none" stroke="#8BE8F6" stroke-width="3" stroke-linecap="round" opacity="0.78"/>
+  <path d="M135 80h8" fill="none" stroke="#8BE8F6" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+  <path
+    id="upper-ribbon"
+    d="M110 38H67L46 60h32.6c13.7 0 22.8 5.7 22.8 14.5 0 4.8-2.7 9.1-7.8 12.4L66.1 104c-7.3 4.5-10.9 10.1-10.9 16.8v1.2h35l16.7-17.1H84.2c-11.7 0-19-5-19-12.6 0-4.2 2.4-8.1 7-11.1l27.4-17.1c7.1-4.4 10.7-9.8 10.7-16.3V38Z"
+    fill="url(#upper-ribbon-gradient)"
+  />
+  <path
+    id="lower-ribbon"
+    d="M50 122h43l21-22H81.3c-13.7 0-22.7-5.7-22.7-14.6 0-4.7 2.7-9 7.8-12.3L93.8 56c7.3-4.5 10.9-10.1 10.9-16.8V38H69.8L53.1 55.1h22.7c11.7 0 19 5 19 12.6 0 4.2-2.4 8-6.9 10.9L60.5 95.9C53.3 100.3 50 105.7 50 112.2V122Z"
+    fill="url(#lower-ribbon-gradient)"
+  />
 </svg>

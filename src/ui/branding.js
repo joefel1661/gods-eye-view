@@ -40,14 +40,27 @@ export function createCompactBrandLockup(documentRef = document) {
   const lockup = documentRef.createElement('div');
   lockup.className = 'brand-lockup brand-lockup-compact';
 
+  const mark = createMark(documentRef, 'brand-mark title-logo');
+  const copy = documentRef.createElement('div');
+  copy.className = 'brand-copy';
+
   const heading = documentRef.createElement('div');
   heading.className = 'brand-heading';
-  heading.append(
-    createMark(documentRef, 'brand-mark title-logo'),
-    createWordmark(documentRef, 'brand-wordmark-compact'),
-  );
+  heading.append(createWordmark(documentRef, 'brand-wordmark-compact'));
 
-  lockup.append(heading);
+  const subhead = documentRef.createElement('p');
+  subhead.className = 'brand-subhead brand-subhead-compact';
+  subhead.textContent = BRAND_DESCRIPTOR;
+
+  const byline = documentRef.createElement('p');
+  byline.className = 'brand-byline brand-byline-compact';
+  byline.append('by ');
+  const brandName = documentRef.createElement('strong');
+  brandName.textContent = BRAND_BYLINE;
+  byline.append(brandName);
+
+  copy.append(heading, subhead, byline);
+  lockup.append(mark, copy);
   return lockup;
 }
 
