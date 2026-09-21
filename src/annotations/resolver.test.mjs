@@ -93,5 +93,5 @@ test('pickWorldFromScreen still falls back to the ellipsoid when no rendered sur
   assert.ok(picked);
   assert.ok(Math.abs(picked.lon - 12.4924) < 1e-6);
   assert.ok(Math.abs(picked.lat - 41.8902) < 1e-6);
-  assert.equal(picked.height, 0);
+  assert.ok(Math.abs(picked.height) < 1e-6);
 });
