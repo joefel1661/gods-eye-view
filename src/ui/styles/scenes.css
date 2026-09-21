@@ -295,6 +295,10 @@
   gap: 8px;
 }
 
+.markup-route-mode-row[hidden] {
+  display: none !important;
+}
+
 .markup-route-mode-btn.active {
   color: var(--accent);
   border-color: var(--accent);

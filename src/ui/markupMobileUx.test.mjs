@@ -32,9 +32,9 @@ test('markup template ships the mobile map-first overlay and sheets', () => {
   assert.match(template, /id="markup-mobile-done-btn"/);
   assert.match(template, /class="markup-mobile-toolbar"/);
   assert.match(template, /data-markup-tool="marker"/);
-  assert.match(template, /data-markup-tool="line"/);
-  assert.match(template, /data-markup-tool="polygon"/);
-  assert.match(template, /data-markup-tool="circle"/);
+  assert.match(template, /data-markup-tool="route"/);
+  assert.match(template, /data-markup-tool="area"/);
+  assert.match(template, /data-markup-tool="radius"/);
   assert.match(template, /data-markup-tool="delete"/);
   assert.match(template, /id="markup-manager-sheet"/);
   assert.match(template, /id="markup-metadata-sheet"/);
@@ -78,6 +78,7 @@ test('mobile markup sheets and cards stay above the attribution-safe corridor', 
 
 test('markup styles include active route-mode and mobile card surfaces', () => {
   assert.match(scenesCss, /\.markup-route-mode-btn\.active/);
+  assert.match(scenesCss, /\.markup-route-mode-row\[hidden\] \{/);
   assert.match(scenesCss, /\.markup-context-card \{/);
   assert.match(scenesCss, /\.markup-bottom-sheet \{/);
   assert.match(scenesCss, /\.markup-object-sheet-content \{/);
@@ -152,15 +153,15 @@ test('markup source preserves hidden-object rendering gates and mobile return-to
   );
   assert.match(
     markupPanel,
-    /function selectTool\(tool\) \{[\s\S]*?interactionState = nextDrawingState\(tool\);[\s\S]*?formMode = null;[\s\S]*?viewer\.selectedEntity = null;/s,
+    /function selectTool\(tool\) \{[\s\S]*?activeTool = normalizeToolId\(tool\);[\s\S]*?interactionState = nextDrawingState\(activeTool\);[\s\S]*?formMode = null;[\s\S]*?viewer\.selectedEntity = null;/s,
   );
   assert.match(
     markupPanel,
-    /if \(activeTool === 'marker'\) \{[\s\S]*?pendingMarkerPosition = structuredClone\(coordinate\);[\s\S]*?syncPreviewEntities\(\);[\s\S]*?openObjectSheet\(\{[\s\S]*?geometry: \{ position: structuredClone\(pendingMarkerPosition\) \}/s,
+    /function setMarkerPlacement\(position\) \{[\s\S]*?if \(!isMarkerPlacementActive\(\) \|\| activeSheet === 'object'\) return false;[\s\S]*?pendingMarkerPosition = structuredClone\(coordinate\);[\s\S]*?syncPreviewEntities\(\);[\s\S]*?openObjectSheet\(\{[\s\S]*?geometry: \{ position: structuredClone\(pendingMarkerPosition\) \}/s,
   );
   assert.match(
     markupPanel,
-    /if \(activeTool === 'marker'\) \{[\s\S]*?selectedObjectRef = null;[\s\S]*?viewer\.selectedEntity = null;[\s\S]*?syncPreviewEntities\(\);/s,
+    /function setMarkerPlacement\(position\) \{[\s\S]*?selectedObjectRef = null;[\s\S]*?viewer\.selectedEntity = null;[\s\S]*?syncPreviewEntities\(\);/s,
   );
   assert.match(
     markupPanel,
@@ -168,10 +169,10 @@ test('markup source preserves hidden-object rendering gates and mobile return-to
   );
   assert.match(
     markupPanel,
-    /await addObjectToMarkup\([\s\S]*?activeTool = null;[\s\S]*?clearTransientGeometry\(\);[\s\S]*?syncToolButtons\(\);[\s\S]*?bindEditingHandler\(\);[\s\S]*?returnToMarkupMap\(\);/s,
+    /await addObjectToMarkup\([\s\S]*?if \(context\.kind === 'marker' && activeTool === 'marker'\) \{[\s\S]*?pendingMarkerPosition = null;[\s\S]*?interactionState = nextDrawingState\(activeTool\);[\s\S]*?\} else \{[\s\S]*?activeTool = null;[\s\S]*?clearTransientGeometry\(\);[\s\S]*?syncToolButtons\(\);[\s\S]*?bindEditingHandler\(\);[\s\S]*?\}[\s\S]*?returnToMarkupMap\(\);/s,
   );
   assert.match(
     markupPanel,
-    /listen\(objectCancelBtn, 'click', \(\) => \{[\s\S]*?if \(formMode === 'create'\) \{[\s\S]*?activeTool = null;[\s\S]*?clearTransientGeometry\(\);[\s\S]*?bindEditingHandler\(\);[\s\S]*?returnToMarkupMap\(\);/s,
+    /listen\(objectCancelBtn, 'click', \(\) => \{[\s\S]*?if \(formMode === 'create'\) \{[\s\S]*?if \(pendingObjectContext\?\.kind === 'marker' && activeTool === 'marker'\) \{[\s\S]*?pendingMarkerPosition = null;[\s\S]*?syncPreviewEntities\(\);[\s\S]*?\} else \{[\s\S]*?activeTool = null;[\s\S]*?clearTransientGeometry\(\);[\s\S]*?bindEditingHandler\(\);[\s\S]*?\}[\s\S]*?\}[\s\S]*?returnToMarkupMap\(\);/s,
   );
 });
