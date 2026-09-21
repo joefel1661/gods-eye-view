@@ -146,3 +146,82 @@ test('logo gaze initializes the current SAUGOPS ribbon selectors', async () => {
     else globalThis.DOMParser = previousDOMParser;
   }
 });
+
+test('logo gaze fails closed when the inline mark omits ribbon selectors', async () => {
+  const logoHost = {
+    dataset: { logoSrc: '/logo.svg' },
+    replaceChildren(child) {
+      this.child = child;
+    },
+  };
+
+  const documentRef = {
+    documentElement: {
+      addEventListener() {},
+      removeEventListener() {},
+    },
+    querySelectorAll() {
+      return [logoHost];
+    },
+  };
+
+  const windowRef = {
+    fetch: async () => ({
+      ok: true,
+      text: async () => '<svg><title>SAUGOPS</title></svg>',
+    }),
+    matchMedia: () => ({ matches: false }),
+    addEventListener() {},
+    removeEventListener() {},
+    requestAnimationFrame() {
+      return 1;
+    },
+    cancelAnimationFrame() {},
+  };
+
+  const DOMParserRef = class {
+    parseFromString() {
+      return {
+        querySelector() {
+          return null;
+        },
+        documentElement: {
+          removeAttribute() {},
+          setAttribute() {},
+          querySelector(selector) {
+            if (selector === 'title') return { remove() {} };
+            return null;
+          },
+          cloneNode() {
+            return this;
+          },
+        },
+      };
+    }
+  };
+
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const previousDOMParser = globalThis.DOMParser;
+
+  globalThis.window = windowRef;
+  globalThis.document = documentRef;
+  globalThis.DOMParser = DOMParserRef;
+
+  try {
+    const cleanup = initLogoGaze(documentRef);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.ok(
+      logoHost.child,
+      'the SVG should still inline when selectors are absent',
+    );
+    cleanup();
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+    if (previousDOMParser === undefined) delete globalThis.DOMParser;
+    else globalThis.DOMParser = previousDOMParser;
+  }
+});
