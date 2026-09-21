@@ -182,14 +182,15 @@
     display: none;
   }
 
-  #title-bar h1 {
+  #title-bar .brand-heading {
     gap: 8px;
     font-size: 13px;
-    letter-spacing: 2.6px;
+    letter-spacing: 0.22em;
   }
 
   #title-bar .title-logo {
     width: 30px;
+    height: 30px;
   }
 
   #top-center-actions {

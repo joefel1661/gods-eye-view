@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="icon-bg" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#121827"/>
+      <stop offset="1" stop-color="#0A0F1A"/>
+    </linearGradient>
+    <linearGradient id="icon-ring" x1="148" y1="148" x2="364" y2="364" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="icon-upper" x1="168" y1="160" x2="314" y2="272" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#9AA7B8"/>
+    </linearGradient>
+    <linearGradient id="icon-lower" x1="180" y1="356" x2="324" y2="248" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#icon-bg)"/>
+  <circle cx="256" cy="256" r="146" fill="none" stroke="url(#icon-ring)" stroke-width="12"/>
+  <path d="M256 74v24M256 414v24M74 256h24M414 256h24" fill="none" stroke="#22D3EE" stroke-width="12" stroke-linecap="round"/>
+  <path d="M350 132H193l-52 52h113.4c42.1 0 72.8 24.4 72.8 56.5 0 26.3-18.3 47.6-50.7 57.7l-39.9 11.8 24-47 4.5-1.3c25-7 37.9-18.9 37.9-34.4 0-18-16.4-29-43.5-29H168l56-52H350Z" fill="url(#icon-upper)"/>
+  <path d="M162 380h157l52-52H257.6c-42.1 0-72.8-24.4-72.8-56.5 0-26.3 18.3-47.6 50.7-57.7l39.9-11.8-24 47-4.5 1.3c-25 7-37.9 18.9-37.9 34.4 0 18 16.4 29 43.5 29H344l-56 52H162Z" fill="url(#icon-lower)"/>
+</svg>
