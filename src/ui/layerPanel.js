@@ -132,6 +132,7 @@ export class LayerPanel {
     this._generation = 0;
     this._removers = [];
     this._destroyed = false;
+    this._rowControlSubscriptions = new Map();
     this._sectionExpanded = new Map();
   }
   mount(container) {
@@ -147,6 +148,10 @@ export class LayerPanel {
   _releaseBindings() {
     this._generation++;
     for (const remove of this._removers.splice(0)) remove();
+    for (const unsubscribe of this._rowControlSubscriptions.values()) {
+      unsubscribe?.();
+    }
+    this._rowControlSubscriptions.clear();
   }
   destroy() {
     if (this._destroyed) return;
@@ -376,10 +381,14 @@ export class LayerPanel {
       // A layer whose controls settle asynchronously (a chunked catalog load
       // that can also fail) pushes a re-render through this; nothing else
       // would repaint the row before its next scheduled refresh.
-      const unsubscribe = this.subscribeRowControls(layer.id, () =>
-        this._refreshTogglePanel(),
-      );
-      if (unsubscribe) this._removers.push(unsubscribe);
+      if (!this._rowControlSubscriptions.has(layer.id)) {
+        this._rowControlSubscriptions.set(
+          layer.id,
+          this.subscribeRowControls(layer.id, () =>
+            this._refreshTogglePanel(),
+          ) || null,
+        );
+      }
       const controls = document.createElement('div');
       controls.className = 'data-toggle-controls';
       this._bind(controls, 'click', (event) => {

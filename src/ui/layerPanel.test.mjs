@@ -21,6 +21,7 @@ function createFixture({
   markups = [],
   onToggle = async () => {},
   onMarkupToggle = async () => {},
+  subscribeRowControls = () => () => {},
 } = {}) {
   class Node {
     constructor(tagName, ownerDocument) {
@@ -239,7 +240,7 @@ function createFixture({
           }
         : null,
     hasRowControls: (id) => id === 'security-points',
-    subscribeRowControls: () => () => {},
+    subscribeRowControls,
   });
   const container = document.createElement('div');
   document.body.appendChild(container);
@@ -415,4 +416,28 @@ test('renders saved markups in My Layers and preserves layer and markup toggles'
     '[data-layer-id="security-points"]',
   );
   assert.equal(securityRow.querySelectorAll('.data-toggle-chip').length, 1);
+});
+
+test('row-control subscriptions are not duplicated during panel refreshes', () => {
+  let subscriptions = 0;
+  const { panel, container } = createFixture({
+    layers: [
+      {
+        id: 'security-points',
+        name: 'Security Points',
+        icon: '🛡',
+        enabled: true,
+        showInTogglePanel: true,
+        stats: { count: 4 },
+      },
+    ],
+    subscribeRowControls: () => {
+      subscriptions += 1;
+      return () => {};
+    },
+  });
+  panel.mount(container);
+  panel._refreshTogglePanel();
+  panel._refreshTogglePanel();
+  assert.equal(subscriptions, 1);
 });
