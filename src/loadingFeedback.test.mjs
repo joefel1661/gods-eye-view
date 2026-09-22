@@ -206,7 +206,10 @@ test('universal notice lifecycle clears on dispose and uses the one top-center l
   assert.match(dispose, /this\._feedback\._globalStatusNotice = null;/);
   assert.match(dispose, /this\._shareRestoration\.destroy\(\)/);
   assert.match(ShareRestoration.prototype.destroy.toString(), /this\._shareTrackingNoticeGeneration \+= 1;/);
-  assert.match(html, /<div id="global-loading-status" role="status" aria-live="polite" aria-atomic="true" hidden>/);
+  assert.match(
+    html,
+    /<div\s+id="global-loading-status"[\s\S]*?role="status"[\s\S]*?aria-live="polite"[\s\S]*?aria-atomic="true"[\s\S]*?hidden[\s\S]*?>/,
+  );
 });
 
 test('normalizes lifecycle and refresh loading without owning manager state', () => {

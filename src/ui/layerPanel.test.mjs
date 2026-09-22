@@ -511,34 +511,22 @@ test('row-control subscriptions are not duplicated during panel refreshes', () =
 
 test('panel-specific toggle handlers are used for virtual emergency rows', async () => {
   const calls = [];
-  const currentLayers = [
-    {
-      id: 'security-points-police',
-      name: 'Police',
-      icon: '🚓',
-      enabled: false,
-      showInTogglePanel: true,
-      source: 'Google Maps Places',
-      stats: { count: 4, source: 'Google Maps Places' },
-      panelToggle: async (enabled, options) => {
-        calls.push({ enabled, options });
-        currentLayers[0] = { ...currentLayers[0], enabled };
+  const { panel, container } = createFixture({
+    layers: [
+      {
+        id: 'security-points-police',
+        name: 'Police',
+        icon: '🚓',
+        enabled: false,
+        showInTogglePanel: true,
+        source: 'Google Maps Places',
+        stats: { count: 4, source: 'Google Maps Places' },
+        panelToggle: async (enabled, options) => {
+          calls.push({ enabled, options });
+        },
       },
-    },
-  ];
-  const panel = new LayerPanel({
-    getLayers: () => currentLayers,
-    isEnabled: () => false,
-    setEnabled: async () => {
-      throw new Error('should not call setEnabled');
-    },
-    setLayerParams: () => {},
-    getRowControls: () => null,
-    hasRowControls: () => false,
-    subscribeRowControls: () => () => {},
+    ],
   });
-  const container = document.createElement('div');
-  document.body.appendChild(container);
   panel.mount(container);
 
   const toggle = container.querySelector('.data-toggle-btn');
