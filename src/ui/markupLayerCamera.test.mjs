@@ -177,3 +177,18 @@ test('my layers camera movement only triggers on OFF to ON toggles', async () =>
     ],
   );
 });
+
+test('visibility save failures restore the prior my-layers state', async () => {
+  const markups = [
+    { id: 'foxtrot', name: 'Foxtrot', visible: false, objects: [] },
+  ];
+  const api = createMarkupsLayerApi({
+    markups,
+    saveMarkup: async () => {
+      throw new Error('save failed');
+    },
+    subscribeTarget: new EventTarget(),
+  });
+  await assert.rejects(() => api.setVisible('foxtrot', true), /save failed/);
+  assert.equal(markups[0].visible, false);
+});

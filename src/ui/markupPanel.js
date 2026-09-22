@@ -533,9 +533,18 @@ export function createMarkupsLayerApi({
     setVisible: async (markupId, visible) => {
       const markup = markups.find((entry) => entry.id === markupId);
       if (!markup) return false;
-      const shouldFocus = markup.visible === false && Boolean(visible);
-      markup.visible = Boolean(visible);
-      await saveMarkup(markup);
+      const previousVisible = markup.visible;
+      const nextVisible = Boolean(visible);
+      const shouldFocus = previousVisible === false && nextVisible;
+      if (previousVisible !== nextVisible) {
+        markup.visible = nextVisible;
+        try {
+          await saveMarkup(markup);
+        } catch (error) {
+          markup.visible = previousVisible;
+          throw error;
+        }
+      }
       renderMap();
       renderSavedMarkups();
       refreshLayerPanel();
@@ -865,7 +874,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
       const computedStyle = globalThis.getComputedStyle?.(element);
       if (
         computedStyle?.display === 'none' ||
-        computedStyle?.visibility === 'hidden'
+        computedStyle?.visibility === 'hidden' ||
+        computedStyle?.visibility === 'collapse' ||
+        element.getAttribute?.('aria-hidden') === 'true' ||
+        Number(computedStyle?.opacity) === 0
       ) {
         continue;
       }
