@@ -134,6 +134,7 @@ export class LayerPanel {
     this._destroyed = false;
     this._rowControlSubscriptions = new Map();
     this._sectionExpanded = new Map();
+    this._sectionCollapseTimers = new Map();
   }
   mount(container) {
     if (this._destroyed) return;
@@ -148,6 +149,8 @@ export class LayerPanel {
   _releaseBindings() {
     this._generation++;
     for (const remove of this._removers.splice(0)) remove();
+    for (const timer of this._sectionCollapseTimers.values()) clearTimeout(timer);
+    this._sectionCollapseTimers.clear();
     for (const unsubscribe of this._rowControlSubscriptions.values()) {
       unsubscribe?.();
     }
@@ -287,6 +290,7 @@ export class LayerPanel {
     this._setSectionExpanded(
       root,
       this._sectionExpandedState(section.id, section.defaultExpanded),
+      { immediate: true },
     );
     this._bind(header, 'click', () => {
       const expanded = header.getAttribute('aria-expanded') !== 'true';
@@ -303,12 +307,32 @@ export class LayerPanel {
     return this._sectionExpanded.get(sectionId) === true;
   }
 
-  _setSectionExpanded(section, expanded) {
+  _setSectionExpanded(section, expanded, { immediate = false } = {}) {
     const toggle = section.querySelector('.data-layer-section-toggle');
     const body = section.querySelector('.data-layer-section-body');
+    const sectionId = section.dataset.layerSection || '';
+    const priorTimer = this._sectionCollapseTimers.get(sectionId);
+    if (priorTimer) {
+      clearTimeout(priorTimer);
+      this._sectionCollapseTimers.delete(sectionId);
+    }
     section.classList.toggle('collapsed', !expanded);
     toggle?.setAttribute('aria-expanded', String(Boolean(expanded)));
-    if (body) body.hidden = !expanded;
+    if (body) {
+      body.setAttribute('aria-hidden', String(!expanded));
+      body.inert = !expanded;
+      if (immediate) {
+        body.hidden = !expanded;
+      } else if (expanded) {
+        body.hidden = false;
+      } else {
+        const timer = setTimeout(() => {
+          if (section.classList.contains('collapsed')) body.hidden = true;
+          this._sectionCollapseTimers.delete(sectionId);
+        }, 160);
+        this._sectionCollapseTimers.set(sectionId, timer);
+      }
+    }
   }
 
   _buildLayerRow(layer, generation) {

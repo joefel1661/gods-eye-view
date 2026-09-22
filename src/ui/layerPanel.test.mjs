@@ -418,6 +418,65 @@ test('renders saved markups in My Layers and preserves layer and markup toggles'
   assert.equal(securityRow.querySelectorAll('.data-toggle-chip').length, 1);
 });
 
+test('section headers toggle only their own section visibility state', async () => {
+  const { panel, container } = createFixture({
+    layers: [
+      {
+        id: 'flights',
+        name: 'Live Flights',
+        icon: '✈',
+        enabled: false,
+        showInTogglePanel: true,
+        stats: { count: 12 },
+      },
+      {
+        id: 'security-points',
+        name: 'Security Points',
+        icon: '🛡',
+        enabled: true,
+        showInTogglePanel: true,
+        stats: { count: 4 },
+      },
+    ],
+  });
+   panel.mount(container);
+
+  const movementSection = container.querySelector(
+    '[data-layer-section="movement-transit"]',
+  );
+  const movementHeader = movementSection.querySelector('.data-layer-section-toggle');
+  const movementBody = movementSection.querySelector('.data-layer-section-body');
+  assert.equal(movementHeader.getAttribute('aria-expanded'), 'false');
+  assert.equal(movementBody.getAttribute('aria-hidden'), 'true');
+  assert.equal(movementBody.inert, true);
+  assert.equal(movementBody.hidden, true);
+  assert.ok(movementBody.querySelector('[data-layer-id="flights"]'));
+
+  const securitySection = container.querySelector(
+    '[data-layer-section="security-emergency"]',
+  );
+  const securityHeader = securitySection.querySelector('.data-layer-section-toggle');
+  const securityBody = securitySection.querySelector('.data-layer-section-body');
+  assert.equal(securityHeader.getAttribute('aria-expanded'), 'true');
+  assert.equal(securityBody.getAttribute('aria-hidden'), 'false');
+  assert.equal(securityBody.inert, false);
+  assert.equal(securityBody.hidden, false);
+
+  await movementHeader.click();
+  assert.equal(movementHeader.getAttribute('aria-expanded'), 'true');
+  assert.equal(movementBody.getAttribute('aria-hidden'), 'false');
+  assert.equal(movementBody.inert, false);
+  assert.equal(movementBody.hidden, false);
+
+  await securityHeader.click();
+  assert.equal(securityHeader.getAttribute('aria-expanded'), 'false');
+  assert.equal(securityBody.getAttribute('aria-hidden'), 'true');
+  assert.equal(securityBody.inert, true);
+  await new Promise((resolve) => setTimeout(resolve, 170));
+  assert.equal(securityBody.hidden, true);
+  assert.equal(movementHeader.getAttribute('aria-expanded'), 'true');
+});
+
 test('row-control subscriptions are not duplicated during panel refreshes', () => {
   let subscriptions = 0;
   const { panel, container } = createFixture({

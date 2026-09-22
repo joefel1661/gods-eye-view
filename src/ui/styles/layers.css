@@ -160,6 +160,21 @@
 .data-layer-section-body {
   display: grid;
   gap: 2px;
+  transform-origin: top center;
+  opacity: 1;
+  transition:
+    opacity 0.12s ease,
+    transform 0.16s ease;
+}
+
+.data-layer-section.collapsed .data-layer-section-body {
+  opacity: 0;
+  transform: translateY(-4px) scaleY(0.98);
+  pointer-events: none;
+}
+
+.data-layer-section-body[hidden] {
+  display: none;
 }
 
 .data-layer-empty-state {
