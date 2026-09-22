@@ -127,7 +127,7 @@ test('markup manager actions keep whole labels and reflow into mobile rows', () 
   );
   assert.match(
     mobileCss,
-    /@media \(max-width: 430px\) \{[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-top \{[\s\S]*?flex-direction: column;[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \{[\s\S]*?justify-content: flex-start;[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \.scene-btn \{[\s\S]*?flex: 1 1 calc\(\(100% - 12px\) \/ 3\);/,
+    /@media \(max-width: 430px\) \{[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-top \{[\s\S]*?flex-direction: column;[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \{[\s\S]*?display: grid;[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \.scene-btn \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/,
   );
 });
 

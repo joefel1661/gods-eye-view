@@ -1253,12 +1253,14 @@
   }
 
   #scene-panel .markup-manager-row .markup-row-actions {
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     margin-left: 0;
   }
 
   #scene-panel .markup-manager-row .markup-row-actions .scene-btn {
-    flex: 1 1 calc((100% - 12px) / 3);
+    width: 100%;
+    min-width: 0;
   }
 }
 
