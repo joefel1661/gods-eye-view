@@ -127,7 +127,7 @@ test('markup manager actions keep whole labels and reflow into mobile rows', () 
   );
   assert.match(
     mobileCss,
-    /@media \(max-width: 430px\) \{[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-top \{[\s\S]*?flex-direction: column;[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \{[\s\S]*?display: grid;[\s\S]*?grid-template-columns: repeat\(auto-fit, minmax\(100px, 1fr\)\);[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \.scene-btn \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/,
+    /@media \(max-width: 430px\) \{[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-top \{[\s\S]*?flex-direction: column;[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \{[\s\S]*?display: grid;[\s\S]*?grid-template-columns: repeat\(auto-fit, minmax\(100px, 1fr\)\);[\s\S]*?justify-content: stretch;[\s\S]*?justify-items: stretch;[\s\S]*?align-items: stretch;[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \.scene-btn \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/,
   );
 });
 
