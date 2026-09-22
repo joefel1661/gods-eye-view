@@ -1,7 +1,10 @@
 import { shouldExpandGlobalContextPanel } from '../rightRailPolicy.js';
 
 export function _initGlobalContextPanel() {
-  const contextTabs = [this._globalContextFlightsBtn].filter(Boolean);
+  const contextTabs = [
+    this._globalContextFlightsBtn,
+    this._globalContextCamerasBtn,
+  ].filter(Boolean);
   contextTabs.forEach((tab, index) =>
     this.listen(tab, 'keydown', (event) => {
       let nextIndex = null;
@@ -24,6 +27,7 @@ export function _initGlobalContextPanel() {
       this._clearSelectedLayersPromise
     )
       return;
+    this.setContextSection('contacts');
     const nextMode = this._contextMode === 'flights' ? null : 'flights';
     this._claimContextVisualAuthority();
     void this._runUserFacingContextAction(
@@ -44,6 +48,11 @@ export function _initGlobalContextPanel() {
           explicit: true,
         });
     });
+  });
+  this.listen(this._globalContextCamerasBtn, 'click', () => {
+    if (this.destroyed) return;
+    this._claimContextVisualAuthority();
+    this.setContextSection('cameras');
   });
   this.listen(this._installationsSearchBtn, 'click', () => {
     if (

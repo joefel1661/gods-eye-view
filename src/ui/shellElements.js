@@ -46,7 +46,9 @@ export function readShellElements(document = globalThis.document) {
     _cleanViewExitBtn: document.getElementById('clean-view-exit'),
     _dataPanel: document.getElementById('data-panel'),
     _scenePanel: document.getElementById('scene-panel'),
-    _cctvPanel: document.getElementById('cctv-panel'),
+    _cctvPanel:
+      document.getElementById('context-cameras-panel') ||
+      document.getElementById('cctv-panel'),
     _radioPanel: document.getElementById('radio-panel'),
     _contextRadioDock: document.getElementById('context-radio-dock'),
     _contextRadioToggleBtn: document.getElementById('context-radio-toggle-btn'),
@@ -119,11 +121,15 @@ export function readShellElements(document = globalThis.document) {
     _globalContextFlightsBtn: document.getElementById(
       'global-context-flights-btn',
     ),
+    _globalContextCamerasBtn: document.getElementById(
+      'global-context-cameras-btn',
+    ),
     _globalContextMissionsBtn: document.getElementById(
       'global-context-missions-btn',
     ),
     _contextModeStandby: document.getElementById('context-mode-standby'),
     _contextFlightsView: document.getElementById('context-flights-view'),
+    _contextCamerasView: document.getElementById('context-cameras-view'),
     _contextMissionsView: document.getElementById('context-missions-view'),
     _installationsSearchBtn: document.getElementById(
       'installations-search-btn',

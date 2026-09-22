@@ -1755,9 +1755,11 @@ export class StyleManager {
       elements: {
         _globalContextPanel: document.getElementById('global-context-panel'),
         _globalContextFlightsBtn: this._globalContextFlightsBtn,
+        _globalContextCamerasBtn: this._globalContextCamerasBtn,
         _globalContextMissionsBtn: this._globalContextMissionsBtn,
         _contextModeStandby: this._contextModeStandby,
         _contextFlightsView: this._contextFlightsView,
+        _contextCamerasView: this._contextCamerasView,
         _contextMissionsView: this._contextMissionsView,
         _installationsSearchBtn: this._installationsSearchBtn,
       },
@@ -1937,6 +1939,8 @@ export class StyleManager {
           this._dataManager?.setLayerParams('cctv', params, options),
         toggleEnabled: (...args) => this._toggleCctvEnabled(...args),
         runExplicitFocus: (...args) => this._runExplicitCctvFocus(...args),
+        revealCameras: (...args) =>
+          this._contextControls?.revealCameras?.(...args),
         setPanelCollapsed: (...args) => this.setPanelCollapsed(...args),
         showToast: (message) => this._showToast(message),
         syncViewport: () => this._syncCctvPanelViewport(),
@@ -3707,6 +3711,12 @@ export class StyleManager {
     if (!this._cctvPanel) return;
     const inner = this._cctvPanel.querySelector('.cctv-panel-inner');
     this._lifetime.frame(() => {
+      if (this._cctvPanel.closest?.('#global-context-panel')) {
+        this._cctvPanel.style.maxHeight = '';
+        if (inner) inner.style.maxHeight = '';
+        this._scheduleRightPanelLayout();
+        return;
+      }
       if (this._cctvPanel.parentElement?.id === 'right-context-rail') {
         this._cctvPanel.style.maxHeight = '';
         if (inner) inner.style.maxHeight = '';

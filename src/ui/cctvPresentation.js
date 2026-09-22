@@ -26,13 +26,13 @@ export function _renderCctvState(state) {
   const activeId = state?.activeCameraId || '';
   const activeCamera = state?.activeCamera || null;
 
-  // Auto-expand the panel when the active camera CHANGES to a new non-null
-  // id while the layer is enabled. Covers click-on-globe, panel controls,
-  // and voice (selectCamera/cycleCamera/focusNearest all notify through
-  // this subscription). The last-seen guard keeps routine notifications
-  // from re-expanding a panel the user deliberately collapsed, and timed
-  // auto-hop transitions only expand on the first activation so the panel
-  // does not pop open on every hop.
+  // Auto-expand the Cameras view inside Context when the active camera CHANGES
+  // to a new non-null id while the layer is enabled. Covers click-on-globe,
+  // panel controls, and voice (selectCamera/cycleCamera/focusNearest all
+  // notify through this subscription). The last-seen guard keeps routine
+  // notifications from re-expanding a panel the user deliberately collapsed,
+  // and timed auto-hop transitions only expand on the first activation so the
+  // panel does not pop open on every hop.
   const effectiveActiveId = enabled ? activeId || null : null;
   const isFirstActivation = this._lastSeenCctvActiveId === null;
   if (
@@ -40,7 +40,7 @@ export function _renderCctvState(state) {
     effectiveActiveId !== this._lastSeenCctvActiveId &&
     (!state?.autoHop || isFirstActivation)
   ) {
-    this.actions.setPanelCollapsed('cctv-panel', false, {
+    this.actions.revealCameras?.({
       explicit: Boolean(state?.explicitSelection),
     });
   }

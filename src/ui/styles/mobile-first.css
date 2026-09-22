@@ -252,7 +252,7 @@
     left: 12px;
     z-index: 165;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 7px;
     padding: 6px 9px calc(var(--mobile-safe-bottom) + 6px);
     background: rgba(7, 18, 27, 0.92);
@@ -918,6 +918,7 @@
   }
 
   #cctv-panel .cctv-controls,
+  #context-cameras-panel .cctv-controls,
   #global-context-panel .data-toggle-top,
   #global-context-panel .data-toggle-right,
   #global-context-panel .military-awareness-target {
@@ -933,7 +934,7 @@
   :is(#scene-panel, #cctv-panel, #global-context-panel, #command-dock)
     :is(.scene-btn, .panel-layer-toggle, .context-mode-button, .map-stack-chip),
   :is(#command-dock, #location-bar) :is(.style-btn, .location-pill, .poi-pill),
-  #cctv-panel .cctv-controls > *,
+  :is(#cctv-panel, #context-cameras-panel) .cctv-controls > *,
   #scene-panel .scene-controls > *,
   #global-context-panel .radio-directory-row > * {
     min-width: 0;
