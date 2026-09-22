@@ -1,23 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import * as Cesium from 'cesium';
 import {
   buildMarkupCameraFlight,
   collectMarkupCameraPositions,
+  createMarkupsLayerApi,
 } from './markupPanel.js';
-
-const ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-  '..',
-);
-const markupPanelSource = readFileSync(
-  path.join(ROOT, 'src', 'ui', 'markupPanel.js'),
-  'utf8',
-);
 
 function marker(id, lon, lat, visible = true) {
   return {
@@ -161,9 +149,31 @@ test('layers without visible valid geometry skip camera movement', () => {
   assert.equal(buildMarkupCameraFlight(markup), null);
 });
 
-test('my layers camera movement only triggers on OFF to ON toggles', () => {
-  assert.match(
-    markupPanelSource,
-    /const shouldFocus = markup\.visible === false && Boolean\(visible\);[\s\S]*?if \(shouldFocus\) focusMarkupLayer\(markup\);/s,
+test('my layers camera movement only triggers on OFF to ON toggles', async () => {
+  const markups = [{ id: 'echo', name: 'Echo', visible: false, objects: [] }];
+  const calls = [];
+  const api = createMarkupsLayerApi({
+    markups,
+    saveMarkup: async (markup) => calls.push(['save', markup.visible]),
+    renderMap: () => calls.push(['renderMap']),
+    renderSavedMarkups: () => calls.push(['renderSavedMarkups']),
+    refreshLayerPanel: () => calls.push(['refreshLayerPanel']),
+    showSavedFeedback: () => calls.push(['showSavedFeedback']),
+    focusMarkupLayer: (markup) =>
+      calls.push(['focus', markup.id, markup.visible]),
+    subscribeTarget: new EventTarget(),
+  });
+
+  await api.setVisible('echo', true);
+  await api.setVisible('echo', true);
+  await api.setVisible('echo', false);
+  await api.setVisible('echo', true);
+
+  assert.deepEqual(
+    calls.filter(([type]) => type === 'focus'),
+    [
+      ['focus', 'echo', true],
+      ['focus', 'echo', true],
+    ],
   );
 });

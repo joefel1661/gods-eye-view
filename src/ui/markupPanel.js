@@ -513,6 +513,52 @@ export function buildMarkupCameraFlight(
   };
 }
 
+export function createMarkupsLayerApi({
+  markups = [],
+  saveMarkup = async () => {},
+  renderMap = () => {},
+  renderSavedMarkups = () => {},
+  refreshLayerPanel = () => {},
+  showSavedFeedback = () => {},
+  focusMarkupLayer = () => false,
+  subscribeTarget = globalThis.document,
+} = {}) {
+  return {
+    list: () =>
+      markups.map((markup) => ({
+        id: markup.id,
+        name: markup.name,
+        visible: markup.visible !== false,
+      })),
+    setVisible: async (markupId, visible) => {
+      const markup = markups.find((entry) => entry.id === markupId);
+      if (!markup) return false;
+      const shouldFocus = markup.visible === false && Boolean(visible);
+      markup.visible = Boolean(visible);
+      await saveMarkup(markup);
+      renderMap();
+      renderSavedMarkups();
+      refreshLayerPanel();
+      showSavedFeedback();
+      if (shouldFocus) focusMarkupLayer(markup);
+      return true;
+    },
+    subscribe: (listener) => {
+      if (
+        typeof listener !== 'function' ||
+        !subscribeTarget?.addEventListener ||
+        !subscribeTarget?.removeEventListener
+      ) {
+        return () => {};
+      }
+      const handler = () => listener();
+      subscribeTarget.addEventListener('gev:markup-layer-change', handler);
+      return () =>
+        subscribeTarget.removeEventListener('gev:markup-layer-change', handler);
+    },
+  };
+}
+
 function flattenRouteSegments(segments = []) {
   const points = [];
   for (const segment of segments) {
@@ -1665,34 +1711,16 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   }
 
   function syncLayersApi() {
-    window.__gevMarkupsLayerApi = {
-      list: () =>
-        markups.map((markup) => ({
-          id: markup.id,
-          name: markup.name,
-          visible: markup.visible !== false,
-        })),
-      setVisible: async (markupId, visible) => {
-        const markup = markups.find((entry) => entry.id === markupId);
-        if (!markup) return false;
-        const shouldFocus = markup.visible === false && Boolean(visible);
-        markup.visible = Boolean(visible);
-        await saveMarkup(markup);
-        renderMap();
-        renderSavedMarkups();
-        refreshLayerPanel();
-        showSavedFeedback();
-        if (shouldFocus) focusMarkupLayer(markup);
-        return true;
-      },
-      subscribe: (listener) => {
-        if (typeof listener !== 'function') return () => {};
-        const handler = () => listener();
-        document.addEventListener('gev:markup-layer-change', handler);
-        return () =>
-          document.removeEventListener('gev:markup-layer-change', handler);
-      },
-    };
+    window.__gevMarkupsLayerApi = createMarkupsLayerApi({
+      markups,
+      saveMarkup,
+      renderMap,
+      renderSavedMarkups,
+      refreshLayerPanel,
+      showSavedFeedback,
+      focusMarkupLayer,
+      subscribeTarget: document,
+    });
   }
 
   async function addObjectToMarkup(markupId, object, message = '✓ Saved') {
