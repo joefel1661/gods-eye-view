@@ -1242,6 +1242,35 @@
   .brand-byline-compact {
     display: none;
   }
+
+  #scene-panel .markup-manager-row .markup-row-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #scene-panel .markup-manager-row :is(.markup-row-title-wrap, .markup-row-actions) {
+    width: 100%;
+  }
+
+  #scene-panel .markup-manager-row .markup-row-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: normal;
+    justify-items: stretch;
+    align-items: stretch;
+    margin-left: 0;
+  }
+
+  #scene-panel .markup-manager-row .markup-row-actions .scene-btn {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 359px) {
+  #scene-panel .markup-manager-row .markup-row-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 390px) {

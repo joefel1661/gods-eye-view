@@ -195,6 +195,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .markup-row-title {
@@ -210,6 +211,7 @@
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  flex: 1 1 9rem;
 }
 
 .markup-row-badge {
@@ -229,6 +231,25 @@
   gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: stretch;
+  flex: 1 1 16rem;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.markup-row-actions .scene-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 88px;
+  min-width: 88px;
+  max-width: 100%;
+  min-height: 42px;
+  padding: 6px 10px;
+  text-align: center;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .markup-row-more {
