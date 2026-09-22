@@ -115,12 +115,12 @@ export class LayerPresentation {
         for (const id of categories) nextParams[id] = false;
       }
       nextParams[categoryId] = true;
-      this.manager.setLayerParams(layerId, nextParams, options);
+      await this.manager.setLayerParams(layerId, nextParams, options);
       return this.manager.setEnabled(layerId, true, options);
     }
     nextParams[categoryId] = false;
     const anyEnabled = Object.values(nextParams).some(Boolean);
-    this.manager.setLayerParams(layerId, nextParams, options);
+    await this.manager.setLayerParams(layerId, nextParams, options);
     if (!anyEnabled) return this.manager.setEnabled(layerId, false, options);
     return true;
   }
