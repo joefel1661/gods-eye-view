@@ -14,12 +14,18 @@
       <stop offset="0.55" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
+    <clipPath id="favicon-upper-clip">
+      <rect x="15.2" y="13.6" width="33.6" height="19.2" rx="0.8"/>
+    </clipPath>
+    <clipPath id="favicon-lower-clip">
+      <rect x="15.2" y="31.2" width="33.6" height="19.2" rx="0.8"/>
+    </clipPath>
   </defs>
   <circle cx="32" cy="32" r="20" fill="none" stroke="url(#favicon-ring)" stroke-width="1.45" opacity="0.72"/>
   <path d="M32 7.68l1.64 2.36L32 12.32l-1.64-2.28L32 7.68Z" fill="#67E8F9" opacity="0.82"/>
   <path d="M56.32 32l-2.36 1.64L51.68 32l2.28-1.64L56.32 32Z" fill="#67E8F9" opacity="0.78"/>
   <path d="M32 56.32l-1.64-2.36L32 51.68l1.64 2.28L32 56.32Z" fill="#67E8F9" opacity="0.74"/>
   <path d="M7.68 32l2.36-1.64L12.32 32l-2.28 1.64L7.68 32Z" fill="#67E8F9" opacity="0.78"/>
-  <path d="M45.2 13.6H25.6l-4.8 4.8h16l4.48 4.48H28l-4.48 4.48 3.84 3.84h14.4l4.8-4.8H34l-3.2-3.2H44l4.48-4.48v-.96l-3.28-6.16Z" fill="url(#favicon-upper)"/>
-  <path d="M20.4 50.4h18.8l4.8-4.8H28l-4.48-4.48h13.2l4.48-4.48-3.84-3.84h-14.4l-4.8 4.8H30.4l3.2 3.2H20.4l-4.48 4.48v.96l4.48 5.12Z" fill="url(#favicon-lower)"/>
+  <path d="M42.8 18H27.2L23.2 22H36.8L41.2 26.4H29.2L23.6 32H35.6L41.2 37.6H28L24.4 41.6H42.8" fill="none" stroke="url(#favicon-upper)" stroke-width="6" stroke-linecap="butt" stroke-linejoin="bevel" clip-path="url(#favicon-upper-clip)"/>
+  <path d="M42.8 18H27.2L23.2 22H36.8L41.2 26.4H29.2L23.6 32H35.6L41.2 37.6H28L24.4 41.6H42.8" fill="none" stroke="url(#favicon-lower)" stroke-width="6" stroke-linecap="butt" stroke-linejoin="bevel" clip-path="url(#favicon-lower-clip)"/>
 </svg>
