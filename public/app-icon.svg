@@ -4,22 +4,27 @@
       <stop offset="0" stop-color="#121827"/>
       <stop offset="1" stop-color="#0A0F1A"/>
     </linearGradient>
-    <linearGradient id="icon-ring" x1="148" y1="148" x2="364" y2="364" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#3B82F6"/>
+    <linearGradient id="icon-ring" x1="123.2" y1="113.6" x2="388.8" y2="390.4" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
-    <linearGradient id="icon-upper" x1="168" y1="160" x2="314" y2="272" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#9AA7B8"/>
+    <linearGradient id="icon-upper" x1="164.8" y1="137.6" x2="321.6" y2="286.4" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8FAFC"/>
+      <stop offset="0.55" stop-color="#DCE6F1"/>
+      <stop offset="1" stop-color="#93A4B8"/>
     </linearGradient>
-    <linearGradient id="icon-lower" x1="180" y1="356" x2="324" y2="248" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#3B82F6"/>
+    <linearGradient id="icon-lower" x1="179.2" y1="367.2" x2="346.4" y2="216" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="0.55" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#icon-bg)"/>
-  <circle cx="256" cy="256" r="146" fill="none" stroke="url(#icon-ring)" stroke-width="12"/>
-  <path d="M256 74v24M256 414v24M74 256h24M414 256h24" fill="none" stroke="#22D3EE" stroke-width="12" stroke-linecap="round"/>
-  <path d="M350 132H193l-52 52h113.4c42.1 0 72.8 24.4 72.8 56.5 0 26.3-18.3 47.6-50.7 57.7l-39.9 11.8 24-47 4.5-1.3c25-7 37.9-18.9 37.9-34.4 0-18-16.4-29-43.5-29H168l56-52H350Z" fill="url(#icon-upper)"/>
-  <path d="M162 380h157l52-52H257.6c-42.1 0-72.8-24.4-72.8-56.5 0-26.3 18.3-47.6 50.7-57.7l39.9-11.8-24 47-4.5 1.3c-25 7-37.9 18.9-37.9 34.4 0 18 16.4 29 43.5 29H344l-56 52H162Z" fill="url(#icon-lower)"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#icon-ring)" stroke-width="10.4"/>
+  <path d="M256 54.4l14.72 21.12L256 96l-14.72-20.48L256 54.4Z" fill="#67E8F9" opacity="0.95"/>
+  <path d="M457.6 256l-21.12 14.72L416 256l20.48-14.72L457.6 256Z" fill="#67E8F9" opacity="0.9"/>
+  <path d="M256 457.6l-14.72-21.12L256 416l14.72 20.48L256 457.6Z" fill="#67E8F9" opacity="0.8"/>
+  <path d="M54.4 256l21.12-14.72L96 256l-20.48 14.72L54.4 256Z" fill="#67E8F9" opacity="0.85"/>
+  <path d="M358.4 108.8H201.6L144 166.4H280l32.96 33.28H211.84l-53.44 53.44 55.36 55.36H356.8l49.6-49.6H269.44l-34.56-34.56H332.8l52.8-52.8v-10.88l-27.2-51.84Z" fill="url(#icon-upper)"/>
+  <path d="M153.6 403.2H310.4l57.6-57.6H232l-32.96-33.28H300.16l53.44-53.44-55.36-55.36H155.2l-49.6 49.6h136.96l34.56 34.56H179.2l-52.8 52.8v10.88l27.2 51.84Z" fill="url(#icon-lower)"/>
 </svg>
