@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as Cesium from 'cesium';
 import {
   countLabelForState,
+  createSecurityPointsLayer,
   SECURITY_POINT_MARKER_HEIGHT_M,
   securityPointMarkerGraphics,
   securityPointMarkerPosition,
@@ -57,6 +58,61 @@ test('countLabelForState reports explicit loading and empty states', () => {
     }),
     '3 nearby',
   );
+});
+
+test('security points panel rows expose per-category count labels without startup errors', () => {
+  const layer = createSecurityPointsLayer({
+    services: {
+      ground: {
+        floorAltitudeM() {
+          return 0;
+        },
+        cachedGroundFloor() {
+          return 0;
+        },
+      },
+      render: {
+        governorRequestRender() {},
+      },
+      context: {
+        clearSelectedEntityContextForLayer() {},
+        removeEntityContextsForLayer() {},
+        getSelectedEntityContext() {
+          return null;
+        },
+        registerEntityContext() {},
+        selectEntityContext() {},
+      },
+      picking: {
+        registerPickOwner() {},
+        unregisterPickOwner() {},
+      },
+    },
+    source: {
+      async fetchViewport() {
+        return {
+          records: [],
+          stale: false,
+          saturated: false,
+          failedCategories: [],
+          primaryProvider: 'google',
+        };
+      },
+      async enrichRecord() {
+        return null;
+      },
+    },
+  });
+
+  const rows = layer.getPanelRows();
+
+  assert.equal(rows.length, 6);
+  assert.deepEqual(
+    rows.map((row) => row.panelCategoryId),
+    ['police', 'fireEms', 'hospitals', 'urgentCare', 'airports', 'pharmacies'],
+  );
+  assert.equal(rows[0].stats.countLabel, '');
+  assert.equal(rows[0].stats.status, 'idle');
 });
 
 test('statusForSuccessfulSecurityPointsLoad keeps successful Google results fresh even when optional fallback is unavailable', () => {
