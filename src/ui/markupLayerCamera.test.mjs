@@ -9,7 +9,11 @@ import {
   collectMarkupCameraPositions,
 } from './markupPanel.js';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+);
 const markupPanelSource = readFileSync(
   path.join(ROOT, 'src', 'ui', 'markupPanel.js'),
   'utf8',
@@ -57,7 +61,14 @@ test('single visible marker gets a quick operational framing', () => {
   const flight = buildMarkupCameraFlight(markup, {
     heading: 0,
     aspectRatio: 16 / 9,
-    padding: { top: 24, right: 24, bottom: 24, left: 24, width: 1280, height: 720 },
+    padding: {
+      top: 24,
+      right: 24,
+      bottom: 24,
+      left: 24,
+      width: 1280,
+      height: 720,
+    },
   });
   assert.ok(flight);
   assert.equal(flight.mode, 'single-marker');
@@ -83,7 +94,14 @@ test('mixed visible geometry combines bounds and ignores hidden objects', () => 
   const flight = buildMarkupCameraFlight(markup, {
     heading: Cesium.Math.toRadians(20),
     aspectRatio: 1.6,
-    padding: { top: 40, right: 40, bottom: 40, left: 40, width: 1200, height: 800 },
+    padding: {
+      top: 40,
+      right: 40,
+      bottom: 40,
+      left: 40,
+      width: 1200,
+      height: 800,
+    },
   });
   assert.ok(flight);
   assert.equal(flight.mode, 'bounds');
@@ -99,12 +117,26 @@ test('camera target shifts away from layer and header padding', () => {
   const centered = buildMarkupCameraFlight(markup, {
     heading: 0,
     aspectRatio: 16 / 9,
-    padding: { top: 24, right: 24, bottom: 24, left: 24, width: 1400, height: 900 },
+    padding: {
+      top: 24,
+      right: 24,
+      bottom: 24,
+      left: 24,
+      width: 1400,
+      height: 900,
+    },
   });
   const padded = buildMarkupCameraFlight(markup, {
     heading: 0,
     aspectRatio: 16 / 9,
-    padding: { top: 180, right: 24, bottom: 24, left: 320, width: 1400, height: 900 },
+    padding: {
+      top: 180,
+      right: 24,
+      bottom: 24,
+      left: 320,
+      width: 1400,
+      height: 900,
+    },
   });
   assert.ok(centered && padded);
   const centeredCarto = Cesium.Cartographic.fromCartesian(centered.target);

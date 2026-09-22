@@ -152,8 +152,7 @@ function normalizeGeometry(type, geometry) {
   }
   if (type === 'circle') {
     const center = normalizeCoordinate(geometry.center);
-    const radiusCandidate =
-      geometry.radiusMeters ?? geometry.radius;
+    const radiusCandidate = geometry.radiusMeters ?? geometry.radius;
     const radiusMeters = Number(radiusCandidate);
     if (!center || !Number.isFinite(radiusMeters) || radiusMeters <= 0)
       return null;
@@ -437,7 +436,8 @@ export function offsetMarkupCameraTargetForPadding(
   const safeHeading = Number.isFinite(heading) ? heading : 0;
   return offsetTargetInLocalFrame(
     target,
-    Math.cos(safeHeading) * lateralMeters + Math.sin(safeHeading) * forwardMeters,
+    Math.cos(safeHeading) * lateralMeters +
+      Math.sin(safeHeading) * forwardMeters,
     -Math.sin(safeHeading) * lateralMeters +
       Math.cos(safeHeading) * forwardMeters,
   );
@@ -894,7 +894,9 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
           },
         });
       }
-      return flight.destination && flight.direction && flight.up ? flight : null;
+      return flight.destination && flight.direction && flight.up
+        ? flight
+        : null;
     } catch {
       try {
         camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
@@ -2437,7 +2439,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
     editHandler.setInputAction((event) => {
-      if (isMarkerPlacementActive() && consumeMarkerTapCandidate(event.position)) {
+      if (
+        isMarkerPlacementActive() &&
+        consumeMarkerTapCandidate(event.position)
+      ) {
         if (setMarkerPlacement(event.position)) return;
       }
       if (activeTool === 'route' && routeMode === 'freeDraw') {
@@ -2662,8 +2667,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     const existingObject = context.markupId
       ? findMarkupObject(context.markupId, context.objectId).object
       : null;
-    const geometry =
-      context.geometry ?? existingObject?.geometry;
+    const geometry = context.geometry ?? existingObject?.geometry;
     if (context.kind === 'marker' && !isValidCoordinate(geometry?.position)) {
       updateStatus('Tap the map to place the marker first.');
       return;
