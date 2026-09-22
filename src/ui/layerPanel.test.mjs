@@ -448,6 +448,8 @@ test('section headers toggle only their own section visibility state', async () 
   const movementBody = movementSection.querySelector('.data-layer-section-body');
   assert.equal(movementHeader.getAttribute('aria-expanded'), 'false');
   assert.equal(movementBody.getAttribute('aria-hidden'), 'true');
+  assert.equal(movementBody.inert, true);
+  assert.equal(movementBody.hidden, true);
   assert.ok(movementBody.querySelector('[data-layer-id="flights"]'));
 
   const securitySection = container.querySelector(
@@ -457,14 +459,21 @@ test('section headers toggle only their own section visibility state', async () 
   const securityBody = securitySection.querySelector('.data-layer-section-body');
   assert.equal(securityHeader.getAttribute('aria-expanded'), 'true');
   assert.equal(securityBody.getAttribute('aria-hidden'), 'false');
+  assert.equal(securityBody.inert, false);
+  assert.equal(securityBody.hidden, false);
 
   await movementHeader.click();
   assert.equal(movementHeader.getAttribute('aria-expanded'), 'true');
   assert.equal(movementBody.getAttribute('aria-hidden'), 'false');
+  assert.equal(movementBody.inert, false);
+  assert.equal(movementBody.hidden, false);
 
   await securityHeader.click();
   assert.equal(securityHeader.getAttribute('aria-expanded'), 'false');
   assert.equal(securityBody.getAttribute('aria-hidden'), 'true');
+  assert.equal(securityBody.inert, true);
+  await new Promise((resolve) => setTimeout(resolve, 170));
+  assert.equal(securityBody.hidden, true);
   assert.equal(movementHeader.getAttribute('aria-expanded'), 'true');
 });
 
