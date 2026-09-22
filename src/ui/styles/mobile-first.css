@@ -1255,7 +1255,7 @@
   #scene-panel .markup-manager-row .markup-row-actions {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    justify-content: stretch;
+    justify-content: normal;
     justify-items: stretch;
     align-items: stretch;
     margin-left: 0;
