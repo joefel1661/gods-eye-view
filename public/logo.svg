@@ -1,32 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="logo-title">
   <title id="logo-title">SAUGOPS</title>
   <defs>
-    <linearGradient id="ring-gradient" x1="30" y1="26" x2="130" y2="134" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#3B82F6"/>
+    <linearGradient id="ring-gradient" x1="31" y1="29" x2="129" y2="131" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
-    <linearGradient id="upper-ribbon-gradient" x1="46" y1="42" x2="102" y2="82" gradientUnits="userSpaceOnUse">
+    <linearGradient id="upper-ribbon-gradient" x1="46" y1="38" x2="104" y2="93" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#F8FAFC"/>
-      <stop offset="1" stop-color="#94A3B8"/>
+      <stop offset="0.55" stop-color="#DCE6F1"/>
+      <stop offset="1" stop-color="#93A4B8"/>
     </linearGradient>
-    <linearGradient id="lower-ribbon-gradient" x1="56" y1="116" x2="118" y2="72" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#3B82F6"/>
+    <linearGradient id="lower-ribbon-gradient" x1="52" y1="123" x2="114" y2="67" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="0.55" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
   </defs>
-  <circle cx="80" cy="80" r="54" fill="none" stroke="url(#ring-gradient)" stroke-width="3.5"/>
-  <path d="M80 17v8" fill="none" stroke="#8BE8F6" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
-  <path d="M80 135v8" fill="none" stroke="#8BE8F6" stroke-width="3" stroke-linecap="round" opacity="0.78"/>
-  <path d="M17 80h8" fill="none" stroke="#8BE8F6" stroke-width="3" stroke-linecap="round" opacity="0.78"/>
-  <path d="M135 80h8" fill="none" stroke="#8BE8F6" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+  <circle cx="80" cy="80" r="50" fill="none" stroke="url(#ring-gradient)" stroke-width="3.25"/>
+  <path d="M80 17l4.6 6.6L80 30l-4.6-6.4L80 17Z" fill="#67E8F9" opacity="0.95"/>
+  <path d="M143 80l-6.6 4.6L130 80l6.4-4.6L143 80Z" fill="#67E8F9" opacity="0.9"/>
+  <path d="M80 143l-4.6-6.6L80 130l4.6 6.4L80 143Z" fill="#67E8F9" opacity="0.8"/>
+  <path d="M17 80l6.6-4.6L30 80l-6.4 4.6L17 80Z" fill="#67E8F9" opacity="0.85"/>
   <path
     id="upper-ribbon"
-    d="M110 38H67L46 60h32.6c13.7 0 22.8 5.7 22.8 14.5 0 4.8-2.7 9.1-7.8 12.4L66.1 104c-7.3 4.5-10.9 10.1-10.9 16.8v1.2h35l16.7-17.1H84.2c-11.7 0-19-5-19-12.6 0-4.2 2.4-8.1 7-11.1l27.4-17.1c7.1-4.4 10.7-9.8 10.7-16.3V38Z"
+    d="M112 34H63L45 52H87.5L97.8 62.4H66.2L49.5 79.1 66.8 96.4H111.5L127 80.9H84.2L73.4 70.1H104L120.5 53.6V50.2L112 34Z"
     fill="url(#upper-ribbon-gradient)"
   />
   <path
     id="lower-ribbon"
-    d="M50 122h43l21-22H81.3c-13.7 0-22.7-5.7-22.7-14.6 0-4.7 2.7-9 7.8-12.3L93.8 56c7.3-4.5 10.9-10.1 10.9-16.8V38H69.8L53.1 55.1h22.7c11.7 0 19 5 19 12.6 0 4.2-2.4 8-6.9 10.9L60.5 95.9C53.3 100.3 50 105.7 50 112.2V122Z"
+    d="M48 126H97L115 108H72.5L62.2 97.6H93.8L110.5 80.9 93.2 63.6H48.5L33 79.1H76.3L87.1 89.9H56.5L40 106.4V109.8L48 126Z"
     fill="url(#lower-ribbon-gradient)"
   />
 </svg>
