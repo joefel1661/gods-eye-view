@@ -688,7 +688,8 @@ export class PanelChrome {
         if (!panel) continue;
         panel.classList.remove('collapsed');
       }
-      dock?.style.setProperty('bottom', 'var(--mobile-panel-bottom)');
+      dock?.style.setProperty('top', 'var(--mobile-safe-top)');
+      dock?.style.setProperty('bottom', 'var(--mobile-panel-safe-bottom)');
     } else if (this._mobileDockCollapsedState) {
       for (const [panelId, wasCollapsed] of this._mobileDockCollapsedState) {
         const panel = document.getElementById(panelId);
@@ -696,8 +697,10 @@ export class PanelChrome {
         panel.classList.toggle('collapsed', wasCollapsed);
       }
       this._mobileDockCollapsedState = null;
+      dock?.style.removeProperty('top');
       dock?.style.removeProperty('bottom');
     } else if (dock?.style.getPropertyValue('bottom')) {
+      dock.style.removeProperty('top');
       dock.style.removeProperty('bottom');
     }
   }
