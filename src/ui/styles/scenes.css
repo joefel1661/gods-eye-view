@@ -231,7 +231,8 @@
   gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
-  align-items: stretch;
+  align-items: flex-start;
+  align-content: flex-start;
   flex: 1 1 16rem;
   min-width: 0;
   margin-left: auto;
@@ -244,7 +245,7 @@
   flex: 1 1 88px;
   min-width: 88px;
   max-width: 100%;
-  min-height: 42px;
+  min-height: 44px;
   padding: 6px 10px;
   text-align: center;
   white-space: nowrap;
@@ -539,6 +540,21 @@
   flex: 0 0 auto;
 }
 
+.markup-sheet-close-btn.scene-btn {
+  flex: 0 0 44px;
+  width: 44px;
+  max-width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
 .markup-sheet-field {
   display: flex;
   flex-direction: column;
@@ -643,6 +659,7 @@
 
 .markup-manager-row {
   background: rgba(255, 255, 255, 0.04);
+  align-self: flex-start;
 }
 
 .markup-context-card {
