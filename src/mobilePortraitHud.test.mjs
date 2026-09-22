@@ -6,7 +6,12 @@ const css = fs.readFileSync(
   new URL('./ui/styles/mobile-first.css', import.meta.url),
   'utf8',
 );
+const panelChrome = fs.readFileSync(
+  new URL('./ui/panelChrome.js', import.meta.url),
+  'utf8',
+);
 const MOBILE_QUERY = '@media (max-width: 1024px)';
+const MOBILE_PORTRAIT_QUERY = '@media (max-width: 1024px) and (orientation: portrait)';
 const PORTRAIT_430_QUERY = '@media (max-width: 430px) and (orientation: portrait)';
 const PORTRAIT_390_QUERY = '@media (max-width: 390px) and (orientation: portrait)';
 
@@ -132,5 +137,39 @@ test('narrow portrait phones keep the floating mic and first-run launcher out of
   assert.match(
     portrait390,
     /#first-run-description \{[\s\S]*?font-size: 0\.68rem;[\s\S]*?line-height: 1\.4;/,
+  );
+});
+
+test('mobile bottom-nav panels reserve attribution-safe space and scroll within the panel', () => {
+  const mobile = mediaBlock(MOBILE_QUERY);
+  const mobilePortrait = mediaBlock(MOBILE_PORTRAIT_QUERY);
+
+  assert.match(
+    mobile,
+    /--mobile-panel-safe-bottom: calc\(var\(--mobile-attribution-zone-top\) \+ 8px\);/,
+  );
+  assert.match(
+    mobile,
+    /--mobile-panel-safe-max-height: calc\([\s\S]*?var\(--mobile-panel-safe-bottom\)[\s\S]*?var\(--mobile-panel-viewport-gap\)[\s\S]*?\);/,
+  );
+  assert.match(
+    mobile,
+    /#data-panel,[\s\S]*?#scene-panel,[\s\S]*?#cctv-panel,[\s\S]*?#global-context-panel \{[\s\S]*?bottom: var\(--mobile-panel-safe-bottom\);[\s\S]*?max-height: var\(--mobile-panel-safe-max-height\);/,
+  );
+  assert.match(
+    mobile,
+    /body\[data-mobile-panel='controls'\] #command-dock \{[\s\S]*?overflow-y: auto;/,
+  );
+  assert.match(
+    panelChrome,
+    /_setMobileControlsSheetExpanded\(expanded\) \{[\s\S]*?dock\?\.style\.setProperty\('top', 'var\(--mobile-safe-top\)'\);[\s\S]*?dock\?\.style\.setProperty\('bottom', 'var\(--mobile-panel-safe-bottom\)'\);[\s\S]*?dock\?\.style\.removeProperty\('top'\);[\s\S]*?dock\?\.style\.removeProperty\('bottom'\);/,
+  );
+  assert.match(
+    mobile,
+    /:is\(#data-panel, #scene-panel, #cctv-panel, #global-context-panel\)[\s\S]*?\.panel-header \{[\s\S]*?position: sticky;[\s\S]*?top: 0;/,
+  );
+  assert.match(
+    mobilePortrait,
+    /--mobile-panel-safe-max-height: min\([\s\S]*?var\(--mobile-panel-safe-bottom\)[\s\S]*?75dvh[\s\S]*?\);/,
   );
 });

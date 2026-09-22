@@ -60,11 +60,11 @@ test('markup workflows no longer ship native browser prompt, confirm, or alert c
 test('mobile markup sheets and cards stay above the attribution-safe corridor', () => {
   assert.match(
     mobileCss,
-    /#scene-panel\.markup-mobile-mode \.markup-bottom-sheet \{[\s\S]*?bottom: calc\(var\(--mobile-attribution-zone-top\) \+ 8px\);/,
+    /#scene-panel\.markup-mobile-mode \.markup-bottom-sheet \{[\s\S]*?bottom: var\(--mobile-panel-safe-bottom\);[\s\S]*?max-height: var\(--mobile-panel-safe-max-height\);/,
   );
   assert.match(
     mobileCss,
-    /#scene-panel\.markup-mobile-mode \.markup-context-card \{[\s\S]*?bottom: calc\(var\(--mobile-attribution-zone-top\) \+ 8px\);/,
+    /#scene-panel\.markup-mobile-mode \.markup-context-card \{[\s\S]*?bottom: var\(--mobile-panel-safe-bottom\);/,
   );
   assert.match(
     mobileCss,

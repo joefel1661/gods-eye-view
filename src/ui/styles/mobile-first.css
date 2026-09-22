@@ -20,8 +20,13 @@
       var(--mobile-safe-bottom) + var(--mobile-nav-height) +
         var(--mobile-nav-gap)
     );
+    --mobile-panel-safe-bottom: calc(var(--mobile-attribution-zone-top) + 8px);
     --mobile-panel-max-height: calc(
       100dvh - var(--mobile-safe-top) - var(--mobile-panel-bottom) -
+        var(--mobile-panel-viewport-gap)
+    );
+    --mobile-panel-safe-max-height: calc(
+      100dvh - var(--mobile-safe-top) - var(--mobile-panel-safe-bottom) -
         var(--mobile-panel-viewport-gap)
     );
   }
@@ -352,7 +357,7 @@
     position: fixed !important;
     top: auto !important;
     right: auto;
-    bottom: var(--mobile-panel-bottom);
+    bottom: var(--mobile-panel-safe-bottom);
     left: 50%;
     z-index: 155;
     width: var(--mobile-panel-width) !important;
@@ -360,7 +365,7 @@
       var(--mobile-panel-max-width),
       var(--mobile-panel-width)
     ) !important;
-    max-height: var(--mobile-panel-max-height);
+    max-height: var(--mobile-panel-safe-max-height);
     margin: 0;
     box-sizing: border-box;
     opacity: 0;
@@ -378,7 +383,7 @@
   #cctv-panel:not(.collapsed),
   #global-context-panel:not(.collapsed) {
     height: auto !important;
-    max-height: var(--mobile-panel-max-height) !important;
+    max-height: var(--mobile-panel-safe-max-height) !important;
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
@@ -391,7 +396,7 @@
   #right-context-rail > #cctv-panel:not(.collapsed),
   #right-context-rail > #global-context-panel:not(.collapsed) {
     height: auto !important;
-    max-height: var(--mobile-panel-max-height) !important;
+    max-height: var(--mobile-panel-safe-max-height) !important;
     flex: 0 0 auto;
   }
 
@@ -402,7 +407,7 @@
     position: fixed !important;
     top: auto !important;
     right: auto !important;
-    bottom: var(--mobile-panel-bottom) !important;
+    bottom: var(--mobile-panel-safe-bottom) !important;
     left: 50% !important;
     width: var(--mobile-panel-width) !important;
     max-width: min(
@@ -418,7 +423,7 @@
     width: 100%;
     min-width: 0;
     height: auto;
-    max-height: var(--mobile-panel-max-height);
+    max-height: var(--mobile-panel-safe-max-height);
     box-sizing: border-box;
     border-radius: 28px 28px 18px 18px;
     padding: 14px 14px 16px;
@@ -432,7 +437,7 @@
     > #global-context-panel:not(.collapsed)
     .global-context-panel-inner {
     height: auto;
-    max-height: var(--mobile-panel-max-height);
+    max-height: var(--mobile-panel-safe-max-height);
   }
 
   #data-panel .data-panel-inner,
@@ -1042,14 +1047,11 @@
   #scene-panel.markup-mobile-mode .markup-bottom-sheet {
     position: fixed;
     right: auto;
-    bottom: calc(var(--mobile-attribution-zone-top) + 8px);
+    bottom: var(--mobile-panel-safe-bottom);
     left: 50%;
     z-index: 168;
     display: block;
-    max-height: calc(
-      100dvh - var(--mobile-safe-top) - var(--mobile-attribution-zone-top) -
-        18px
-    );
+    max-height: var(--mobile-panel-safe-max-height);
     overflow-x: hidden;
     overflow-y: auto;
     pointer-events: auto;
@@ -1063,7 +1065,7 @@
   #scene-panel.markup-mobile-mode .markup-context-card {
     position: fixed;
     right: auto;
-    bottom: calc(var(--mobile-attribution-zone-top) + 8px);
+    bottom: var(--mobile-panel-safe-bottom);
     left: 50%;
     z-index: 168;
     display: block;
@@ -1478,6 +1480,13 @@
     --mobile-panel-max-height: min(
       calc(
         100dvh - var(--mobile-safe-top) - var(--mobile-panel-bottom) -
+          var(--mobile-panel-viewport-gap)
+      ),
+      75dvh
+    );
+    --mobile-panel-safe-max-height: min(
+      calc(
+        100dvh - var(--mobile-safe-top) - var(--mobile-panel-safe-bottom) -
           var(--mobile-panel-viewport-gap)
       ),
       75dvh
