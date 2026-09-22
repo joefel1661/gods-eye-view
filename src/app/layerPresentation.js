@@ -35,7 +35,7 @@ export class LayerPresentation {
   get panel() {
     if (!this._panel)
       this._panel = new LayerPanel({
-        getLayers: () => this.manager.getAll(),
+        getLayers: () => this._panelRows(),
         isEnabled: (id) => this.manager.isEnabled(id),
         setEnabled: (id, enabled, options) =>
           this.manager.setEnabled(id, enabled, options),
@@ -81,5 +81,47 @@ export class LayerPresentation {
     this.pendingVisible = false;
     this._unsubscribe?.();
     this._unsubscribe = null;
+  }
+  _panelRows() {
+    return this.manager.getAll().flatMap((layer) => {
+      const module = this.manager.layers.get(layer.id)?.module;
+      const rows = module?.getPanelRows?.(layer);
+      if (!Array.isArray(rows) || rows.length === 0) return [layer];
+      return rows.map((row) => ({
+        ...row,
+        panelToggle:
+          typeof row.panelToggle === 'function'
+            ? row.panelToggle
+            : (enabled, options) =>
+                this._togglePanelCategory(layer.id, row.panelCategoryId, enabled, options),
+      }));
+    });
+  }
+  async _togglePanelCategory(layerId, categoryId, enabled, options) {
+    const module = this.manager.layers.get(layerId)?.module;
+    const categories = Array.isArray(module?.categoryOrder)
+      ? module.categoryOrder
+      : [];
+    if (!categories.includes(categoryId)) {
+      return this.manager.setEnabled(layerId, enabled, options);
+    }
+    const currentParams =
+      typeof module?.getParams === 'function' ? module.getParams() : {};
+    const nextParams = Object.fromEntries(
+      categories.map((id) => [id, currentParams[id] !== false]),
+    );
+    if (enabled) {
+      if (!this.manager.isEnabled(layerId)) {
+        for (const id of categories) nextParams[id] = false;
+      }
+      nextParams[categoryId] = true;
+      this.manager.setLayerParams(layerId, nextParams, options);
+      return this.manager.setEnabled(layerId, true, options);
+    }
+    nextParams[categoryId] = false;
+    const anyEnabled = Object.values(nextParams).some(Boolean);
+    this.manager.setLayerParams(layerId, nextParams, options);
+    if (!anyEnabled) return this.manager.setEnabled(layerId, false, options);
+    return true;
   }
 }

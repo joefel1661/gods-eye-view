@@ -22,9 +22,17 @@ export const LAYER_PANEL_SECTIONS = Object.freeze([
   }),
   Object.freeze({
     id: 'security-emergency',
-    label: 'SECURITY & EMERGENCY',
+    label: 'EMERGENCY POINTS',
     defaultExpanded: true,
-    ids: ['security-points'],
+    ids: [
+      'security-points',
+      'security-points-police',
+      'security-points-fire-ems',
+      'security-points-hospitals',
+      'security-points-urgent-care',
+      'security-points-airports',
+      'security-points-pharmacies',
+    ],
   }),
   Object.freeze({
     id: 'movement-transit',
@@ -377,9 +385,13 @@ export class LayerPanel {
       toggle.setAttribute('aria-disabled', 'true');
       toggle.setAttribute('aria-busy', 'true');
       try {
-        await this.setEnabled(layer.id, !this.isEnabled(layer.id), {
-          origin: 'user',
-        });
+        const nextEnabled = !layer.enabled;
+        if (typeof layer.panelToggle === 'function')
+          await layer.panelToggle(nextEnabled, { origin: 'user' });
+        else
+          await this.setEnabled(layer.id, nextEnabled, {
+            origin: 'user',
+          });
       } catch (error) {
         console.warn(`[Data] ${layer.id} toggle error:`, error);
       } finally {

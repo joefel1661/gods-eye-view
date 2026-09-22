@@ -574,6 +574,13 @@ export function googlePlacesContextProxy({
         50,
         Math.min(50000, Number(requestUrl.searchParams.get('radiusM')) || 4000),
       );
+      const maxResultCount = Math.max(
+        1,
+        Math.min(
+          20,
+          Number(requestUrl.searchParams.get('maxResultCount')) || 5,
+        ),
+      );
 
       try {
         const { response, data, providerError } =
@@ -594,13 +601,13 @@ export function googlePlacesContextProxy({
             ].join(','),
             body: {
               textQuery,
+              maxResultCount,
               locationBias: {
                 circle: {
                   center: { latitude, longitude },
                   radius: radiusM,
                 },
               },
-              maxResultCount: 5,
             },
             fetchImpl,
           });

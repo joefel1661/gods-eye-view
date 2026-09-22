@@ -249,6 +249,18 @@ test('terminal loading feedback centers its label without an empty detail slot',
   );
 });
 
+test('mobile loading status stays top-anchored instead of stretching between top and bottom', () => {
+  const css = readStylesheet(new URL('../style.css', import.meta.url));
+  assert.match(
+    css,
+    /#global-loading-status\s*\{[\s\S]*?top:\s*calc\(var\(--mobile-safe-top\)\s*\+\s*44px\);[\s\S]*?bottom:\s*auto;[\s\S]*?max-width:\s*calc\(100vw\s*-\s*24px\);/,
+  );
+  assert.doesNotMatch(
+    css,
+    /body\.mobile-panel-open\s+#global-loading-status\s*\{/,
+  );
+});
+
 test('distinguishes accepted-data refresh from initial loading', () => {
   const summary = aggregateLayerLoading([{
     id: 'a', name: 'A', enabled: true, lifecycleState: 'enabled', stats: { loading: true, count: 4 },

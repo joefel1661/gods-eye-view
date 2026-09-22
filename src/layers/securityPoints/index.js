@@ -81,6 +81,23 @@ function categoryCounts(records) {
   return counts;
 }
 
+function categoryRecords(records, categoryId) {
+  return records.filter((record) => record.category === categoryId);
+}
+
+function providerLabelForRecords(records = []) {
+  const providers = [...new Set(records.map((record) => record.provider).filter(Boolean))];
+  if (providers.length === 0) return 'Google Maps Places';
+  if (providers.length === 1) return providers[0];
+  if (
+    providers.includes('Google Maps Places') &&
+    providers.includes('OpenStreetMap')
+  ) {
+    return 'OpenStreetMap + Google Maps Places';
+  }
+  return providers.join(' + ');
+}
+
 function formatPhone(phone) {
   const value = String(phone || '').trim();
   if (!value) return null;
@@ -106,6 +123,22 @@ export function countLabelForState(state) {
       return 'Provider unavailable';
     default:
       return `${state.records.length} nearby`;
+  }
+
+  function countLabelForCategoryState(categoryId, state) {
+    if (state.enabled !== true) return '';
+    if (state.loading) return 'Loading';
+    if (state.status === 'zoom-in') return 'Zoom in to view';
+    if (
+      state.status === 'unavailable' ||
+      (Array.isArray(state.failedCategories) &&
+        state.failedCategories.includes(categoryId) &&
+        state.records.length === 0)
+    )
+      return 'Provider unavailable';
+    if (!Array.isArray(state.records) || state.records.length === 0)
+      return 'No facilities found';
+    return `${state.records.length} nearby`;
   }
 }
 
@@ -639,6 +672,83 @@ export function createSecurityPointsLayer({ services, source }) {
     },
     getParams() {
       return { ...state.params };
+    },
+    get categoryOrder() {
+      return [...CATEGORY_ORDER];
+    },
+    getPanelRows(layer = {}) {
+      return CATEGORY_ORDER.map((categoryId) => {
+        const categoryEnabled =
+          state.enabled === true && state.params[categoryId] !== false;
+        const records = categoryRecords(state.records, categoryId);
+        const providerLabel = providerLabelForRecords(records);
+        const failedCategory = state.failedCategories.includes(categoryId);
+        const categoryStatus =
+          state.loading && categoryEnabled
+            ? 'loading'
+            : state.status === 'zoom-in' && categoryEnabled
+              ? 'zoom-in'
+              : state.stale && categoryEnabled
+                ? 'stale'
+                : failedCategory && records.length > 0
+                  ? 'partial'
+                  : failedCategory && records.length === 0
+                    ? 'unavailable'
+                    : state.primaryProvider === 'overpass' &&
+                        categoryEnabled &&
+                        records.length > 0
+                      ? 'fallback'
+                      : records.length === 0 && categoryEnabled
+                        ? 'empty'
+                        : 'ready';
+        return {
+          id: `security-points-${categoryId.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`)}`,
+          panelCategoryId: categoryId,
+          name: CATEGORY_CONFIG[categoryId]?.label || 'Security Point',
+          icon: CATEGORY_CONFIG[categoryId]?.icon || '🛡',
+          source: providerLabel,
+          enabled: categoryEnabled,
+          lifecycleState:
+            layer.lifecycleState ||
+            (state.enabled || categoryEnabled ? 'enabled' : 'disabled'),
+          lifecycleUncertain: Boolean(layer.lifecycleUncertain),
+          showInTogglePanel: true,
+          stats: {
+            count: records.length,
+            countLabel: countLabelForCategoryState(categoryId, {
+              enabled: categoryEnabled,
+              loading: state.loading,
+              status: state.status,
+              records,
+              failedCategories: state.failedCategories,
+            }),
+            lastUpdate: state.lastUpdate,
+            stale: categoryEnabled && state.stale,
+            fallback:
+              categoryEnabled &&
+              state.primaryProvider === 'overpass' &&
+              records.length > 0,
+            partial: categoryEnabled && failedCategory && records.length > 0,
+            loading: categoryEnabled && state.loading,
+            status: categoryEnabled ? categoryStatus : 'idle',
+            error:
+              categoryEnabled &&
+              failedCategory &&
+              records.length === 0 &&
+              state.error
+                ? state.error
+                : null,
+            loadingLabel:
+              categoryEnabled && state.loading
+                ? `loading ${CATEGORY_CONFIG[categoryId]?.label || 'Security Points'}`
+                : '',
+            statusMessage:
+              categoryEnabled && state.status === 'zoom-in'
+                ? 'Zoom in to load Security Points'
+                : '',
+          },
+        };
+      });
     },
     getRowControls() {
       const counts = categoryCounts(state.records);

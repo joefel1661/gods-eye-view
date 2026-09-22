@@ -265,7 +265,9 @@ const OPTION_GROUPS = Object.freeze({
     booleanOption('police', 'p', true),
     booleanOption('fireEms', 'f', true),
     booleanOption('hospitals', 'h', true),
+    booleanOption('urgentCare', 'u', true),
     booleanOption('airports', 'a', true),
+    booleanOption('pharmacies', 'm', true),
   ]),
 });
 

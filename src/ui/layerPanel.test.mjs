@@ -259,9 +259,17 @@ test('section configuration matches the requested grouping and defaults', () => 
       { id: 'my-layers', label: 'MY LAYERS', defaultExpanded: true, ids: [] },
       {
         id: 'security-emergency',
-        label: 'SECURITY & EMERGENCY',
+        label: 'EMERGENCY POINTS',
         defaultExpanded: true,
-        ids: ['security-points'],
+        ids: [
+          'security-points',
+          'security-points-police',
+          'security-points-fire-ems',
+          'security-points-hospitals',
+          'security-points-urgent-care',
+          'security-points-airports',
+          'security-points-pharmacies',
+        ],
       },
       {
         id: 'movement-transit',
@@ -499,4 +507,41 @@ test('row-control subscriptions are not duplicated during panel refreshes', () =
   panel._refreshTogglePanel();
   panel._refreshTogglePanel();
   assert.equal(subscriptions, 1);
+});
+
+test('panel-specific toggle handlers are used for virtual emergency rows', async () => {
+  const calls = [];
+  const currentLayers = [
+    {
+      id: 'security-points-police',
+      name: 'Police',
+      icon: '🚓',
+      enabled: false,
+      showInTogglePanel: true,
+      source: 'Google Maps Places',
+      stats: { count: 4, source: 'Google Maps Places' },
+      panelToggle: async (enabled, options) => {
+        calls.push({ enabled, options });
+        currentLayers[0] = { ...currentLayers[0], enabled };
+      },
+    },
+  ];
+  const panel = new LayerPanel({
+    getLayers: () => currentLayers,
+    isEnabled: () => false,
+    setEnabled: async () => {
+      throw new Error('should not call setEnabled');
+    },
+    setLayerParams: () => {},
+    getRowControls: () => null,
+    hasRowControls: () => false,
+    subscribeRowControls: () => () => {},
+  });
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  panel.mount(container);
+
+  const toggle = container.querySelector('.data-toggle-btn');
+  await toggle.click();
+  assert.deepEqual(calls, [{ enabled: true, options: { origin: 'user' } }]);
 });

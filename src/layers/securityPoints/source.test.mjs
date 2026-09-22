@@ -2,13 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSecurityPointSource } from './source.js';
 
-function createGoogleViewportSource(placeByType = {}, fallbackResponse = null) {
+function createGoogleViewportSource(
+  { nearbyByType = {}, textByQuery = {} } = {},
+  fallbackResponse = null,
+) {
   return createSecurityPointSource({
     fetchImpl: async (url, options) => {
       const parsed = new URL(String(url), 'http://localhost');
       if (parsed.pathname === '/api/google/nearby-places') {
         const type = String(parsed.searchParams.get('includedTypes') || '').trim();
-        return Response.json({ places: placeByType[type] || [] });
+        return Response.json({ places: nearbyByType[type] || [] });
+      }
+      if (parsed.pathname === '/api/google/text-search') {
+        const query = String(parsed.searchParams.get('q') || '').trim();
+        return Response.json({ places: textByQuery[query] || [] });
       }
       if (parsed.pathname === '/api/overpass') {
         if (typeof fallbackResponse === 'function')
@@ -64,7 +71,14 @@ test('fetchViewport uses Google Places as the primary category discovery source'
 
   const result = await source.fetchViewport(
     { south: 30.2, west: -97.8, north: 30.3, east: -97.7 },
-    { police: true, fireEms: true, hospitals: false, airports: false },
+    {
+      police: true,
+      fireEms: true,
+      hospitals: false,
+      urgentCare: false,
+      airports: false,
+      pharmacies: false,
+    },
   );
 
   const nearbyCalls = calls.filter(
@@ -135,7 +149,14 @@ test('fetchViewport falls back to Overpass when Google Places is unavailable', a
 
   const result = await source.fetchViewport(
     { south: 30.2, west: -97.8, north: 30.3, east: -97.7 },
-    { police: true, fireEms: false, hospitals: false, airports: false },
+    {
+      police: true,
+      fireEms: false,
+      hospitals: false,
+      urgentCare: false,
+      airports: false,
+      pharmacies: false,
+    },
   );
   assert.equal(result.records.length, 1);
   assert.equal(result.records[0].id, 'osm:way:7');
@@ -209,7 +230,14 @@ test('fetchViewport maps sheriff, EMS, emergency department, airport, and helipo
 
   const result = await source.fetchViewport(
     { south: 30, west: -98, north: 31, east: -97 },
-    { police: true, fireEms: true, hospitals: true, airports: true },
+    {
+      police: true,
+      fireEms: true,
+      hospitals: true,
+      urgentCare: false,
+      airports: true,
+      pharmacies: false,
+    },
   );
 
   assert.deepEqual(
@@ -224,108 +252,218 @@ test('fetchViewport maps sheriff, EMS, emergency department, airport, and helipo
 });
 
 test('fetchViewport runs per-type Google searches for every enabled category mix', async () => {
-  const requestedTypeSets = [];
+  const requestedSearches = [];
   const source = createSecurityPointSource({
     fetchImpl: async (url) => {
       const parsed = new URL(String(url), 'http://localhost');
-      if (parsed.pathname !== '/api/google/nearby-places')
-        throw new Error(`Unexpected endpoint: ${parsed.pathname}`);
-      const type = String(parsed.searchParams.get('includedTypes') || '').trim();
-      requestedTypeSets.push(type);
-      const placeByType = {
-        police: {
-          id: 'p-1',
-          name: 'Police HQ',
-          latitude: 30.1,
-          longitude: -97.1,
-          primaryType: 'police',
-          types: ['police'],
-        },
-        fire_station: {
-          id: 'f-1',
-          name: 'Fire Station',
-          latitude: 30.2,
-          longitude: -97.2,
-          primaryType: 'fire_station',
-          types: ['fire_station'],
-        },
-        hospital: {
-          id: 'h-1',
-          name: 'Hospital',
-          latitude: 30.3,
-          longitude: -97.3,
-          primaryType: 'hospital',
-          types: ['hospital'],
-        },
-        airport: {
-          id: 'a-1',
-          name: 'Airport',
-          latitude: 30.4,
-          longitude: -97.4,
-          primaryType: 'airport',
-          types: ['airport'],
-        },
-      };
-      return Response.json({ places: placeByType[type] ? [placeByType[type]] : [] });
+      if (parsed.pathname === '/api/google/nearby-places') {
+        const type = String(parsed.searchParams.get('includedTypes') || '').trim();
+        requestedSearches.push(`type:${type}`);
+        const placeByType = {
+          police: {
+            id: 'p-1',
+            name: 'Police HQ',
+            latitude: 30.1,
+            longitude: -97.1,
+            primaryType: 'police',
+            types: ['police'],
+          },
+          fire_station: {
+            id: 'f-1',
+            name: 'Fire Station',
+            latitude: 30.2,
+            longitude: -97.2,
+            primaryType: 'fire_station',
+            types: ['fire_station'],
+          },
+          hospital: {
+            id: 'h-1',
+            name: 'Hospital',
+            latitude: 30.3,
+            longitude: -97.3,
+            primaryType: 'hospital',
+            types: ['hospital'],
+          },
+          airport: {
+            id: 'a-1',
+            name: 'Airport',
+            latitude: 30.4,
+            longitude: -97.4,
+            primaryType: 'airport',
+            types: ['airport'],
+          },
+          pharmacy: {
+            id: 'rx-1',
+            name: 'Main Street Pharmacy',
+            latitude: 30.45,
+            longitude: -97.45,
+            primaryType: 'pharmacy',
+            types: ['pharmacy'],
+          },
+        };
+        return Response.json({
+          places: placeByType[type] ? [placeByType[type]] : [],
+        });
+      }
+      if (parsed.pathname === '/api/google/text-search') {
+        const query = String(parsed.searchParams.get('q') || '').trim();
+        requestedSearches.push(`query:${query}`);
+        return Response.json({
+          places:
+            query === 'urgent care'
+              ? [
+                  {
+                    id: 'uc-1',
+                    name: 'Rapid Urgent Care',
+                    latitude: 30.35,
+                    longitude: -97.35,
+                    primaryType: 'doctor',
+                    types: ['doctor', 'health'],
+                  },
+                ]
+              : [],
+        });
+      }
+      throw new Error(`Unexpected endpoint: ${parsed.pathname}`);
     },
   });
   const box = { south: 30, west: -98, north: 31, east: -97 };
   const scenarios = [
     {
       name: 'police only',
-      params: { police: true, fireEms: false, hospitals: false, airports: false },
-      expectedTypes: ['police'],
+      params: {
+        police: true,
+        fireEms: false,
+        hospitals: false,
+        urgentCare: false,
+        airports: false,
+        pharmacies: false,
+      },
+      expectedSearches: ['type:police'],
       expectedCategories: ['police'],
     },
     {
       name: 'fire only',
-      params: { police: false, fireEms: true, hospitals: false, airports: false },
-      expectedTypes: ['ambulance_service', 'fire_station'],
+      params: {
+        police: false,
+        fireEms: true,
+        hospitals: false,
+        urgentCare: false,
+        airports: false,
+        pharmacies: false,
+      },
+      expectedSearches: ['type:ambulance_service', 'type:fire_station'],
       expectedCategories: ['fireEms'],
     },
     {
       name: 'hospital only',
-      params: { police: false, fireEms: false, hospitals: true, airports: false },
-      expectedTypes: ['emergency_room', 'hospital'],
+      params: {
+        police: false,
+        fireEms: false,
+        hospitals: true,
+        urgentCare: false,
+        airports: false,
+        pharmacies: false,
+      },
+      expectedSearches: ['type:emergency_room', 'type:hospital'],
       expectedCategories: ['hospitals'],
     },
     {
+      name: 'urgent care only',
+      params: {
+        police: false,
+        fireEms: false,
+        hospitals: false,
+        urgentCare: true,
+        airports: false,
+        pharmacies: false,
+      },
+      expectedSearches: ['query:urgent care'],
+      expectedCategories: ['urgentCare'],
+    },
+    {
       name: 'airport only',
-      params: { police: false, fireEms: false, hospitals: false, airports: true },
-      expectedTypes: ['airport', 'heliport'],
+      params: {
+        police: false,
+        fireEms: false,
+        hospitals: false,
+        urgentCare: false,
+        airports: true,
+        pharmacies: false,
+      },
+      expectedSearches: ['type:airport', 'type:heliport'],
       expectedCategories: ['airports'],
     },
     {
+      name: 'pharmacy only',
+      params: {
+        police: false,
+        fireEms: false,
+        hospitals: false,
+        urgentCare: false,
+        airports: false,
+        pharmacies: true,
+      },
+      expectedSearches: ['type:pharmacy'],
+      expectedCategories: ['pharmacies'],
+    },
+    {
       name: 'police + fire + hospitals',
-      params: { police: true, fireEms: true, hospitals: true, airports: false },
-      expectedTypes: [
-        'ambulance_service',
-        'emergency_room',
-        'fire_station',
-        'hospital',
-        'police',
+      params: {
+        police: true,
+        fireEms: true,
+        hospitals: true,
+        urgentCare: false,
+        airports: false,
+        pharmacies: false,
+      },
+      expectedSearches: [
+        'type:ambulance_service',
+        'type:emergency_room',
+        'type:fire_station',
+        'type:hospital',
+        'type:police',
       ],
       expectedCategories: ['police', 'fireEms', 'hospitals'],
     },
     {
       name: 'all categories',
-      params: { police: true, fireEms: true, hospitals: true, airports: true },
-      expectedTypes: [
-        'airport',
-        'ambulance_service',
-        'emergency_room',
-        'fire_station',
-        'heliport',
-        'hospital',
-        'police',
+      params: {
+        police: true,
+        fireEms: true,
+        hospitals: true,
+        urgentCare: true,
+        airports: true,
+        pharmacies: true,
+      },
+      expectedSearches: [
+        'query:urgent care',
+        'type:airport',
+        'type:ambulance_service',
+        'type:emergency_room',
+        'type:fire_station',
+        'type:heliport',
+        'type:hospital',
+        'type:pharmacy',
+        'type:police',
       ],
-      expectedCategories: ['police', 'fireEms', 'hospitals', 'airports'],
+      expectedCategories: [
+        'airports',
+        'fireEms',
+        'hospitals',
+        'pharmacies',
+        'police',
+        'urgentCare',
+      ],
     },
   ];
   for (const scenario of scenarios) {
-    requestedTypeSets.length = 0;
+    requestedSearches.length = 0;
     const result = await source.fetchViewport(box, scenario.params);
-    assert.deepEqual([...requestedTypeSets].sort(), [...scenario.expectedTypes].sort());
+    assert.deepEqual(
+      [...requestedSearches].sort(),
+      [...scenario.expectedSearches].sort(),
+    );
     assert.deepEqual(
       [...new Set(result.records.map((record) => record.category))].sort(),
       [...scenario.expectedCategories].sort(),
@@ -407,7 +545,14 @@ test('fetchViewport keeps successful categories when one category fails and repo
 
   const result = await source.fetchViewport(
     { south: 30, west: -98, north: 31, east: -97 },
-    { police: true, fireEms: true, hospitals: true, airports: false },
+    {
+      police: true,
+      fireEms: true,
+      hospitals: true,
+      urgentCare: false,
+      airports: false,
+      pharmacies: false,
+    },
     {
       onCategoryProgress: (event) => {
         progress.push({
@@ -455,7 +600,8 @@ test('fetchViewport keeps successful categories when one category fails and repo
 
 test('fetchViewport accepts hospital-classified Google Places results', async () => {
   const source = createGoogleViewportSource({
-    hospital: [
+    nearbyByType: {
+      hospital: [
       {
         id: 'hospital-1',
         name: 'Seton Medical Center',
@@ -464,13 +610,21 @@ test('fetchViewport accepts hospital-classified Google Places results', async ()
         primaryType: 'hospital',
         types: ['hospital', 'health'],
       },
-    ],
-    emergency_room: [],
+      ],
+      emergency_room: [],
+    },
   });
 
   const result = await source.fetchViewport(
     { south: 30, west: -98, north: 31, east: -97 },
-    { police: false, fireEms: false, hospitals: true, airports: false },
+    {
+      police: false,
+      fireEms: false,
+      hospitals: true,
+      urgentCare: false,
+      airports: false,
+      pharmacies: false,
+    },
   );
 
   assert.deepEqual(
@@ -481,8 +635,9 @@ test('fetchViewport accepts hospital-classified Google Places results', async ()
 
 test('fetchViewport accepts emergency-room-classified Google Places results', async () => {
   const source = createGoogleViewportSource({
-    hospital: [],
-    emergency_room: [
+    nearbyByType: {
+      hospital: [],
+      emergency_room: [
       {
         id: 'er-1',
         name: 'Dell Seton ER',
@@ -491,12 +646,20 @@ test('fetchViewport accepts emergency-room-classified Google Places results', as
         primaryType: 'emergency_room',
         types: ['emergency_room', 'hospital'],
       },
-    ],
+      ],
+    },
   });
 
   const result = await source.fetchViewport(
     { south: 30, west: -98, north: 31, east: -97 },
-    { police: false, fireEms: false, hospitals: true, airports: false },
+    {
+      police: false,
+      fireEms: false,
+      hospitals: true,
+      urgentCare: false,
+      airports: false,
+      pharmacies: false,
+    },
   );
 
   assert.deepEqual(
@@ -505,9 +668,44 @@ test('fetchViewport accepts emergency-room-classified Google Places results', as
   );
 });
 
+test('fetchViewport accepts urgent-care Google text-search results', async () => {
+  const source = createGoogleViewportSource({
+    textByQuery: {
+      'urgent care': [
+        {
+          id: 'urgent-1',
+          name: 'Rapid Urgent Care',
+          latitude: 30.33,
+          longitude: -97.33,
+          primaryType: 'doctor',
+          types: ['doctor', 'health'],
+        },
+      ],
+    },
+  });
+
+  const result = await source.fetchViewport(
+    { south: 30, west: -98, north: 31, east: -97 },
+    {
+      police: false,
+      fireEms: false,
+      hospitals: false,
+      urgentCare: true,
+      airports: false,
+      pharmacies: false,
+    },
+  );
+
+  assert.deepEqual(
+    result.records.map((record) => [record.id, record.category, record.typeLabel]),
+    [['google:urgent-1', 'urgentCare', 'Urgent care clinic']],
+  );
+});
+
 test('fetchViewport rejects individual doctors from hospital discovery', async () => {
   const source = createGoogleViewportSource({
-    hospital: [
+    nearbyByType: {
+      hospital: [
       {
         id: 'doctor-1',
         name: 'Pratima V. Kumar, MD',
@@ -516,13 +714,21 @@ test('fetchViewport rejects individual doctors from hospital discovery', async (
         primaryType: 'doctor',
         types: ['doctor', 'health', 'point_of_interest'],
       },
-    ],
-    emergency_room: [],
+      ],
+      emergency_room: [],
+    },
   });
 
   const result = await source.fetchViewport(
     { south: 30, west: -98, north: 31, east: -97 },
-    { police: false, fireEms: false, hospitals: true, airports: false },
+    {
+      police: false,
+      fireEms: false,
+      hospitals: true,
+      urgentCare: false,
+      airports: false,
+      pharmacies: false,
+    },
   );
 
   assert.equal(result.records.length, 0);
@@ -530,7 +736,8 @@ test('fetchViewport rejects individual doctors from hospital discovery', async (
 
 test('fetchViewport rejects clinics and medical offices unless Google classifies them as hospital care', async () => {
   const source = createGoogleViewportSource({
-    hospital: [
+    nearbyByType: {
+      hospital: [
       {
         id: 'clinic-1',
         name: 'Neighborhood Medical Clinic',
@@ -547,13 +754,21 @@ test('fetchViewport rejects clinics and medical offices unless Google classifies
         primaryType: 'hospital',
         types: ['hospital', 'medical_office', 'health'],
       },
-    ],
-    emergency_room: [],
+      ],
+      emergency_room: [],
+    },
   });
 
   const result = await source.fetchViewport(
     { south: 30, west: -98, north: 31, east: -97 },
-    { police: false, fireEms: false, hospitals: true, airports: false },
+    {
+      police: false,
+      fireEms: false,
+      hospitals: true,
+      urgentCare: false,
+      airports: false,
+      pharmacies: false,
+    },
   );
 
   assert.deepEqual(
@@ -602,7 +817,14 @@ test('fetchViewport keeps sibling searches alive when one type in the category f
 
   const result = await source.fetchViewport(
     { south: 30, west: -98, north: 31, east: -97 },
-    { police: false, fireEms: true, hospitals: false, airports: false },
+    {
+      police: false,
+      fireEms: true,
+      hospitals: false,
+      urgentCare: false,
+      airports: false,
+      pharmacies: false,
+    },
   );
 
   assert.deepEqual([...requestedTypes].sort(), ['ambulance_service', 'fire_station']);
@@ -667,14 +889,28 @@ test('aborting an older viewport generation does not cancel newer generation cat
   const oldFetch = source
     .fetchViewport(
       { south: 31.8, west: -98, north: 32.2, east: -97 },
-      { police: true, fireEms: true, hospitals: false, airports: false },
+      {
+        police: true,
+        fireEms: true,
+        hospitals: false,
+        urgentCare: false,
+        airports: false,
+        pharmacies: false,
+      },
       { signal: oldController.signal },
     )
     .then(() => null, (error) => error);
 
   const newFetch = source.fetchViewport(
     { south: 30, west: -98, north: 30.4, east: -97.6 },
-    { police: true, fireEms: true, hospitals: false, airports: false },
+    {
+      police: true,
+      fireEms: true,
+      hospitals: false,
+      urgentCare: false,
+      airports: false,
+      pharmacies: false,
+    },
   );
 
   oldController.abort();
