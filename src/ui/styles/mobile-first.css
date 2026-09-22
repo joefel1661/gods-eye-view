@@ -1250,6 +1250,7 @@
 
   #scene-panel .markup-manager-row :is(.markup-row-title-wrap, .markup-row-actions) {
     width: 100%;
+    flex: 0 0 auto;
   }
 
   #scene-panel .markup-manager-row .markup-row-actions {
@@ -1266,6 +1267,9 @@
     min-width: 0;
     min-height: 46px;
     padding-inline: 8px;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
   }
 
   #scene-panel

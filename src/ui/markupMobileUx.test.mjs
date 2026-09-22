@@ -131,11 +131,11 @@ test('markup manager actions keep whole labels and reflow into mobile rows', () 
   );
   assert.match(
     scenesCss,
-    /\.markup-sheet-close-btn \{[\s\S]*?width: 44px;[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;[\s\S]*?display: inline-flex;[\s\S]*?align-items: center;[\s\S]*?justify-content: center;/,
+    /\.markup-sheet-close-btn\.scene-btn \{[\s\S]*?flex: 0 0 44px;[\s\S]*?width: 44px;[\s\S]*?max-width: 44px;[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;[\s\S]*?display: inline-flex;[\s\S]*?align-items: center;[\s\S]*?justify-content: center;/,
   );
   assert.match(
     mobileCss,
-    /@media \(max-width: 430px\) \{[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-top \{[\s\S]*?flex-direction: column;[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \{[\s\S]*?display: grid;[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*?justify-content: normal;[\s\S]*?justify-items: stretch;[\s\S]*?align-items: start;[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \.scene-btn \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;[\s\S]*?min-height: 46px;[\s\S]*?padding-inline: 8px;[\s\S]*?#scene-panel[\s\S]*?\.scene-btn\[data-action='export'\] \{[\s\S]*?grid-column: 1;[\s\S]*?#scene-panel[\s\S]*?\.scene-btn\[data-action='delete'\] \{[\s\S]*?grid-column: 2;/,
+    /@media \(max-width: 430px\) \{[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-top \{[\s\S]*?flex-direction: column;[\s\S]*?#scene-panel \.markup-manager-row :is\(\.markup-row-title-wrap, \.markup-row-actions\) \{[\s\S]*?width: 100%;[\s\S]*?flex: 0 0 auto;[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \{[\s\S]*?display: grid;[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*?justify-content: normal;[\s\S]*?justify-items: stretch;[\s\S]*?align-items: start;[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \.scene-btn \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;[\s\S]*?min-height: 46px;[\s\S]*?padding-inline: 8px;[\s\S]*?white-space: nowrap;[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;[\s\S]*?#scene-panel[\s\S]*?\.scene-btn\[data-action='export'\] \{[\s\S]*?grid-column: 1;[\s\S]*?#scene-panel[\s\S]*?\.scene-btn\[data-action='delete'\] \{[\s\S]*?grid-column: 2;/,
   );
 });
 

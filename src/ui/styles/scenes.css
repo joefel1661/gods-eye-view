@@ -540,8 +540,10 @@
   flex: 0 0 auto;
 }
 
-.markup-sheet-close-btn {
+.markup-sheet-close-btn.scene-btn {
+  flex: 0 0 44px;
   width: 44px;
+  max-width: 44px;
   min-width: 44px;
   min-height: 44px;
   padding: 0;
