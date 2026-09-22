@@ -308,7 +308,7 @@ export class LayerPanel {
     const body = section.querySelector('.data-layer-section-body');
     section.classList.toggle('collapsed', !expanded);
     toggle?.setAttribute('aria-expanded', String(Boolean(expanded)));
-    if (body) body.hidden = !expanded;
+    body?.setAttribute('aria-hidden', String(!expanded));
   }
 
   _buildLayerRow(layer, generation) {
