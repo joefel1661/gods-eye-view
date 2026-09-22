@@ -1242,6 +1242,24 @@
   .brand-byline-compact {
     display: none;
   }
+
+  #scene-panel .markup-manager-row .markup-row-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #scene-panel .markup-manager-row :is(.markup-row-title-wrap, .markup-row-actions) {
+    width: 100%;
+  }
+
+  #scene-panel .markup-manager-row .markup-row-actions {
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  #scene-panel .markup-manager-row .markup-row-actions .scene-btn {
+    flex: 1 1 calc((100% - 12px) / 3);
+  }
 }
 
 @media (max-width: 390px) {

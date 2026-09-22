@@ -108,6 +108,29 @@ test('markup styles include active route-mode and mobile card surfaces', () => {
   );
 });
 
+test('markup manager actions keep whole labels and reflow into mobile rows', () => {
+  assert.match(
+    scenesCss,
+    /\.markup-row-top \{[\s\S]*?flex-wrap: wrap;/,
+  );
+  assert.match(
+    scenesCss,
+    /\.markup-row-title-wrap \{[\s\S]*?flex: 1 1 9rem;/,
+  );
+  assert.match(
+    scenesCss,
+    /\.markup-row-actions \{[\s\S]*?flex-wrap: wrap;[\s\S]*?flex: 1 1 16rem;[\s\S]*?margin-left: auto;/,
+  );
+  assert.match(
+    scenesCss,
+    /\.markup-row-actions \.scene-btn \{[\s\S]*?display: inline-flex;[\s\S]*?align-items: center;[\s\S]*?justify-content: center;[\s\S]*?min-width: 88px;[\s\S]*?min-height: 42px;[\s\S]*?white-space: nowrap;[\s\S]*?overflow-wrap: normal;[\s\S]*?word-break: normal;/,
+  );
+  assert.match(
+    mobileCss,
+    /@media \(max-width: 430px\) \{[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-top \{[\s\S]*?flex-direction: column;[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \{[\s\S]*?justify-content: flex-start;[\s\S]*?#scene-panel \.markup-manager-row \.markup-row-actions \.scene-btn \{[\s\S]*?flex: 1 1 calc\(\(100% - 12px\) \/ 3\);/,
+  );
+});
+
 test('markup source preserves hidden-object rendering gates and mobile return-to-map flow', () => {
   assert.match(markupPanel, /if \(object\.visible === false\) continue;/);
   assert.match(
