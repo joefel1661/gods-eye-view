@@ -13,38 +13,68 @@ const FEED_STATE_LABELS = Object.freeze({
 });
 
 // Presentation order is independent of catalog registration and startup order.
-const PANEL_GROUPS = [
-  {
-    label: 'Movement',
-    ids: ['flights', 'military', 'ais-live-vessels', 'traffic'],
-  },
-  {
-    label: 'Cameras',
-    ids: ['cctv', 'alpr-cameras'],
-  },
-  {
-    label: 'Infrastructure',
+export const LAYER_PANEL_SECTIONS = Object.freeze([
+  Object.freeze({
+    id: 'my-layers',
+    label: 'MY LAYERS',
+    defaultExpanded: true,
+    ids: [],
+  }),
+  Object.freeze({
+    id: 'security-emergency',
+    label: 'SECURITY & EMERGENCY',
+    defaultExpanded: true,
+    ids: ['security-points'],
+  }),
+  Object.freeze({
+    id: 'movement-transit',
+    label: 'MOVEMENT & TRANSIT',
+    defaultExpanded: false,
     ids: [
-      'military-installations',
-      'security-points',
-      'local-datacenters',
-      'local-dams',
+      'flights',
+      'military',
+      'ais-live-vessels',
+      'traffic',
+      'transit',
+      'directions',
     ],
-  },
-  {
-    label: 'Events',
-    ids: ['earthquakes', 'local-firms'],
-  },
-  {
-    label: 'Utilities',
-    ids: ['directions', 'radio'],
-  },
-];
-const PANEL_ORDER = PANEL_GROUPS.flatMap(({ label, ids }) =>
-  ids.map((id) => ({ id, label })),
+  }),
+  Object.freeze({
+    id: 'cameras-monitoring',
+    label: 'CAMERAS & MONITORING',
+    defaultExpanded: false,
+    ids: ['cctv', 'alpr-cameras'],
+  }),
+  Object.freeze({
+    id: 'hazards-events',
+    label: 'HAZARDS & EVENTS',
+    defaultExpanded: false,
+    ids: ['local-firms', 'earthquakes'],
+  }),
+  Object.freeze({
+    id: 'infrastructure',
+    label: 'INFRASTRUCTURE',
+    defaultExpanded: false,
+    ids: ['military-installations', 'local-datacenters', 'local-dams'],
+  }),
+  Object.freeze({
+    id: 'communications',
+    label: 'COMMUNICATIONS',
+    defaultExpanded: false,
+    ids: ['radio'],
+  }),
+]);
+const PANEL_ORDER = LAYER_PANEL_SECTIONS.flatMap(({ id: sectionId, ids }) =>
+  ids.map((id) => ({ id, sectionId })),
 );
 const PANEL_POSITIONS = new Map(
   PANEL_ORDER.map(({ id }, index) => [id, index]),
+);
+const PANEL_SECTION_BY_ID = new Map(
+  PANEL_ORDER.map(({ id, sectionId }) => [id, sectionId]),
+);
+const SECTION_CONFIG_BY_ID = new Map(
+  LAYER_PANEL_SECTIONS.map((section) => [section.id, section]),
 );
 const PANEL_LABELS = {
   'ais-live-vessels': 'Live Vessels',
@@ -102,6 +132,7 @@ export class LayerPanel {
     this._generation = 0;
     this._removers = [];
     this._destroyed = false;
+    this._sectionExpanded = new Map();
   }
   mount(container) {
     if (this._destroyed) return;
@@ -131,154 +162,56 @@ export class LayerPanel {
     const generation = this._generation;
     const layers = this.getAll()
       .slice()
+      .filter((layer) => layer.showInTogglePanel)
       .sort(
         (a, b) =>
           (PANEL_POSITIONS.get(a.id) ?? PANEL_ORDER.length) -
           (PANEL_POSITIONS.get(b.id) ?? PANEL_ORDER.length),
       );
-    let previousGroup = '';
     for (const layer of layers) {
-      if (!layer.showInTogglePanel) continue;
-      const group =
-        PANEL_ORDER[PANEL_POSITIONS.get(layer.id)]?.label ?? 'Other layers';
-      if (group && group !== previousGroup) {
-        const heading = document.createElement('h3');
-        heading.className = 'data-layer-group-heading';
-        heading.textContent = group;
-        this._toggleContainer.appendChild(heading);
-      }
-      previousGroup = group;
-      const row = document.createElement('div');
-      row.className = 'data-toggle-row';
-      row.dataset.layerId = layer.id;
-
-      const topRow = document.createElement('div');
-      topRow.className = 'data-toggle-top';
-
-      const left = document.createElement('div');
-      left.className = 'data-toggle-left';
-      const icon = document.createElement('span');
-      icon.className = 'data-icon';
-      icon.textContent = layer.icon;
-      const name = document.createElement('span');
-      name.className = 'data-name';
-      name.textContent = panelLabel(layer);
-      left.appendChild(icon);
-      left.appendChild(name);
-
-      const right = document.createElement('div');
-      right.className = 'data-toggle-right';
-
-      const count = document.createElement('span');
-      count.className = 'data-count';
-      count.textContent = this._layerCountText(layer.stats);
-
-      const toggle = document.createElement('button');
-      toggle.type = 'button';
-      toggle.className = `data-toggle-btn${layer.enabled ? ' active' : ''}`;
-      this._syncToggleButton(toggle, layer);
-      this._bind(toggle, 'click', async () => {
-        // Native `disabled` immediately evicts keyboard focus in Chromium. Keep
-        // the lifecycle control focusable while it is busy, and enforce the
-        // same single-flight interaction contract through ARIA instead.
-        if (
-          this._destroyed ||
-          this._generation !== generation ||
-          toggle.getAttribute('aria-disabled') === 'true'
-        )
-          return;
-        toggle.setAttribute('aria-disabled', 'true');
-        toggle.setAttribute('aria-busy', 'true');
-        try {
-          await this.setEnabled(layer.id, !this.isEnabled(layer.id), {
-            origin: 'user',
-          });
-        } catch (error) {
-          console.warn(`[Data] ${layer.id} toggle error:`, error);
-        } finally {
-          const current = this.getAll().find(({ id }) => id === layer.id);
-          if (!this._destroyed && current && this._generation === generation)
-            this._syncToggleButton(toggle, current);
-        }
-      });
-
-      right.appendChild(count);
-      right.appendChild(toggle);
-      topRow.appendChild(left);
-      topRow.appendChild(right);
-
-      const bottomRow = document.createElement('div');
-      bottomRow.className = 'data-toggle-meta';
-      bottomRow.textContent = this._buildMetaText(layer);
-
-      row.appendChild(topRow);
-      row.appendChild(bottomRow);
-
-      // Optional per-layer sub-controls (chips + color legend). The click
-      // listener is delegated and attached once here, so it survives
-      // _refreshTogglePanel — which only rewrites the container's contents.
-      if (this.hasRowControls(layer.id)) {
-        // A layer whose controls settle asynchronously (a chunked catalog load
-        // that can also fail) pushes a re-render through this; nothing else
-        // would repaint the row before its next scheduled refresh.
-        const unsubscribe = this.subscribeRowControls(layer.id, () =>
-          this._refreshTogglePanel(),
+      const sectionId = PANEL_SECTION_BY_ID.get(layer.id) || 'other-layers';
+      let sectionBody = this._toggleContainer.querySelector(
+        `[data-layer-section-body="${sectionId}"]`,
+      );
+      if (!sectionBody) {
+        const section = this._buildSection(
+          SECTION_CONFIG_BY_ID.get(sectionId) || {
+            id: sectionId,
+            label: 'OTHER LAYERS',
+            defaultExpanded: false,
+          },
         );
-        if (unsubscribe) this._removers.push(unsubscribe);
-        const controls = document.createElement('div');
-        controls.className = 'data-toggle-controls';
-        this._bind(controls, 'click', (event) => {
-          const button = event.target?.closest?.('.data-toggle-chip');
-          if (!button || button.disabled) return;
-          // Re-read the live descriptor rather than trusting the rendered
-          // chip, so a stale row can never apply an inverted toggle.
-          const chip = this._rowControlsFor(layer.id)?.chips?.find(
-            (entry) => entry.id === button.dataset.chipId,
-          );
-          if (!chip || chip.disabled || !this.isEnabled(layer.id)) return;
-          if (typeof chip.onClick === 'function') chip.onClick();
-          else if (chip.params)
-            this.setLayerParams(layer.id, chip.params, { origin: 'user' });
-        });
-        row.appendChild(controls);
-        // An ordered list below the chips, for a layer whose row carries a
-        // sequence (turn-by-turn directions). Its own delegated listener, its
-        // own container — the chip row stays a chip row.
-        const list = document.createElement('ol');
-        list.className = 'data-row-list';
-        list.hidden = true;
-        this._bind(list, 'click', (event) => {
-          const button = event.target?.closest?.('.data-row-list-item');
-          if (!button || button.disabled) return;
-          const item = this._rowControlsFor(layer.id)?.list?.items?.find(
-            (entry) => entry.id === button.dataset.listItemId,
-          );
-          if (item?.params)
-            this.setLayerParams(layer.id, item.params, { origin: 'user' });
-        });
-        row.appendChild(list);
-        this._syncRowControls(controls, layer, list);
+        this._toggleContainer.appendChild(section);
+        sectionBody = section.querySelector('.data-layer-section-body');
       }
-
-      this._toggleContainer.appendChild(row);
+      sectionBody.appendChild(this._buildLayerRow(layer, generation));
     }
     this._renderMarkupRows();
   }
 
   _renderMarkupRows() {
     if (!this._toggleContainer) return;
-    this._toggleContainer
-      .querySelector('[data-markup-layer-section]')
-      ?.remove();
+    const section = this._ensureSection({
+      id: 'my-layers',
+      label: 'MY LAYERS',
+      defaultExpanded: true,
+    });
+    this._toggleContainer.insertBefore(
+      section,
+      this._toggleContainer.firstChild || null,
+    );
+    const body = section.querySelector('.data-layer-section-body');
+    if (!body) return;
+    body.innerHTML = '';
     const api = window.__gevMarkupsLayerApi;
     const entries = api?.list?.();
-    if (!Array.isArray(entries) || !entries.length) return;
-    const section = document.createElement('div');
-    section.dataset.markupLayerSection = 'true';
-    const heading = document.createElement('h3');
-    heading.className = 'data-layer-group-heading';
-    heading.textContent = 'MARKUPS';
-    section.appendChild(heading);
+    if (!Array.isArray(entries) || !entries.length) {
+      const empty = document.createElement('div');
+      empty.className = 'data-layer-empty-state';
+      empty.textContent = 'No custom layers yet.';
+      body.appendChild(empty);
+      return;
+    }
     for (const entry of entries) {
       const row = document.createElement('div');
       row.className = 'data-toggle-row data-toggle-row-markup';
@@ -306,9 +239,183 @@ export class LayerPanel {
       right.appendChild(button);
       top.append(left, right);
       row.appendChild(top);
-      section.appendChild(row);
+      body.appendChild(row);
     }
-    this._toggleContainer.appendChild(section);
+  }
+
+  _ensureSection(section) {
+    let existing = this._toggleContainer?.querySelector(
+      `[data-layer-section="${section.id}"]`,
+    );
+    if (existing) return existing;
+    existing = this._buildSection(section);
+    this._toggleContainer?.appendChild(existing);
+    return existing;
+  }
+
+  _buildSection(section) {
+    const root = document.createElement('section');
+    root.className = 'data-layer-section';
+    root.dataset.layerSection = section.id;
+
+    const header = document.createElement('button');
+    header.type = 'button';
+    header.className = 'data-layer-section-toggle';
+    header.dataset.layerSectionToggle = section.id;
+    header.setAttribute('aria-controls', `data-layer-section-${section.id}`);
+
+    const title = document.createElement('span');
+    title.className = 'data-layer-section-title';
+    title.textContent = section.label;
+    const chevron = document.createElement('span');
+    chevron.className = 'data-layer-section-chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.textContent = '▾';
+    header.append(title, chevron);
+
+    const body = document.createElement('div');
+    body.className = 'data-layer-section-body';
+    body.dataset.layerSectionBody = section.id;
+    body.id = `data-layer-section-${section.id}`;
+
+    root.append(header, body);
+    this._setSectionExpanded(
+      root,
+      this._sectionExpandedState(section.id, section.defaultExpanded),
+    );
+    this._bind(header, 'click', () => {
+      const expanded = header.getAttribute('aria-expanded') !== 'true';
+      this._sectionExpanded.set(section.id, expanded);
+      this._setSectionExpanded(root, expanded);
+    });
+    return root;
+  }
+
+  _sectionExpandedState(sectionId, defaultExpanded) {
+    if (!this._sectionExpanded.has(sectionId)) {
+      this._sectionExpanded.set(sectionId, Boolean(defaultExpanded));
+    }
+    return this._sectionExpanded.get(sectionId) === true;
+  }
+
+  _setSectionExpanded(section, expanded) {
+    const toggle = section.querySelector('.data-layer-section-toggle');
+    const body = section.querySelector('.data-layer-section-body');
+    section.classList.toggle('collapsed', !expanded);
+    toggle?.setAttribute('aria-expanded', String(Boolean(expanded)));
+    if (body) body.hidden = !expanded;
+  }
+
+  _buildLayerRow(layer, generation) {
+    const row = document.createElement('div');
+    row.className = 'data-toggle-row';
+    row.dataset.layerId = layer.id;
+
+    const topRow = document.createElement('div');
+    topRow.className = 'data-toggle-top';
+
+    const left = document.createElement('div');
+    left.className = 'data-toggle-left';
+    const icon = document.createElement('span');
+    icon.className = 'data-icon';
+    icon.textContent = layer.icon;
+    const name = document.createElement('span');
+    name.className = 'data-name';
+    name.textContent = panelLabel(layer);
+    left.append(icon, name);
+
+    const right = document.createElement('div');
+    right.className = 'data-toggle-right';
+
+    const count = document.createElement('span');
+    count.className = 'data-count';
+    count.textContent = this._layerCountText(layer.stats);
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = `data-toggle-btn${layer.enabled ? ' active' : ''}`;
+    this._syncToggleButton(toggle, layer);
+    this._bind(toggle, 'click', async () => {
+      // Native `disabled` immediately evicts keyboard focus in Chromium. Keep
+      // the lifecycle control focusable while it is busy, and enforce the
+      // same single-flight interaction contract through ARIA instead.
+      if (
+        this._destroyed ||
+        this._generation !== generation ||
+        toggle.getAttribute('aria-disabled') === 'true'
+      )
+        return;
+      toggle.setAttribute('aria-disabled', 'true');
+      toggle.setAttribute('aria-busy', 'true');
+      try {
+        await this.setEnabled(layer.id, !this.isEnabled(layer.id), {
+          origin: 'user',
+        });
+      } catch (error) {
+        console.warn(`[Data] ${layer.id} toggle error:`, error);
+      } finally {
+        const current = this.getAll().find(({ id }) => id === layer.id);
+        if (!this._destroyed && current && this._generation === generation)
+          this._syncToggleButton(toggle, current);
+      }
+    });
+
+    right.append(count, toggle);
+    topRow.append(left, right);
+
+    const bottomRow = document.createElement('div');
+    bottomRow.className = 'data-toggle-meta';
+    bottomRow.textContent = this._buildMetaText(layer);
+
+    row.append(topRow, bottomRow);
+
+    // Optional per-layer sub-controls (chips + color legend). The click
+    // listener is delegated and attached once here, so it survives
+    // _refreshTogglePanel — which only rewrites the container's contents.
+    if (this.hasRowControls(layer.id)) {
+      // A layer whose controls settle asynchronously (a chunked catalog load
+      // that can also fail) pushes a re-render through this; nothing else
+      // would repaint the row before its next scheduled refresh.
+      const unsubscribe = this.subscribeRowControls(layer.id, () =>
+        this._refreshTogglePanel(),
+      );
+      if (unsubscribe) this._removers.push(unsubscribe);
+      const controls = document.createElement('div');
+      controls.className = 'data-toggle-controls';
+      this._bind(controls, 'click', (event) => {
+        const button = event.target?.closest?.('.data-toggle-chip');
+        if (!button || button.disabled) return;
+        // Re-read the live descriptor rather than trusting the rendered
+        // chip, so a stale row can never apply an inverted toggle.
+        const chip = this._rowControlsFor(layer.id)?.chips?.find(
+          (entry) => entry.id === button.dataset.chipId,
+        );
+        if (!chip || chip.disabled || !this.isEnabled(layer.id)) return;
+        if (typeof chip.onClick === 'function') chip.onClick();
+        else if (chip.params)
+          this.setLayerParams(layer.id, chip.params, { origin: 'user' });
+      });
+      row.appendChild(controls);
+      // An ordered list below the chips, for a layer whose row carries a
+      // sequence (turn-by-turn directions). Its own delegated listener, its
+      // own container — the chip row stays a chip row.
+      const list = document.createElement('ol');
+      list.className = 'data-row-list';
+      list.hidden = true;
+      this._bind(list, 'click', (event) => {
+        const button = event.target?.closest?.('.data-row-list-item');
+        if (!button || button.disabled) return;
+        const item = this._rowControlsFor(layer.id)?.list?.items?.find(
+          (entry) => entry.id === button.dataset.listItemId,
+        );
+        if (item?.params)
+          this.setLayerParams(layer.id, item.params, { origin: 'user' });
+      });
+      row.appendChild(list);
+      this._syncRowControls(controls, layer, list);
+    }
+
+    return row;
   }
 
   /** Qualify a loaded count when it does not mean items currently on screen. */
