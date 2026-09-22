@@ -206,17 +206,21 @@ for (const preview of [false, true]) {
     assert.equal(detailResult.body.place.id, 'abc123');
     key = 'rotated-fixture-key';
     assert.equal(
-      (await request(search, '?q=museum&lat=30&lon=-97&radiusM=1')).statusCode,
+      (
+        await request(
+          search,
+          '?q=museum&lat=30&lon=-97&radiusM=1&maxResultCount=9',
+        )
+      ).statusCode,
       200,
     );
-    assert.equal(
-      JSON.parse(
-        calls.find((entry) =>
-          String(entry.url).includes('/v1/places:searchText'),
-        ).options.body,
-      ).locationBias.circle.radius,
-      50,
+    const searchBody = JSON.parse(
+      calls.find((entry) =>
+        String(entry.url).includes('/v1/places:searchText'),
+      ).options.body,
     );
+    assert.equal(searchBody.locationBias.circle.radius, 50);
+    assert.equal(searchBody.maxResultCount, 9);
     assert.equal((await request(search, '?lat=30&lon=-97')).statusCode, 400);
     assert.equal((await request(nearby, '?lat=bad&lon=-97')).statusCode, 400);
     assert.equal((await request(nearby, '', 'POST')).statusCode, 405);

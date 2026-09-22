@@ -1162,8 +1162,13 @@
     max-width: calc(100vw - 24px);
   }
 
-  body.mobile-panel-open #clean-view-exit,
-  body.mobile-panel-open #global-loading-status {
+  #global-loading-status {
+    top: calc(var(--mobile-safe-top) + 44px);
+    bottom: auto;
+    max-width: calc(100vw - 24px);
+  }
+
+  body.mobile-panel-open #clean-view-exit {
     bottom: calc(var(--mobile-panel-bottom) + 12px);
   }
 

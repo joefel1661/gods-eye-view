@@ -4,6 +4,7 @@ import {
   DETAIL_REQUEST_TIMEOUT_MS,
   GOOGLE_NEARBY_URL,
   GOOGLE_PLACE_DETAILS_URL,
+  GOOGLE_TEXT_SEARCH_URL,
   GOOGLE_QUERY_LIMIT,
   MAX_VIEWPORT_DEGREES,
   OVERPASS_URL,
@@ -84,6 +85,19 @@ function inferCategory(tags = {}) {
   )
     return 'hospitals';
   if (
+    amenity === 'pharmacy' ||
+    healthcare === 'pharmacy' ||
+    /\bpharmacy\b/.test(name)
+  )
+    return 'pharmacies';
+  if (
+    ((amenity === 'clinic' || healthcare === 'clinic') &&
+      /\burgent care\b|\bwalk[ -]?in\b|\bimmediate care\b/i.test(name)) ||
+    /\burgent_care\b/i.test(String(tags['healthcare:speciality'] || '')) ||
+    /\bemergency_medicine\b/i.test(String(tags['healthcare:speciality'] || ''))
+  )
+    return 'urgentCare';
+  if (
     amenity === 'fire_station' ||
     emergency === 'fire_station' ||
     amenity === 'ambulance_station' ||
@@ -110,6 +124,7 @@ function typeLabelForCategory(category, tags = {}) {
       return 'Emergency department';
     return 'Hospital';
   }
+  if (category === 'urgentCare') return 'Urgent care clinic';
   if (category === 'fireEms') {
     if (
       String(tags.emergency || '').toLowerCase() === 'ambulance_station' ||
@@ -122,6 +137,7 @@ function typeLabelForCategory(category, tags = {}) {
     return /\bsheriff\b/i.test(String(tags.name || ''))
       ? 'Sheriff office'
       : 'Police facility';
+  if (category === 'pharmacies') return 'Pharmacy';
   return 'Security point';
 }
 
@@ -285,10 +301,12 @@ function googleTypeLabelForCategory(category, place = {}) {
   if (category === 'airports') return type === 'heliport' ? 'Heliport' : 'Airport';
   if (category === 'hospitals')
     return type === 'emergency_room' ? 'Emergency department' : 'Hospital';
+  if (category === 'urgentCare') return 'Urgent care clinic';
   if (category === 'fireEms')
     return type === 'ambulance_service' ? 'EMS station' : 'Fire station';
   if (category === 'police')
     return /\bsheriff\b/i.test(name) ? 'Sheriff office' : 'Police facility';
+  if (category === 'pharmacies') return 'Pharmacy';
   return 'Security point';
 }
 
@@ -431,18 +449,113 @@ export function createSecurityPointSource({
     return { places, saturated: places.length >= GOOGLE_QUERY_LIMIT };
   }
 
+  async function fetchGoogleTextViewport(box, category, queryText, signal) {
+    const centerLat = (box.south + box.north) / 2;
+    const centerLon = (box.west + box.east) / 2;
+    const query = new URLSearchParams({
+      q: queryText,
+      lat: centerLat.toFixed(6),
+      lon: centerLon.toFixed(6),
+      radiusM: String(placeQueryRadiusM(box, category)),
+      maxResultCount: String(GOOGLE_QUERY_LIMIT),
+    });
+    const request = requestSignal(signal, VIEWPORT_REQUEST_TIMEOUT_MS);
+    request.throwIfAborted();
+    const startedAt = Date.now();
+    logSecurityPointDiagnostic('google text search request started', {
+      endpoint: GOOGLE_TEXT_SEARCH_URL,
+      method: 'GET',
+      category,
+      bbox: bboxForLog(box),
+      queryText,
+    });
+    let response;
+    try {
+      response = await fetchImpl(`${GOOGLE_TEXT_SEARCH_URL}?${query}`, {
+        signal: request,
+      });
+    } catch (error) {
+      const timeoutTriggered = request.aborted || isTimeoutError(error);
+      logSecurityPointDiagnostic('google text search request failed', {
+        endpoint: GOOGLE_TEXT_SEARCH_URL,
+        method: 'GET',
+        category,
+        status: null,
+        responseTimeMs: Date.now() - startedAt,
+        timeoutTriggered,
+        queryText,
+        providerError: sanitizedErrorMessage(error),
+      });
+      throw requestFailureError(
+        timeoutTriggered
+          ? 'Security Points query timed out'
+          : 'Security Points are temporarily unavailable',
+        { providerError: sanitizeProviderError(error) },
+      );
+    }
+    const payload = await readResponseJsonSafe(response);
+    request.throwIfAborted();
+    const providerError = sanitizeProviderError(payload?.providerError || payload);
+    if (!response.ok) {
+      logSecurityPointDiagnostic('google text search request failed', {
+        endpoint: GOOGLE_TEXT_SEARCH_URL,
+        method: 'GET',
+        category,
+        status: response.status,
+        responseTimeMs: Date.now() - startedAt,
+        timeoutTriggered: response.status === 504,
+        queryText,
+        providerError,
+      });
+      throw requestFailureError(
+        response.status === 429
+          ? 'Security Points are temporarily rate-limited'
+          : response.status === 403
+            ? 'Security Points provider refused the request'
+            : response.status === 504
+              ? 'Security Points query timed out'
+              : 'Security Points are temporarily unavailable',
+        { status: response.status, providerError },
+      );
+    }
+    const places = Array.isArray(payload?.places) ? payload.places : [];
+    logSecurityPointDiagnostic('google text search request completed', {
+      endpoint: GOOGLE_TEXT_SEARCH_URL,
+      method: 'GET',
+      category,
+      status: response.status,
+      responseTimeMs: Date.now() - startedAt,
+      queryText,
+      resultCount: places.length,
+      timeoutTriggered: false,
+      providerError: null,
+    });
+    return { places, saturated: places.length >= GOOGLE_QUERY_LIMIT };
+  }
+
   async function fetchGoogleCategoryViewport(box, category, signal) {
     const requestedTypes = CATEGORY_CONFIG[category]?.googleTypes || [];
-    const searchTypes = requestedTypes.length ? requestedTypes : [null];
+    const textQuery = String(CATEGORY_CONFIG[category]?.googleTextQuery || '').trim();
+    const googleRequests = textQuery
+      ? [
+          {
+            key: textQuery,
+            execute: () => fetchGoogleTextViewport(box, category, textQuery, signal),
+          },
+        ]
+      : (requestedTypes.length ? requestedTypes : [null]).map((type) => ({
+          key: type,
+          execute: () => fetchGoogleTypeViewport(box, category, type, signal),
+        }));
     const settled = await Promise.allSettled(
-      searchTypes.map((type) => fetchGoogleTypeViewport(box, category, type, signal)),
+      googleRequests.map((request) => request.execute()),
     );
     const dedupedPlaces = new Map();
     let saturated = false;
     let unsupportedTypes = [];
     const hardFailures = [];
     settled.forEach((entry, index) => {
-      const requestedType = searchTypes[index];
+      const requestedType = googleRequests[index]?.key;
       if (entry.status === 'fulfilled') {
         saturated ||= entry.value.saturated === true;
         for (const place of entry.value.places) {
@@ -455,7 +568,7 @@ export function createSecurityPointSource({
         }
         return;
       }
-      if (isUnsupportedGoogleTypeError(entry.reason)) {
+      if (!textQuery && isUnsupportedGoogleTypeError(entry.reason)) {
         if (requestedType) unsupportedTypes.push(requestedType);
         return;
       }

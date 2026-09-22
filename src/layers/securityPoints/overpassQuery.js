@@ -50,6 +50,35 @@ export function buildSecurityPointsOverpassQuery(
     clauses.push(`way["emergency"="emergency_department"]${bbox};`);
     clauses.push(`relation["emergency"="emergency_department"]${bbox};`);
   }
+  if (enabledCategories.includes('urgentCare')) {
+    clauses.push(
+      `node["amenity"="clinic"]["name"~"urgent care|walk[ -]?in|immediate care",i]${bbox};`,
+    );
+    clauses.push(
+      `way["amenity"="clinic"]["name"~"urgent care|walk[ -]?in|immediate care",i]${bbox};`,
+    );
+    clauses.push(
+      `relation["amenity"="clinic"]["name"~"urgent care|walk[ -]?in|immediate care",i]${bbox};`,
+    );
+    clauses.push(
+      `node["healthcare"="clinic"]["name"~"urgent care|walk[ -]?in|immediate care",i]${bbox};`,
+    );
+    clauses.push(
+      `way["healthcare"="clinic"]["name"~"urgent care|walk[ -]?in|immediate care",i]${bbox};`,
+    );
+    clauses.push(
+      `relation["healthcare"="clinic"]["name"~"urgent care|walk[ -]?in|immediate care",i]${bbox};`,
+    );
+    clauses.push(
+      `node["healthcare:speciality"~"urgent_care|emergency_medicine",i]${bbox};`,
+    );
+    clauses.push(
+      `way["healthcare:speciality"~"urgent_care|emergency_medicine",i]${bbox};`,
+    );
+    clauses.push(
+      `relation["healthcare:speciality"~"urgent_care|emergency_medicine",i]${bbox};`,
+    );
+  }
   if (enabledCategories.includes('airports')) {
     clauses.push(`node["aeroway"="airport"]${bbox};`);
     clauses.push(`way["aeroway"="airport"]${bbox};`);
@@ -61,6 +90,10 @@ export function buildSecurityPointsOverpassQuery(
     clauses.push(`way["aeroway"="heliport"]${bbox};`);
     clauses.push(`relation["aeroway"="heliport"]${bbox};`);
   }
+  if (enabledCategories.includes('pharmacies')) {
+    clauses.push(`node["amenity"="pharmacy"]${bbox};`);
+    clauses.push(`way["amenity"="pharmacy"]${bbox};`);
+    clauses.push(`relation["amenity"="pharmacy"]${bbox};`);
+  }
   return `[out:json][timeout:${Number(timeoutSec)}];(\n${clauses.join('\n')}\n);out tags center ${Number(queryLimit)};`;
 }
-
