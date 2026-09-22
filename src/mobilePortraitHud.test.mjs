@@ -134,3 +134,33 @@ test('narrow portrait phones keep the floating mic and first-run launcher out of
     /#first-run-description \{[\s\S]*?font-size: 0\.68rem;[\s\S]*?line-height: 1\.4;/,
   );
 });
+
+test('mobile bottom-nav panels reserve attribution-safe space and scroll within the panel', () => {
+  const mobile = mediaBlock(MOBILE_QUERY);
+  const portrait430 = mediaBlock(PORTRAIT_430_QUERY);
+
+  assert.match(
+    mobile,
+    /--mobile-panel-safe-bottom: calc\(var\(--mobile-attribution-zone-top\) \+ 8px\);/,
+  );
+  assert.match(
+    mobile,
+    /--mobile-panel-safe-max-height: calc\([\s\S]*?var\(--mobile-panel-safe-bottom\)[\s\S]*?var\(--mobile-panel-viewport-gap\)[\s\S]*?\);/,
+  );
+  assert.match(
+    mobile,
+    /#data-panel,[\s\S]*?#scene-panel,[\s\S]*?#cctv-panel,[\s\S]*?#global-context-panel \{[\s\S]*?bottom: var\(--mobile-panel-safe-bottom\);[\s\S]*?max-height: var\(--mobile-panel-safe-max-height\);/,
+  );
+  assert.match(
+    mobile,
+    /body\[data-mobile-panel='controls'\] #command-dock \{[\s\S]*?bottom: var\(--mobile-panel-safe-bottom\);[\s\S]*?max-height: var\(--mobile-panel-safe-max-height\);[\s\S]*?overflow-y: auto;/,
+  );
+  assert.match(
+    mobile,
+    /:is\(#data-panel, #scene-panel, #cctv-panel, #global-context-panel\)[\s\S]*?\.panel-header \{[\s\S]*?position: sticky;[\s\S]*?top: 0;/,
+  );
+  assert.match(
+    portrait430,
+    /--mobile-panel-safe-max-height: min\([\s\S]*?var\(--mobile-panel-safe-bottom\)[\s\S]*?75dvh[\s\S]*?\);/,
+  );
+});
