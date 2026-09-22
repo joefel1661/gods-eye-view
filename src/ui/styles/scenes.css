@@ -233,7 +233,8 @@
   justify-content: flex-end;
   align-items: stretch;
   flex: 1 1 16rem;
-  min-width: min(100%, 16rem);
+  width: 100%;
+  max-width: 16rem;
   margin-left: auto;
 }
 

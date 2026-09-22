@@ -119,7 +119,7 @@ test('markup manager actions keep whole labels and reflow into mobile rows', () 
   );
   assert.match(
     scenesCss,
-    /\.markup-row-actions \{[\s\S]*?flex-wrap: wrap;[\s\S]*?flex: 1 1 16rem;[\s\S]*?margin-left: auto;/,
+    /\.markup-row-actions \{[\s\S]*?flex-wrap: wrap;[\s\S]*?flex: 1 1 16rem;[\s\S]*?width: 100%;[\s\S]*?max-width: 16rem;[\s\S]*?margin-left: auto;/,
   );
   assert.match(
     scenesCss,
