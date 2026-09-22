@@ -46,7 +46,7 @@ test('markup template ships the mobile map-first overlay and sheets', () => {
   assert.match(template, /data-route-mode="points"/);
   assert.match(
     template,
-    /id="markup-manager-close-btn"[\s\S]*?class="scene-btn markup-sheet-header-action markup-sheet-close-btn"[\s\S]*?aria-label="Close markups"[\s\S]*?>\s*×\s*</,
+    /id="markup-manager-close-btn"[\s\S]*?class="scene-btn markup-sheet-header-action markup-sheet-close-btn"[\s\S]*?aria-label="Close markups"[\s\S]*?<span aria-hidden="true">\s*×\s*<\/span>/,
   );
 });
 
