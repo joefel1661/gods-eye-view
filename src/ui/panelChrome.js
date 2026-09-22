@@ -31,7 +31,6 @@ const MOBILE_NAV_QUERY = MOBILE_LAYOUT_MEDIA_QUERY;
 const MOBILE_STANDARD_PANEL_BY_KEY = Object.freeze({
   layers: 'data-panel',
   markup: 'scene-panel',
-  cctv: 'cctv-panel',
   context: 'global-context-panel',
 });
 const MOBILE_STANDARD_KEYS = Object.freeze(
@@ -73,7 +72,6 @@ export class PanelChrome {
     this._mobileStandardPanelByKey = {
       layers: 'data-panel',
       markup: 'scene-panel',
-      cctv: 'cctv-panel',
       context: 'global-context-panel',
     };
     this._mobileDockCollapsedState = null;
@@ -310,7 +308,6 @@ export class PanelChrome {
     const mobilePanelByKey = this._mobileStandardPanelByKey || {
       layers: 'data-panel',
       markup: 'scene-panel',
-      cctv: 'cctv-panel',
       context: 'global-context-panel',
     };
     const mobilePanelIds = Object.values(mobilePanelByKey);
@@ -431,7 +428,6 @@ export class PanelChrome {
     const mobilePanelByKey = this._mobileStandardPanelByKey || {
       layers: 'data-panel',
       markup: 'scene-panel',
-      cctv: 'cctv-panel',
       context: 'global-context-panel',
     };
     const mobilePanelIds = Object.values(mobilePanelByKey);
@@ -717,7 +713,6 @@ export class PanelChrome {
     const mobilePanelByKey = this._mobileStandardPanelByKey || {
       layers: 'data-panel',
       markup: 'scene-panel',
-      cctv: 'cctv-panel',
       context: 'global-context-panel',
     };
     const mobilePanelIds = Object.values(mobilePanelByKey);
@@ -764,7 +759,6 @@ export class PanelChrome {
     const mobilePanelByKey = this._mobileStandardPanelByKey || {
       layers: 'data-panel',
       markup: 'scene-panel',
-      cctv: 'cctv-panel',
       context: 'global-context-panel',
     };
     const mobileKeys = Object.keys(mobilePanelByKey);
