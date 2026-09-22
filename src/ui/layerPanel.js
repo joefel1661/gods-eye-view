@@ -385,7 +385,9 @@ export class LayerPanel {
       toggle.setAttribute('aria-disabled', 'true');
       toggle.setAttribute('aria-busy', 'true');
       try {
-        const nextEnabled = !layer.enabled;
+        const nextEnabled = !(
+          this.getAll().find(({ id }) => id === layer.id)?.enabled ?? layer.enabled
+        );
         if (typeof layer.panelToggle === 'function')
           await layer.panelToggle(nextEnabled, { origin: 'user' });
         else
