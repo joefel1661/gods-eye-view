@@ -4,22 +4,22 @@
       <stop offset="0" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
-    <linearGradient id="favicon-upper" x1="18.4" y1="15.2" x2="41.6" y2="37.2" gradientUnits="userSpaceOnUse">
+    <linearGradient id="favicon-upper" x1="20" y1="13.6" x2="45.2" y2="35.6" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#F8FAFC"/>
-      <stop offset="0.55" stop-color="#DCE6F1"/>
-      <stop offset="1" stop-color="#93A4B8"/>
+      <stop offset="0.58" stop-color="#D1DBE6"/>
+      <stop offset="1" stop-color="#8A98AB"/>
     </linearGradient>
-    <linearGradient id="favicon-lower" x1="20.8" y1="49.2" x2="45.6" y2="26.8" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#2563EB"/>
+    <linearGradient id="favicon-lower" x1="20.8" y1="49.6" x2="46.4" y2="29.6" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3B82F6"/>
       <stop offset="0.55" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
   </defs>
-  <circle cx="32" cy="32" r="20" fill="none" stroke="url(#favicon-ring)" stroke-width="1.8"/>
-  <path d="M32 6.8l1.84 2.64L32 12l-1.84-2.56L32 6.8Z" fill="#67E8F9" opacity="0.95"/>
-  <path d="M57.2 32l-2.64 1.84L52 32l2.56-1.84L57.2 32Z" fill="#67E8F9" opacity="0.9"/>
-  <path d="M32 57.2l-1.84-2.64L32 52l1.84 2.56L32 57.2Z" fill="#67E8F9" opacity="0.8"/>
-  <path d="M6.8 32l2.64-1.84L12 32l-2.56 1.84L6.8 32Z" fill="#67E8F9" opacity="0.85"/>
-  <path d="M44.8 13.6H25.2L18 20.8H35l4.12 4.16H26.48l-6.68 6.68 6.92 6.92H44.6l6.2-6.2H33.68l-4.32-4.32h12.24l6.6-6.6v-1.36L44.8 13.6Z" fill="url(#favicon-upper)"/>
-  <path d="M19.2 50.4H38.8l7.2-7.2H29l-4.12-4.16h12.64l6.68-6.68-6.92-6.92H19.4l-6.2 6.2h17.12l4.32 4.32H22.4l-6.6 6.6v1.36l3.4 6.48Z" fill="url(#favicon-lower)"/>
+  <circle cx="32" cy="32" r="20" fill="none" stroke="url(#favicon-ring)" stroke-width="1.45" opacity="0.72"/>
+  <path d="M32 7.68l1.64 2.36L32 12.32l-1.64-2.28L32 7.68Z" fill="#67E8F9" opacity="0.82"/>
+  <path d="M56.32 32l-2.36 1.64L51.68 32l2.28-1.64L56.32 32Z" fill="#67E8F9" opacity="0.78"/>
+  <path d="M32 56.32l-1.64-2.36L32 51.68l1.64 2.28L32 56.32Z" fill="#67E8F9" opacity="0.74"/>
+  <path d="M7.68 32l2.36-1.64L12.32 32l-2.28 1.64L7.68 32Z" fill="#67E8F9" opacity="0.78"/>
+  <path d="M45.2 13.6H25.6l-4.8 4.8h16l4.48 4.48H28l-4.48 4.48 3.84 3.84h14.4l4.8-4.8H34l-3.2-3.2H44l4.48-4.48v-.96l-3.28-6.16Z" fill="url(#favicon-upper)"/>
+  <path d="M20.4 50.4h18.8l4.8-4.8H28l-4.48-4.48h13.2l4.48-4.48-3.84-3.84h-14.4l-4.8 4.8H30.4l3.2 3.2H20.4l-4.48 4.48v.96l4.48 5.12Z" fill="url(#favicon-lower)"/>
 </svg>

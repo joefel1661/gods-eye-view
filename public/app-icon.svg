@@ -8,23 +8,23 @@
       <stop offset="0" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
-    <linearGradient id="icon-upper" x1="164.8" y1="137.6" x2="321.6" y2="286.4" gradientUnits="userSpaceOnUse">
+    <linearGradient id="icon-upper" x1="160" y1="108.8" x2="361.6" y2="284.8" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#F8FAFC"/>
-      <stop offset="0.55" stop-color="#DCE6F1"/>
-      <stop offset="1" stop-color="#93A4B8"/>
+      <stop offset="0.58" stop-color="#D1DBE6"/>
+      <stop offset="1" stop-color="#8A98AB"/>
     </linearGradient>
-    <linearGradient id="icon-lower" x1="179.2" y1="367.2" x2="346.4" y2="216" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#2563EB"/>
+    <linearGradient id="icon-lower" x1="163.2" y1="393.6" x2="368" y2="233.6" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3B82F6"/>
       <stop offset="0.55" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#icon-bg)"/>
-  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#icon-ring)" stroke-width="10.4"/>
-  <path d="M256 54.4l14.72 21.12L256 96l-14.72-20.48L256 54.4Z" fill="#67E8F9" opacity="0.95"/>
-  <path d="M457.6 256l-21.12 14.72L416 256l20.48-14.72L457.6 256Z" fill="#67E8F9" opacity="0.9"/>
-  <path d="M256 457.6l-14.72-21.12L256 416l14.72 20.48L256 457.6Z" fill="#67E8F9" opacity="0.8"/>
-  <path d="M54.4 256l21.12-14.72L96 256l-20.48 14.72L54.4 256Z" fill="#67E8F9" opacity="0.85"/>
-  <path d="M358.4 108.8H201.6L144 166.4H280l32.96 33.28H211.84l-53.44 53.44 55.36 55.36H356.8l49.6-49.6H269.44l-34.56-34.56H332.8l52.8-52.8v-10.88l-27.2-51.84Z" fill="url(#icon-upper)"/>
-  <path d="M153.6 403.2H310.4l57.6-57.6H232l-32.96-33.28H300.16l53.44-53.44-55.36-55.36H155.2l-49.6 49.6h136.96l34.56 34.56H179.2l-52.8 52.8v10.88l27.2 51.84Z" fill="url(#icon-lower)"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#icon-ring)" stroke-width="8.64" opacity="0.72"/>
+  <path d="M256 61.44l13.12 18.88L256 98.56l-13.12-18.24L256 61.44Z" fill="#67E8F9" opacity="0.82"/>
+  <path d="M450.56 256l-18.88 13.12L413.44 256l18.24-13.12L450.56 256Z" fill="#67E8F9" opacity="0.78"/>
+  <path d="M256 450.56l-13.12-18.88L256 413.44l13.12 18.24L256 450.56Z" fill="#67E8F9" opacity="0.74"/>
+  <path d="M61.44 256l18.88-13.12L98.56 256l-18.24 13.12L61.44 256Z" fill="#67E8F9" opacity="0.78"/>
+  <path d="M361.6 108.8H204.8l-48 48h128l44.8 44.8H197.12l-44.8 44.8 38.4 38.4h144l48-48H256l-32-32h131.2l44.8-44.8V230.4L361.6 108.8Z" fill="url(#icon-upper)"/>
+  <path d="M163.2 403.2h150.4l48-48H233.6l-44.8-44.8h132.48l44.8-44.8-38.4-38.4h-144l-48 48h126.72l32 32H163.2l-44.8 44.8v9.6l44.8 41.6Z" fill="url(#icon-lower)"/>
 </svg>

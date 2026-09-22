@@ -5,30 +5,30 @@
       <stop offset="0" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
-    <linearGradient id="upper-ribbon-gradient" x1="46" y1="38" x2="104" y2="93" gradientUnits="userSpaceOnUse">
+    <linearGradient id="upper-ribbon-gradient" x1="50" y1="34" x2="113" y2="89" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#F8FAFC"/>
-      <stop offset="0.55" stop-color="#DCE6F1"/>
-      <stop offset="1" stop-color="#93A4B8"/>
+      <stop offset="0.58" stop-color="#D1DBE6"/>
+      <stop offset="1" stop-color="#8A98AB"/>
     </linearGradient>
-    <linearGradient id="lower-ribbon-gradient" x1="52" y1="123" x2="114" y2="67" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#2563EB"/>
+    <linearGradient id="lower-ribbon-gradient" x1="52" y1="124" x2="116" y2="74" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3B82F6"/>
       <stop offset="0.55" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
   </defs>
-  <circle cx="80" cy="80" r="50" fill="none" stroke="url(#ring-gradient)" stroke-width="3.25"/>
-  <path d="M80 17l4.6 6.6L80 30l-4.6-6.4L80 17Z" fill="#67E8F9" opacity="0.95"/>
-  <path d="M143 80l-6.6 4.6L130 80l6.4-4.6L143 80Z" fill="#67E8F9" opacity="0.9"/>
-  <path d="M80 143l-4.6-6.6L80 130l4.6 6.4L80 143Z" fill="#67E8F9" opacity="0.8"/>
-  <path d="M17 80l6.6-4.6L30 80l-6.4 4.6L17 80Z" fill="#67E8F9" opacity="0.85"/>
+  <circle cx="80" cy="80" r="50" fill="none" stroke="url(#ring-gradient)" stroke-width="2.7" opacity="0.72"/>
+  <path d="M80 19.2l4.1 5.9L80 30.8l-4.1-5.7L80 19.2Z" fill="#67E8F9" opacity="0.82"/>
+  <path d="M140.8 80l-5.9 4.1-5.7-4.1 5.7-4.1 5.9 4.1Z" fill="#67E8F9" opacity="0.78"/>
+  <path d="M80 140.8l-4.1-5.9 4.1-5.7 4.1 5.7-4.1 5.9Z" fill="#67E8F9" opacity="0.74"/>
+  <path d="M19.2 80l5.9-4.1 5.7 4.1-5.7 4.1-5.9-4.1Z" fill="#67E8F9" opacity="0.78"/>
   <path
     id="upper-ribbon"
-    d="M112 34H63L45 52H87.5L97.8 62.4H66.2L49.5 79.1 66.8 96.4H111.5L127 80.9H84.2L73.4 70.1H104L120.5 53.6V50.2L112 34Z"
+    d="M113 34H64L49 49H89L103 63H70L56 77L68 89H105L120 74H82L72 64H103L117 50V47L113 34Z"
     fill="url(#upper-ribbon-gradient)"
   />
   <path
     id="lower-ribbon"
-    d="M48 126H97L115 108H72.5L62.2 97.6H93.8L110.5 80.9 93.2 63.6H48.5L33 79.1H76.3L87.1 89.9H56.5L40 106.4V109.8L48 126Z"
+    d="M51 126H98L113 111H74L60 97H91L105 83 93 71H56L41 86H79L89 96H58L44 110V113L51 126Z"
     fill="url(#lower-ribbon-gradient)"
   />
 </svg>
