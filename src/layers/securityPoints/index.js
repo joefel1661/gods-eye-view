@@ -124,22 +124,22 @@ export function countLabelForState(state) {
     default:
       return `${state.records.length} nearby`;
   }
+}
 
-  function countLabelForCategoryState(categoryId, state) {
-    if (state.enabled !== true) return '';
-    if (state.loading) return 'Loading';
-    if (state.status === 'zoom-in') return 'Zoom in to view';
-    if (
-      state.status === 'unavailable' ||
-      (Array.isArray(state.failedCategories) &&
-        state.failedCategories.includes(categoryId) &&
-        state.records.length === 0)
-    )
-      return 'Provider unavailable';
-    if (!Array.isArray(state.records) || state.records.length === 0)
-      return 'No facilities found';
-    return `${state.records.length} nearby`;
-  }
+function countLabelForCategoryState(categoryId, state) {
+  if (state.enabled !== true) return '';
+  if (state.loading) return 'Loading';
+  if (state.status === 'zoom-in') return 'Zoom in to view';
+  if (
+    state.status === 'unavailable' ||
+    (Array.isArray(state.failedCategories) &&
+      state.failedCategories.includes(categoryId) &&
+      state.records.length === 0)
+  )
+    return 'Provider unavailable';
+  if (!Array.isArray(state.records) || state.records.length === 0)
+    return 'No facilities found';
+  return `${state.records.length} nearby`;
 }
 
 function dispatchSelectionDetail(detail) {
