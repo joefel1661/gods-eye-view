@@ -15,6 +15,12 @@
       <stop offset="0.55" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
+    <clipPath id="upper-half">
+      <rect x="0" y="0" width="160" height="84"/>
+    </clipPath>
+    <clipPath id="lower-half">
+      <rect x="0" y="76" width="160" height="84"/>
+    </clipPath>
   </defs>
   <circle cx="80" cy="80" r="50" fill="none" stroke="url(#ring-gradient)" stroke-width="2.7" opacity="0.72"/>
   <path d="M80 19.2l4.1 5.9L80 30.8l-4.1-5.7L80 19.2Z" fill="#67E8F9" opacity="0.82"/>
@@ -23,12 +29,22 @@
   <path d="M19.2 80l5.9-4.1 5.7 4.1-5.7 4.1-5.9-4.1Z" fill="#67E8F9" opacity="0.78"/>
   <path
     id="upper-ribbon"
-    d="M113 34H64L49 49H89L103 63H70L56 77L68 89H105L120 74H82L72 64H103L117 50V47L113 34Z"
-    fill="url(#upper-ribbon-gradient)"
+    d="M108 44C99 36 84 32 70 34C55 36 45 46 46 58C48 70 62 76 79 80C96 84 111 90 114 102C116 116 106 126 91 128C76 130 60 125 50 114"
+    fill="none"
+    stroke="url(#upper-ribbon-gradient)"
+    stroke-width="20"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    clip-path="url(#upper-half)"
   />
   <path
     id="lower-ribbon"
-    d="M51 126H98L113 111H74L60 97H91L105 83 93 71H56L41 86H79L89 96H58L44 110V113L51 126Z"
-    fill="url(#lower-ribbon-gradient)"
+    d="M108 44C99 36 84 32 70 34C55 36 45 46 46 58C48 70 62 76 79 80C96 84 111 90 114 102C116 116 106 126 91 128C76 130 60 125 50 114"
+    fill="none"
+    stroke="url(#lower-ribbon-gradient)"
+    stroke-width="20"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    clip-path="url(#lower-half)"
   />
 </svg>

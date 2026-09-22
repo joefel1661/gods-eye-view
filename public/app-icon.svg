@@ -18,6 +18,12 @@
       <stop offset="0.55" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
+    <clipPath id="icon-upper-half">
+      <rect x="0" y="0" width="512" height="268.8"/>
+    </clipPath>
+    <clipPath id="icon-lower-half">
+      <rect x="0" y="243.2" width="512" height="268.8"/>
+    </clipPath>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#icon-bg)"/>
   <circle cx="256" cy="256" r="160" fill="none" stroke="url(#icon-ring)" stroke-width="8.64" opacity="0.72"/>
@@ -25,6 +31,6 @@
   <path d="M450.56 256l-18.88 13.12L413.44 256l18.24-13.12L450.56 256Z" fill="#67E8F9" opacity="0.78"/>
   <path d="M256 450.56l-13.12-18.88L256 413.44l13.12 18.24L256 450.56Z" fill="#67E8F9" opacity="0.74"/>
   <path d="M61.44 256l18.88-13.12L98.56 256l-18.24 13.12L61.44 256Z" fill="#67E8F9" opacity="0.78"/>
-  <path d="M361.6 108.8H204.8l-48 48h128l44.8 44.8H197.12l-44.8 44.8 38.4 38.4h144l48-48H256l-32-32h131.2l44.8-44.8V230.4L361.6 108.8Z" fill="url(#icon-upper)"/>
-  <path d="M163.2 403.2h150.4l48-48H233.6l-44.8-44.8h132.48l44.8-44.8-38.4-38.4h-144l-48 48h126.72l32 32H163.2l-44.8 44.8v9.6l44.8 41.6Z" fill="url(#icon-lower)"/>
+  <path d="M345.6 140.8C316.8 115.2 268.8 102.4 224 108.8C176 115.2 144 147.2 147.2 185.6C153.6 224 198.4 243.2 252.8 256C307.2 268.8 355.2 288 364.8 326.4C371.2 371.2 339.2 403.2 291.2 409.6C243.2 416 192 400 160 364.8" fill="none" stroke="url(#icon-upper)" stroke-width="64" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#icon-upper-half)"/>
+  <path d="M345.6 140.8C316.8 115.2 268.8 102.4 224 108.8C176 115.2 144 147.2 147.2 185.6C153.6 224 198.4 243.2 252.8 256C307.2 268.8 355.2 288 364.8 326.4C371.2 371.2 339.2 403.2 291.2 409.6C243.2 416 192 400 160 364.8" fill="none" stroke="url(#icon-lower)" stroke-width="64" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#icon-lower-half)"/>
 </svg>
