@@ -342,14 +342,20 @@
       <section id="markup-manager-sheet" class="markup-bottom-sheet" hidden>
         <div class="markup-sheet-handle" aria-hidden="true"></div>
         <div class="markup-sheet-header">
-          <div>
+          <div class="markup-sheet-header-copy">
             <div class="markup-sheet-title">MARKUPS</div>
             <div class="markup-sheet-subtitle">
               Switch, create, rename, export, or manage visibility.
             </div>
           </div>
-          <button id="markup-manager-close-btn" class="scene-btn" type="button">
-            CLOSE
+          <button
+            id="markup-manager-close-btn"
+            class="scene-btn markup-sheet-header-action markup-sheet-close-btn"
+            type="button"
+            aria-label="Close markups"
+            title="Close markups"
+          >
+            ×
           </button>
         </div>
         <div class="markup-sheet-actions">
