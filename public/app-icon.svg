@@ -18,6 +18,12 @@
       <stop offset="0.55" stop-color="#38BDF8"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
+    <clipPath id="icon-upper-clip">
+      <rect x="121.6" y="108.8" width="268.8" height="153.6" rx="6.4"/>
+    </clipPath>
+    <clipPath id="icon-lower-clip">
+      <rect x="121.6" y="249.6" width="268.8" height="153.6" rx="6.4"/>
+    </clipPath>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#icon-bg)"/>
   <circle cx="256" cy="256" r="160" fill="none" stroke="url(#icon-ring)" stroke-width="8.64" opacity="0.72"/>
@@ -25,6 +31,6 @@
   <path d="M450.56 256l-18.88 13.12L413.44 256l18.24-13.12L450.56 256Z" fill="#67E8F9" opacity="0.78"/>
   <path d="M256 450.56l-13.12-18.88L256 413.44l13.12 18.24L256 450.56Z" fill="#67E8F9" opacity="0.74"/>
   <path d="M61.44 256l18.88-13.12L98.56 256l-18.24 13.12L61.44 256Z" fill="#67E8F9" opacity="0.78"/>
-  <path d="M361.6 108.8H204.8l-48 48h128l44.8 44.8H197.12l-44.8 44.8 38.4 38.4h144l48-48H256l-32-32h131.2l44.8-44.8V230.4L361.6 108.8Z" fill="url(#icon-upper)"/>
-  <path d="M163.2 403.2h150.4l48-48H233.6l-44.8-44.8h132.48l44.8-44.8-38.4-38.4h-144l-48 48h126.72l32 32H163.2l-44.8 44.8v9.6l44.8 41.6Z" fill="url(#icon-lower)"/>
+  <path d="M342.4 144H217.6L185.6 176H294.4L329.6 211.2H233.6L188.8 256H284.8L329.6 300.8H224L195.2 332.8H342.4" fill="none" stroke="url(#icon-upper)" stroke-width="48" stroke-linecap="butt" stroke-linejoin="bevel" clip-path="url(#icon-upper-clip)"/>
+  <path d="M342.4 144H217.6L185.6 176H294.4L329.6 211.2H233.6L188.8 256H284.8L329.6 300.8H224L195.2 332.8H342.4" fill="none" stroke="url(#icon-lower)" stroke-width="48" stroke-linecap="butt" stroke-linejoin="bevel" clip-path="url(#icon-lower-clip)"/>
 </svg>
