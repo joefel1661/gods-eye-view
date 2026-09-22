@@ -52,6 +52,16 @@ const MARKER_TAP_MOVE_TOLERANCE_PX = 12;
 const MARKER_TAP_MAX_DURATION_MS = 650;
 const MARKER_DUPLICATE_WINDOW_MS = 350;
 const MARKER_DUPLICATE_DISTANCE_PX = 2;
+const MARKUP_CAMERA_PADDING_PX = 24;
+const MARKUP_CAMERA_DURATION_SEC = 1.35;
+const MARKUP_CAMERA_PITCH_DEG = -35;
+const MARKUP_SINGLE_MARKER_RADIUS_M = 80;
+const MARKUP_SINGLE_MARKER_RANGE_M = 1200;
+const MARKUP_MIN_CAMERA_RANGE_M = 450;
+const MARKUP_MAX_CAMERA_RANGE_M = 160000;
+const MARKUP_CIRCLE_SAMPLE_BEARINGS_DEG = Object.freeze([
+  0, 45, 90, 135, 180, 225, 270, 315,
+]);
 
 function drawingLabelForKind(kind) {
   if (kind === 'line') return DRAWING_LABELS.route;
@@ -142,8 +152,7 @@ function normalizeGeometry(type, geometry) {
   }
   if (type === 'circle') {
     const center = normalizeCoordinate(geometry.center);
-    const radiusCandidate =
-      geometry.radiusMeters ?? geometry.radius;
+    const radiusCandidate = geometry.radiusMeters ?? geometry.radius;
     const radiusMeters = Number(radiusCandidate);
     if (!center || !Number.isFinite(radiusMeters) || radiusMeters <= 0)
       return null;
@@ -293,6 +302,270 @@ function cartesianFromCoordinate(coordinate) {
 
 function toCesiumPositions(points = []) {
   return points.map(cartesianFromCoordinate).filter(Boolean);
+}
+
+function visibleMarkupObjects(markup) {
+  if (!Array.isArray(markup?.objects)) return [];
+  return markup.objects.filter(
+    (object) => object?.visible !== false && validateMarkupObject(object),
+  );
+}
+
+function circleSamplePositions(center, radiusMeters) {
+  const normalizedCenter = normalizeCoordinate(center);
+  if (
+    !normalizedCenter ||
+    !Number.isFinite(radiusMeters) ||
+    radiusMeters <= 0
+  ) {
+    return [];
+  }
+  const centerPosition = cartesianFromCoordinate(normalizedCenter);
+  if (!centerPosition) return [];
+  const transform = Cesium.Transforms.eastNorthUpToFixedFrame(centerPosition);
+  const samples = [centerPosition];
+  for (const bearingDeg of MARKUP_CIRCLE_SAMPLE_BEARINGS_DEG) {
+    const bearing = Cesium.Math.toRadians(bearingDeg);
+    const localOffset = new Cesium.Cartesian3(
+      Math.sin(bearing) * radiusMeters,
+      Math.cos(bearing) * radiusMeters,
+      0,
+    );
+    samples.push(
+      Cesium.Matrix4.multiplyByPoint(
+        transform,
+        localOffset,
+        new Cesium.Cartesian3(),
+      ),
+    );
+  }
+  return samples;
+}
+
+export function collectMarkupCameraPositions(markup) {
+  const positions = [];
+  for (const object of visibleMarkupObjects(markup)) {
+    if (object.type === 'marker') {
+      const position = cartesianFromCoordinate(object.geometry?.position);
+      if (position) positions.push(position);
+      continue;
+    }
+    if (object.type === 'line' || object.type === 'polygon') {
+      positions.push(...toCesiumPositions(object.geometry?.points || []));
+      continue;
+    }
+    if (object.type === 'circle') {
+      positions.push(
+        ...circleSamplePositions(
+          object.geometry?.center,
+          object.geometry?.radiusMeters,
+        ),
+      );
+    }
+  }
+  return positions;
+}
+
+export function rangeForMarkupBoundingSphere(
+  radius,
+  {
+    verticalFovRad = Cesium.Math.toRadians(60),
+    aspectRatio = 1,
+    visibleWidthFraction = 1,
+    visibleHeightFraction = 1,
+  } = {},
+) {
+  const safeRadius = Math.max(0, Number(radius) || 0);
+  if (!(safeRadius > 0)) return MARKUP_MIN_CAMERA_RANGE_M;
+  const verticalFov =
+    Math.max(0.2, Math.min(1, visibleHeightFraction)) * verticalFovRad;
+  const horizontalFov =
+    Math.max(0.2, Math.min(1, visibleWidthFraction)) *
+    2 *
+    Math.atan(
+      Math.tan(Math.max(0.01, verticalFovRad) / 2) *
+        Math.max(0.5, Number(aspectRatio) || 1),
+    );
+  const limitingFov = Math.max(0.01, Math.min(verticalFov, horizontalFov));
+  const desiredAngularRadius = (limitingFov * 0.6) / 2;
+  const range = (safeRadius / Math.sin(desiredAngularRadius)) * 1.08;
+  return Cesium.Math.clamp(
+    range,
+    MARKUP_MIN_CAMERA_RANGE_M,
+    MARKUP_MAX_CAMERA_RANGE_M,
+  );
+}
+
+function offsetTargetInLocalFrame(target, eastMeters, northMeters) {
+  if (!target || (!eastMeters && !northMeters)) return target;
+  const transform = Cesium.Transforms.eastNorthUpToFixedFrame(target);
+  return Cesium.Matrix4.multiplyByPoint(
+    transform,
+    new Cesium.Cartesian3(eastMeters, northMeters, 0),
+    new Cesium.Cartesian3(),
+  );
+}
+
+export function offsetMarkupCameraTargetForPadding(
+  target,
+  {
+    heading = 0,
+    range = MARKUP_SINGLE_MARKER_RANGE_M,
+    verticalFovRad = Cesium.Math.toRadians(60),
+    aspectRatio = 1,
+    padding = {},
+  } = {},
+) {
+  const width = Math.max(1, Number(padding.width) || 0);
+  const height = Math.max(1, Number(padding.height) || 0);
+  const horizontalFov =
+    2 *
+    Math.atan(
+      Math.tan(Math.max(0.01, verticalFovRad) / 2) *
+        Math.max(0.5, Number(aspectRatio) || 1),
+    );
+  const xBias =
+    ((Number(padding.left) || 0) - (Number(padding.right) || 0)) / width;
+  const yBias =
+    ((Number(padding.top) || 0) - (Number(padding.bottom) || 0)) / height;
+  if (!xBias && !yBias) return target;
+  const lateralMeters =
+    -xBias * Math.max(0, range) * Math.tan(horizontalFov / 2);
+  const forwardMeters =
+    yBias * Math.max(0, range) * Math.tan(verticalFovRad / 2);
+  const safeHeading = Number.isFinite(heading) ? heading : 0;
+  return offsetTargetInLocalFrame(
+    target,
+    Math.cos(safeHeading) * lateralMeters +
+      Math.sin(safeHeading) * forwardMeters,
+    -Math.sin(safeHeading) * lateralMeters +
+      Math.cos(safeHeading) * forwardMeters,
+  );
+}
+
+export function buildMarkupCameraFlight(
+  markup,
+  {
+    heading = 0,
+    verticalFovRad = Cesium.Math.toRadians(60),
+    aspectRatio = 1,
+    padding = {},
+  } = {},
+) {
+  const objects = visibleMarkupObjects(markup);
+  if (!objects.length) return null;
+  const width = Math.max(1, Number(padding.width) || 0);
+  const height = Math.max(1, Number(padding.height) || 0);
+  const visibleWidthFraction = Cesium.Math.clamp(
+    1 - ((Number(padding.left) || 0) + (Number(padding.right) || 0)) / width,
+    0.2,
+    1,
+  );
+  const visibleHeightFraction = Cesium.Math.clamp(
+    1 - ((Number(padding.top) || 0) + (Number(padding.bottom) || 0)) / height,
+    0.2,
+    1,
+  );
+  let sphere = null;
+  let mode = 'bounds';
+  if (objects.length === 1 && objects[0].type === 'marker') {
+    const position = cartesianFromCoordinate(objects[0].geometry?.position);
+    if (!position) return null;
+    sphere = new Cesium.BoundingSphere(position, MARKUP_SINGLE_MARKER_RADIUS_M);
+    mode = 'single-marker';
+  } else {
+    const positions = collectMarkupCameraPositions(markup);
+    if (!positions.length) return null;
+    sphere = Cesium.BoundingSphere.fromPoints(positions);
+    if (!sphere || !Number.isFinite(sphere.radius)) return null;
+  }
+  const range =
+    mode === 'single-marker'
+      ? Math.max(
+          MARKUP_SINGLE_MARKER_RANGE_M,
+          rangeForMarkupBoundingSphere(sphere.radius, {
+            verticalFovRad,
+            aspectRatio,
+            visibleWidthFraction,
+            visibleHeightFraction,
+          }),
+        )
+      : rangeForMarkupBoundingSphere(sphere.radius, {
+          verticalFovRad,
+          aspectRatio,
+          visibleWidthFraction,
+          visibleHeightFraction,
+        });
+  const target = offsetMarkupCameraTargetForPadding(sphere.center, {
+    heading,
+    range,
+    verticalFovRad,
+    aspectRatio,
+    padding,
+  });
+  return {
+    mode,
+    sphere,
+    target,
+    heading: Number.isFinite(heading) ? heading : 0,
+    pitch: Cesium.Math.toRadians(MARKUP_CAMERA_PITCH_DEG),
+    range,
+  };
+}
+
+export function createMarkupsLayerApi({
+  markups = [],
+  saveMarkup = async () => {},
+  renderMap = () => {},
+  renderSavedMarkups = () => {},
+  refreshLayerPanel = () => {},
+  showSavedFeedback = () => {},
+  focusMarkupLayer = () => false,
+  subscribeTarget = globalThis.document,
+} = {}) {
+  return {
+    list: () =>
+      markups.map((markup) => ({
+        id: markup.id,
+        name: markup.name,
+        visible: markup.visible !== false,
+      })),
+    setVisible: async (markupId, visible) => {
+      const markup = markups.find((entry) => entry.id === markupId);
+      if (!markup) return false;
+      const previousVisible = markup.visible;
+      const nextVisible = Boolean(visible);
+      const shouldFocus = previousVisible === false && nextVisible;
+      if (previousVisible !== nextVisible) {
+        markup.visible = nextVisible;
+        try {
+          await saveMarkup(markup);
+        } catch (error) {
+          markup.visible = previousVisible;
+          throw error;
+        }
+      }
+      renderMap();
+      renderSavedMarkups();
+      refreshLayerPanel();
+      showSavedFeedback();
+      if (shouldFocus) focusMarkupLayer(markup);
+      return true;
+    },
+    subscribe: (listener) => {
+      if (
+        typeof listener !== 'function' ||
+        !subscribeTarget?.addEventListener ||
+        !subscribeTarget?.removeEventListener
+      ) {
+        return () => {};
+      }
+      const handler = () => listener();
+      subscribeTarget.addEventListener('gev:markup-layer-change', handler);
+      return () =>
+        subscribeTarget.removeEventListener('gev:markup-layer-change', handler);
+    },
+  };
 }
 
 function flattenRouteSegments(segments = []) {
@@ -561,6 +834,181 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     } catch {
       /* ignored */
     }
+  }
+
+  function readViewportPadding() {
+    const canvasRect = viewer?.scene?.canvas?.getBoundingClientRect?.();
+    if (!canvasRect?.width || !canvasRect?.height) {
+      return {
+        top: MARKUP_CAMERA_PADDING_PX,
+        right: MARKUP_CAMERA_PADDING_PX,
+        bottom: MARKUP_CAMERA_PADDING_PX,
+        left: MARKUP_CAMERA_PADDING_PX,
+        width: 1,
+        height: 1,
+      };
+    }
+    const padding = {
+      top: MARKUP_CAMERA_PADDING_PX,
+      right: MARKUP_CAMERA_PADDING_PX,
+      bottom: MARKUP_CAMERA_PADDING_PX,
+      left: MARKUP_CAMERA_PADDING_PX,
+      width: canvasRect.width,
+      height: canvasRect.height,
+    };
+    const edgeEpsilonPx = 2;
+    for (const elementId of [
+      'title-bar',
+      'style-indicator',
+      'mobile-bottom-nav',
+      'data-panel',
+    ]) {
+      const element = document.getElementById(elementId);
+      if (
+        !element ||
+        element.hidden ||
+        element.classList?.contains('collapsed')
+      ) {
+        continue;
+      }
+      const computedStyle = globalThis.getComputedStyle?.(element);
+      if (
+        computedStyle?.display === 'none' ||
+        computedStyle?.visibility === 'hidden' ||
+        computedStyle?.visibility === 'collapse' ||
+        element.getAttribute?.('aria-hidden') === 'true' ||
+        Number(computedStyle?.opacity) === 0
+      ) {
+        continue;
+      }
+      const rect = element.getBoundingClientRect?.();
+      if (!rect?.width || !rect?.height) continue;
+      const left = Math.max(canvasRect.left, rect.left);
+      const right = Math.min(canvasRect.right, rect.right);
+      const top = Math.max(canvasRect.top, rect.top);
+      const bottom = Math.min(canvasRect.bottom, rect.bottom);
+      if (right <= left || bottom <= top) continue;
+      if (Math.abs(left - canvasRect.left) <= edgeEpsilonPx) {
+        padding.left = Math.max(
+          padding.left,
+          MARKUP_CAMERA_PADDING_PX + (right - left),
+        );
+      }
+      if (Math.abs(right - canvasRect.right) <= edgeEpsilonPx) {
+        padding.right = Math.max(
+          padding.right,
+          MARKUP_CAMERA_PADDING_PX + (right - left),
+        );
+      }
+      if (Math.abs(top - canvasRect.top) <= edgeEpsilonPx) {
+        padding.top = Math.max(
+          padding.top,
+          MARKUP_CAMERA_PADDING_PX + (bottom - top),
+        );
+      }
+      if (Math.abs(bottom - canvasRect.bottom) <= edgeEpsilonPx) {
+        padding.bottom = Math.max(
+          padding.bottom,
+          MARKUP_CAMERA_PADDING_PX + (bottom - top),
+        );
+      }
+    }
+    return padding;
+  }
+
+  function resolveLookAtFlight(target, offset) {
+    const camera = viewer?.camera;
+    const targetMagnitude = target
+      ? Cesium.Cartesian3.magnitude(target)
+      : Number.NaN;
+    if (
+      !camera ||
+      !target ||
+      !offset ||
+      !Number.isFinite(targetMagnitude) ||
+      targetMagnitude <= 0
+    ) {
+      return null;
+    }
+    const snapshot = {
+      destination: Cesium.Cartesian3.clone(camera.positionWC),
+      direction: Cesium.Cartesian3.clone(camera.directionWC),
+      up: Cesium.Cartesian3.clone(camera.upWC),
+    };
+    try {
+      camera.lookAt(target, offset);
+      const flight = {
+        destination: Cesium.Cartesian3.clone(camera.positionWC),
+        direction: Cesium.Cartesian3.clone(camera.directionWC),
+        up: Cesium.Cartesian3.clone(camera.upWC),
+      };
+      camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+      if (snapshot.destination && snapshot.direction && snapshot.up) {
+        camera.setView({
+          destination: snapshot.destination,
+          orientation: {
+            direction: snapshot.direction,
+            up: snapshot.up,
+          },
+        });
+      }
+      return flight.destination && flight.direction && flight.up
+        ? flight
+        : null;
+    } catch {
+      try {
+        camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+        if (snapshot.destination && snapshot.direction && snapshot.up) {
+          camera.setView({
+            destination: snapshot.destination,
+            orientation: {
+              direction: snapshot.direction,
+              up: snapshot.up,
+            },
+          });
+        }
+      } catch {
+        /* ignored */
+      }
+      return null;
+    }
+  }
+
+  function focusMarkupLayer(markup) {
+    const camera = viewer?.camera;
+    if (!camera || !markup) return false;
+    const aspectRatioCandidate = Number(camera.frustum?.aspectRatio);
+    const canvasWidth = Math.max(1, viewer?.scene?.canvas?.clientWidth || 1);
+    const canvasHeight = Math.max(1, viewer?.scene?.canvas?.clientHeight || 1);
+    const aspectRatio =
+      Number.isFinite(aspectRatioCandidate) && aspectRatioCandidate > 0
+        ? aspectRatioCandidate
+        : canvasWidth / canvasHeight;
+    const flight = buildMarkupCameraFlight(markup, {
+      heading: Number.isFinite(camera.heading) ? camera.heading : 0,
+      verticalFovRad: Number(camera.frustum?.fov) || Cesium.Math.toRadians(60),
+      aspectRatio,
+      padding: readViewportPadding(),
+    });
+    if (!flight) return false;
+    const offset = new Cesium.HeadingPitchRange(
+      flight.heading,
+      flight.pitch,
+      flight.range,
+    );
+    const pose = resolveLookAtFlight(flight.target, offset);
+    if (!pose) return false;
+    camera.cancelFlight?.();
+    camera.flyTo({
+      destination: pose.destination,
+      orientation: {
+        direction: pose.direction,
+        up: pose.up,
+      },
+      duration: MARKUP_CAMERA_DURATION_SEC,
+      easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+    });
+    return true;
   }
 
   function readSheet(name) {
@@ -1275,32 +1723,16 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
   }
 
   function syncLayersApi() {
-    window.__gevMarkupsLayerApi = {
-      list: () =>
-        markups.map((markup) => ({
-          id: markup.id,
-          name: markup.name,
-          visible: markup.visible !== false,
-        })),
-      setVisible: async (markupId, visible) => {
-        const markup = markups.find((entry) => entry.id === markupId);
-        if (!markup) return false;
-        markup.visible = Boolean(visible);
-        await saveMarkup(markup);
-        renderMap();
-        renderSavedMarkups();
-        refreshLayerPanel();
-        showSavedFeedback();
-        return true;
-      },
-      subscribe: (listener) => {
-        if (typeof listener !== 'function') return () => {};
-        const handler = () => listener();
-        document.addEventListener('gev:markup-layer-change', handler);
-        return () =>
-          document.removeEventListener('gev:markup-layer-change', handler);
-      },
-    };
+    window.__gevMarkupsLayerApi = createMarkupsLayerApi({
+      markups,
+      saveMarkup,
+      renderMap,
+      renderSavedMarkups,
+      refreshLayerPanel,
+      showSavedFeedback,
+      focusMarkupLayer,
+      subscribeTarget: document,
+    });
   }
 
   async function addObjectToMarkup(markupId, object, message = '✓ Saved') {
@@ -2047,7 +2479,10 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
     editHandler.setInputAction((event) => {
-      if (isMarkerPlacementActive() && consumeMarkerTapCandidate(event.position)) {
+      if (
+        isMarkerPlacementActive() &&
+        consumeMarkerTapCandidate(event.position)
+      ) {
         if (setMarkerPlacement(event.position)) return;
       }
       if (activeTool === 'route' && routeMode === 'freeDraw') {
@@ -2272,8 +2707,7 @@ export async function initMarkupPanel({ viewer, showToast = () => {} } = {}) {
     const existingObject = context.markupId
       ? findMarkupObject(context.markupId, context.objectId).object
       : null;
-    const geometry =
-      context.geometry ?? existingObject?.geometry;
+    const geometry = context.geometry ?? existingObject?.geometry;
     if (context.kind === 'marker' && !isValidCoordinate(geometry?.position)) {
       updateStatus('Tap the map to place the marker first.');
       return;
