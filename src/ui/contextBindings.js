@@ -49,11 +49,13 @@ export function _initGlobalContextPanel() {
         });
     });
   });
-  this.listen(this._globalContextCamerasBtn, 'click', () => {
-    if (this.destroyed) return;
-    this._claimContextVisualAuthority();
-    this.setContextSection('cameras');
-  });
+  if (this._globalContextCamerasBtn) {
+    this.listen(this._globalContextCamerasBtn, 'click', () => {
+      if (this.destroyed) return;
+      this._claimContextVisualAuthority();
+      this.revealCameras({ explicit: true });
+    });
+  }
   this.listen(this._installationsSearchBtn, 'click', () => {
     if (
       this.destroyed ||

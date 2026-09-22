@@ -37,10 +37,20 @@ export function _syncContextModeButtons() {
   }
   if (this._contextModeStandby)
     this._contextModeStandby.hidden = !contactsActive || flightsActive;
-  if (this._contextFlightsView)
+  if (this._contextFlightsView) {
     this._contextFlightsView.hidden = !contactsActive || !flightsActive;
-  if (this._contextCamerasView)
+    this._contextFlightsView.setAttribute(
+      'aria-hidden',
+      String(!contactsActive || !flightsActive),
+    );
+  }
+  if (this._contextCamerasView) {
     this._contextCamerasView.hidden = !camerasActive;
+    this._contextCamerasView.setAttribute(
+      'aria-hidden',
+      String(!camerasActive),
+    );
+  }
   this.cockpitView?.syncEntry();
   // Every _contextMode mutation funnels through here; the sync no-ops until
   // the transaction settles, so this is the activation/deactivation edge.

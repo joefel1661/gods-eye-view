@@ -81,6 +81,7 @@ test('Context transition state preserves focus and Tab availability until settle
   const contacts = makeButton();
   const cameras = makeButton();
   const panel = { classList: { toggle() {} }, setAttribute() {} };
+  const view = { hidden: false, setAttribute() {} };
   const priorDocument = globalThis.document;
   globalThis.document = { activeElement: cameras, getElementById: () => panel };
   const owner = {
@@ -92,8 +93,8 @@ test('Context transition state preserves focus and Tab availability until settle
     _globalContextFlightsBtn: contacts,
     _globalContextCamerasBtn: cameras,
     _contextModeStandby: {},
-    _contextFlightsView: {},
-    _contextCamerasView: {},
+    _contextFlightsView: view,
+    _contextCamerasView: view,
     cockpitView: { syncEntry() {} },
     _syncContactsDetection() {},
     _scheduleRightPanelLayout() {},
